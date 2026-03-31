@@ -1,0 +1,163 @@
+"""FastAPI 服务 — 基金助手 API + Web UI"""
+
+from __future__ import annotations
+
+import logging
+import shutil
+import tempfile
+from pathlib import Path
+
+from fastapi import FastAPI, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+from src.formatter import format_briefing_card, format_full_report, format_push_notification
+from src.graph import app as langgraph_app
+from src.tools.nlp_input import parse_natural_language
+from src.tools.portfolio_tools import load_portfolio, save_portfolio
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
+app = FastAPI(title="基金投资助手", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ---- Models ----
+
+class BriefingResponse(BaseModel):
+    notification: str
+    card: str
+    report: str
+    raw: dict
+
+
+class TextInput(BaseModel):
+    text: str
+
+
+class PortfolioResponse(BaseModel):
+    holdings: list[dict]
+    count: int
+
+
+class AddResult(BaseModel):
+    added: list[dict]
+    total: int
+
+
+# ---- API Routes ----
+
+@app.post("/api/briefing", response_model=BriefingResponse)
+async def generate_briefing():
+    """生成每日简报"""
+    result = langgraph_app.invoke({"trigger": "daily_briefing"})
+    briefing = result.get("briefing", {})
+    return BriefingResponse(
+        notification=format_push_notification(briefing),
+        card=format_briefing_card(briefing),
+        report=format_full_report(briefing),
+        raw=briefing,
+    )
+
+
+@app.get("/api/portfolio", response_model=PortfolioResponse)
+async def get_portfolio():
+    """获取当前持仓"""
+    holdings = load_portfolio()
+    return PortfolioResponse(holdings=holdings, count=len(holdings))
+
+
+@app.post("/api/portfolio/add-text", response_model=AddResult)
+async def add_from_text(input: TextInput):
+    """自然语言录入持仓"""
+    try:
+        new_holdings = parse_natural_language(input.text)
+        if not new_holdings:
+            return AddResult(added=[], total=0)
+
+        existing = load_portfolio()
+        existing_map = {f["fund_code"]: f for f in existing if f.get("fund_code")}
+        for h in new_holdings:
+            if h.get("fund_code"):
+                existing_map[h["fund_code"]] = h
+        merged = list(existing_map.values())
+        save_portfolio(merged)
+        return AddResult(added=new_holdings, total=len(merged))
+    except Exception as e:
+        logger.error("add-text 失败: %s", e)
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.post("/api/portfolio/add-screenshot", response_model=AddResult)
+async def add_from_screenshot(file: UploadFile = File(...)):
+    """截图识别录入持仓"""
+    try:
+        from src.tools.ocr_tools import process_screenshot
+
+        suffix = Path(file.filename or "img.jpg").suffix
+        contents = await file.read()
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp.write(contents)
+            tmp_path = tmp.name
+
+        new_holdings = process_screenshot(tmp_path)
+        Path(tmp_path).unlink(missing_ok=True)
+
+        if not new_holdings:
+            return AddResult(added=[], total=0)
+
+        existing = load_portfolio()
+        existing_map = {f["fund_code"]: f for f in existing if f.get("fund_code")}
+        for h in new_holdings:
+            if h.get("fund_code"):
+                existing_map[h["fund_code"]] = h
+        merged = list(existing_map.values())
+        save_portfolio(merged)
+        return AddResult(added=new_holdings, total=len(merged))
+    except Exception as e:
+        logger.error("add-screenshot 失败: %s", e, exc_info=True)
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.delete("/api/portfolio/{fund_code}")
+async def delete_holding(fund_code: str):
+    """删除一只持仓"""
+    existing = load_portfolio()
+    filtered = [f for f in existing if f.get("fund_code") != fund_code]
+    save_portfolio(filtered)
+    return {"deleted": fund_code, "remaining": len(filtered)}
+
+
+@app.get("/api/health")
+async def health():
+    return {"status": "ok"}
+
+
+# ---- 静态文件 & 前端 ----
+
+static_dir = Path(__file__).parent / "web"
+if static_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """SPA fallback: 所有非 API 路由返回 index.html"""
+        file_path = static_dir / full_path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(static_dir / "index.html")

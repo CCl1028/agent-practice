@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>基金管家 — 有事叫你，没事别操心</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0f1117;
+  --card: #1a1d29;
+  --card-hover: #222537;
+  --border: #2a2d3a;
+  --text: #e4e4e7;
+  --text-secondary: #9ca3af;
+  --accent: #6366f1;
+  --accent-light: #818cf8;
+  --green: #22c55e;
+  --green-bg: rgba(34,197,94,0.12);
+  --red: #ef4444;
+  --red-bg: rgba(239,68,68,0.12);
+  --yellow: #eab308;
+  --yellow-bg: rgba(234,179,8,0.12);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+
+.container { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+
+/* Header */
+.header {
+  padding: 24px 0 16px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.header h1 { font-size: 20px; font-weight: 600; }
+.header p { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+
+/* 简报卡片 */
+.briefing-card {
+  background: linear-gradient(135deg, #1e1b4b 0%, #1a1d29 100%);
+  border: 1px solid #312e81;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.briefing-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -30%;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(99,102,241,0.15), transparent);
+  border-radius: 50%;
+}
+.briefing-summary {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  position: relative;
+}
+.briefing-market {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  position: relative;
+}
+
+/* 持仓列表 */
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 20px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fund-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 10px;
+  transition: background 0.2s;
+}
+.fund-card:hover { background: var(--card-hover); }
+
+.fund-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.fund-name { font-size: 15px; font-weight: 600; }
+.fund-code { font-size: 12px; color: var(--text-secondary); }
+
+.fund-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.action-buy { background: var(--green-bg); color: var(--green); }
+.action-sell { background: var(--red-bg); color: var(--red); }
+.action-hold { background: var(--yellow-bg); color: var(--yellow); }
+
+.fund-reason {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.fund-delete {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.fund-card:hover .fund-delete { opacity: 1; }
+.fund-delete:hover { color: var(--red); background: var(--red-bg); }
+
+/* 录入区域 */
+.input-section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  margin-top: 20px;
+}
+.input-section h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.input-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tab-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.text-input {
+  width: 100%;
+  min-height: 80px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  color: var(--text);
+  font-size: 14px;
+  resize: vertical;
+  font-family: inherit;
+}
+.text-input::placeholder { color: #4b5563; }
+.text-input:focus { outline: none; border-color: var(--accent); }
+
+.file-upload {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.file-upload:hover { border-color: var(--accent); }
+.file-upload input { display: none; }
+.file-upload-icon { font-size: 32px; margin-bottom: 8px; }
+.file-upload-text { font-size: 13px; color: var(--text-secondary); }
+
+.submit-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: background 0.2s;
+}
+.submit-btn:hover { background: var(--accent-light); }
+.submit-btn:disabled {
+  background: #374151;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+/* 生成按钮 */
+.generate-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 16px;
+  transition: transform 0.1s, box-shadow 0.2s;
+  box-shadow: 0 4px 16px rgba(99,102,241,0.3);
+}
+.generate-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,102,241,0.4); }
+.generate-btn:active { transform: translateY(0); }
+.generate-btn:disabled {
+  background: #374151;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Loading */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Toast */
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-size: 14px;
+  z-index: 1000;
+  transition: transform 0.3s ease;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { border-color: var(--green); }
+.toast.error { border-color: var(--red); }
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+}
+.empty-state-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state-text { font-size: 14px; line-height: 1.6; }
+
+/* 响应式 */
+@media (min-width: 768px) {
+  .container { max-width: 520px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <h1>📊 基金管家</h1>
+    <p>有事叫你，没事别操心</p>
+  </div>
+
+  <!-- 简报区域 -->
+  <div id="briefing-area">
+    <div class="empty-state" id="empty-briefing">
+      <div class="empty-state-icon">🎯</div>
+      <div class="empty-state-text">点击下方按钮<br>生成今日操作建议</div>
+    </div>
+  </div>
+
+  <!-- 生成简报按钮 -->
+  <button class="generate-btn" id="generate-btn" onclick="generateBriefing()">
+    ⚡ 生成今日简报
+  </button>
+
+  <!-- 持仓列表 -->
+  <div class="section-title" id="portfolio-title" style="display:none">
+    📂 我的持仓
+  </div>
+  <div id="portfolio-list"></div>
+
+  <!-- 录入区域 -->
+  <div class="input-section">
+    <h3>➕ 添加持仓</h3>
+    <div class="input-tabs">
+      <button class="tab-btn active" onclick="switchTab('text', this)">💬 说一句话</button>
+      <button class="tab-btn" onclick="switchTab('screenshot', this)">📸 截图识别</button>
+    </div>
+
+    <!-- 文字输入 -->
+    <div id="tab-text">
+      <textarea class="text-input" id="text-input"
+        placeholder="例如：我买了2万的易方达蓝筹，去年6月买的，目前亏了5个点"></textarea>
+      <button class="submit-btn" id="text-submit" onclick="addFromText()">识别并添加</button>
+    </div>
+
+    <!-- 截图上传 -->
+    <div id="tab-screenshot" style="display:none">
+      <div class="file-upload" onclick="document.getElementById('file-input').click()">
+        <div class="file-upload-icon">📷</div>
+        <div class="file-upload-text" id="file-label">点击上传基金持仓截图</div>
+        <input type="file" id="file-input" accept="image/*" onchange="onFileSelected(this)">
+      </div>
+      <button class="submit-btn" id="screenshot-submit" onclick="addFromScreenshot()" disabled>识别并添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';  // 同源，无需前缀
+
+// ---- 简报 ----
+async function generateBriefing() {
+  const btn = document.getElementById('generate-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 分析中...（约10秒）';
+
+  const area = document.getElementById('briefing-area');
+  area.innerHTML = '<div class="loading"><div class="spinner"></div>Agent 正在分析...</div>';
+
+  try {
+    const res = await fetch(API + '/api/briefing', { method: 'POST' });
+    if (!res.ok) throw new Error('服务器返回 ' + res.status);
+    const data = await res.json();
+    renderBriefing(data.raw);
+    showToast('简报已生成 ✅', 'success');
+  } catch (e) {
+    area.innerHTML = '<div class="empty-state"><div class="empty-state-icon">😵</div><div class="empty-state-text">生成失败，请重试</div></div>';
+    showToast('生成失败: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚡ 生成今日简报';
+  }
+
+  loadPortfolio();
+}
+
+function renderBriefing(briefing) {
+  const area = document.getElementById('briefing-area');
+  const details = briefing.details || [];
+
+  let fundsHtml = details.map(d => {
+    const cls = d.action === '加仓' ? 'action-buy' : d.action === '减仓' ? 'action-sell' : 'action-hold';
+    const emoji = d.action === '加仓' ? '🟢' : d.action === '减仓' ? '🔴' : '⏸️';
+    return `
+      <div class="fund-card">
+        <div class="fund-header">
+          <div>
+            <div class="fund-name">${d.fund_name}</div>
+          </div>
+          <div class="fund-action ${cls}">${emoji} ${d.action}</div>
+        </div>
+        <div class="fund-reason">${d.reason || ''}</div>
+      </div>
+    `;
+  }).join('');
+
+  area.innerHTML = `
+    <div class="briefing-card">
+      <div class="briefing-summary">💡 ${briefing.summary || '暂无建议'}</div>
+      <div class="briefing-market">${briefing.market_note || ''}</div>
+    </div>
+    ${fundsHtml}
+  `;
+}
+
+// ---- 持仓 ----
+async function loadPortfolio() {
+  try {
+    const res = await fetch(API + '/api/portfolio');
+    const data = await res.json();
+    renderPortfolio(data.holdings);
+  } catch (e) { /* silent */ }
+}
+
+function renderPortfolio(holdings) {
+  const list = document.getElementById('portfolio-list');
+  const title = document.getElementById('portfolio-title');
+
+  if (!holdings || holdings.length === 0) {
+    title.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  title.style.display = 'flex';
+  list.innerHTML = holdings.map(h => `
+    <div class="fund-card">
+      <div class="fund-header">
+        <div>
+          <span class="fund-name">${h.fund_name || '未知'}</span>
+          <span class="fund-code">${h.fund_code || ''}</span>
+        </div>
+        <button class="fund-delete" onclick="deleteHolding('${h.fund_code}')">删除</button>
+      </div>
+      <div class="fund-reason">
+        成本: ¥${(h.cost || 0).toLocaleString()}
+        ${h.profit_ratio ? ' · 收益: ' + (h.profit_ratio > 0 ? '+' : '') + h.profit_ratio + '%' : ''}
+        ${h.hold_days ? ' · 持有' + h.hold_days + '天' : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function deleteHolding(code) {
+  try {
+    await fetch(API + '/api/portfolio/' + code, { method: 'DELETE' });
+    showToast('已删除', 'success');
+    loadPortfolio();
+  } catch (e) {
+    showToast('删除失败', 'error');
+  }
+}
+
+// ---- 录入 ----
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-text').style.display = tab === 'text' ? 'block' : 'none';
+  document.getElementById('tab-screenshot').style.display = tab === 'screenshot' ? 'block' : 'none';
+}
+
+async function addFromText() {
+  const input = document.getElementById('text-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const btn = document.getElementById('text-submit');
+  btn.disabled = true;
+  btn.textContent = '识别中...';
+
+  try {
+    const res = await fetch(API + '/api/portfolio/add-text', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(errText || '服务器返回 ' + res.status);
+    }
+    const data = await res.json();
+    if (data.added && data.added.length > 0) {
+      showToast(`成功添加 ${data.added.length} 只基金 ✅`, 'success');
+      input.value = '';
+      loadPortfolio();
+    } else {
+      showToast('未识别到基金信息，换个描述试试', 'error');
+    }
+  } catch (e) {
+    showToast('识别失败: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '识别并添加';
+  }
+}
+
+function onFileSelected(input) {
+  const file = input.files[0];
+  if (file) {
+    document.getElementById('file-label').textContent = file.name;
+    document.getElementById('screenshot-submit').disabled = false;
+  }
+}
+
+async function addFromScreenshot() {
+  const fileInput = document.getElementById('file-input');
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const btn = document.getElementById('screenshot-submit');
+  btn.disabled = true;
+  btn.textContent = '识别中...';
+
+  try {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(API + '/api/portfolio/add-screenshot', {
+      method: 'POST',
+      body: form,
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(errText || '服务器返回 ' + res.status);
+    }
+    const data = await res.json();
+    if (data.added && data.added.length > 0) {
+      showToast(`成功添加 ${data.added.length} 只基金 ✅`, 'success');
+      fileInput.value = '';
+      document.getElementById('file-label').textContent = '点击上传基金持仓截图';
+      loadPortfolio();
+    } else {
+      showToast('未识别到基金信息，换张截图试试', 'error');
+    }
+  } catch (e) {
+    showToast('识别失败: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '识别并添加';
+  }
+}
+
+// ---- Toast ----
+function showToast(msg, type) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast ' + (type || '');
+  setTimeout(() => toast.classList.add('show'), 10);
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ---- Init ----
+loadPortfolio();
+</script>
+</body>
+</html>

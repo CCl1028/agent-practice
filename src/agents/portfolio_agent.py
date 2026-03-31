@@ -1,0 +1,54 @@
+"""Portfolio Agent — 持仓管家
+
+职责：管理用户持仓数据，计算最新盈亏状态。
+支持：截图识别录入、自然语言录入、已有持仓加载。
+"""
+
+from __future__ import annotations
+
+import logging
+
+from src.state import AgentState
+from src.tools.portfolio_tools import compute_metrics, load_portfolio, save_portfolio
+
+logger = logging.getLogger(__name__)
+
+
+def portfolio_node(state: AgentState) -> dict:
+    """LangGraph 节点：加载持仓并刷新指标。"""
+    logger.info("[Portfolio Agent] 开始加载持仓数据...")
+
+    try:
+        # 如果 state 中已有新录入的持仓（从截图/自然语言解析来的），合并保存
+        new_holdings = state.get("portfolio", [])
+        if new_holdings:
+            logger.info("[Portfolio Agent] 检测到新录入的 %d 只基金，合并保存", len(new_holdings))
+            existing = load_portfolio()
+            # 按基金代码去重合并（新的覆盖旧的）
+            existing_map = {f["fund_code"]: f for f in existing if f.get("fund_code")}
+            for h in new_holdings:
+                if h.get("fund_code"):
+                    existing_map[h["fund_code"]] = h
+                else:
+                    existing.append(h)
+            merged = list(existing_map.values())
+            save_portfolio(merged)
+            portfolio = merged
+        else:
+            portfolio = load_portfolio()
+
+        portfolio = compute_metrics(portfolio)
+
+        logger.info("[Portfolio Agent] 完成，共 %d 只基金", len(portfolio))
+        for f in portfolio:
+            logger.info(
+                "  %s (%s): 成本 %.2f → 现价 %.2f, 盈亏 %.2f%%",
+                f["fund_name"], f["fund_code"],
+                f["cost_nav"], f["current_nav"], f["profit_ratio"],
+            )
+
+        return {"portfolio": portfolio}
+
+    except Exception as e:
+        logger.error("[Portfolio Agent] 失败: %s", e)
+        return {"error": f"Portfolio Agent 出错: {e}"}

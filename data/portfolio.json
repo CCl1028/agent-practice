@@ -1,0 +1,42 @@
+[
+  {
+    "fund_code": "005827",
+    "fund_name": "易方达蓝筹精选混合",
+    "cost": 20000,
+    "cost_nav": 0,
+    "profit_ratio": 0,
+    "hold_days": 0,
+    "current_nav": 0,
+    "trend_5d": []
+  },
+  {
+    "fund_code": "013334",
+    "fund_name": "南方恒生科技ETF联接(QDII)A",
+    "cost": 0,
+    "cost_nav": 0,
+    "profit_ratio": -6,
+    "hold_days": 89,
+    "current_nav": 0,
+    "trend_5d": []
+  },
+  {
+    "fund_code": "320007",
+    "fund_name": "诺安成长混合",
+    "cost": 10000,
+    "cost_nav": 0,
+    "profit_ratio": 0,
+    "hold_days": 0,
+    "current_nav": 0,
+    "trend_5d": []
+  },
+  {
+    "fund_code": "019671",
+    "fund_name": "广发港股创新药ETF联接(QDII)C",
+    "cost": 461.17,
+    "cost_nav": 0,
+    "current_nav": 0,
+    "profit_ratio": 1.71,
+    "hold_days": 0,
+    "trend_5d": []
+  }
+]
