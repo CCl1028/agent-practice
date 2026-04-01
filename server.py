@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import tempfile
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -189,6 +191,92 @@ async def generate_and_push():
         "raw": briefing,
         "push_results": push_results,
     }
+
+
+# ---- 配置管理 ----
+
+ENV_PATH = Path(__file__).parent / ".env"
+
+# 允许通过网页配置的 key（白名单，防止注入危险配置）
+ALLOWED_KEYS = {
+    "OPENAI_API_KEY", "OPENAI_BASE_URL",
+    "BARK_URL", "SERVERCHAN_KEY", "WECOM_WEBHOOK_URL",
+}
+
+# 需要脱敏显示的 key
+SENSITIVE_KEYS = {"OPENAI_API_KEY", "SERVERCHAN_KEY"}
+
+
+def _read_env() -> dict[str, str]:
+    """读取 .env 文件为 dict。"""
+    env = {}
+    if ENV_PATH.exists():
+        for line in ENV_PATH.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                k, v = line.split("=", 1)
+                k = k.strip()
+                if k in ALLOWED_KEYS:
+                    env[k] = v.strip()
+    return env
+
+
+def _write_env(env: dict[str, str]) -> None:
+    """将 dict 写回 .env 文件。"""
+    lines = []
+    for k, v in env.items():
+        if k in ALLOWED_KEYS and v:
+            lines.append(f"{k}={v}")
+    ENV_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _mask(value: str) -> str:
+    """脱敏：只显示前4位和后4位。"""
+    if len(value) <= 10:
+        return "*" * len(value)
+    return value[:4] + "*" * (len(value) - 8) + value[-4:]
+
+
+class ConfigUpdate(BaseModel):
+    key: str
+    value: str
+
+
+@app.get("/api/config")
+async def get_config():
+    """获取当前配置（敏感字段脱敏）"""
+    env = _read_env()
+    result = {}
+    for k in ALLOWED_KEYS:
+        v = env.get(k, "")
+        result[k] = {
+            "value": _mask(v) if (v and k in SENSITIVE_KEYS) else v,
+            "has_value": bool(v),
+            "sensitive": k in SENSITIVE_KEYS,
+        }
+    return result
+
+
+@app.post("/api/config")
+async def update_config(item: ConfigUpdate):
+    """更新单个配置项"""
+    if item.key not in ALLOWED_KEYS:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=400, content={"error": f"不允许修改 {item.key}"})
+
+    env = _read_env()
+    if item.value:
+        env[item.key] = item.value
+    else:
+        env.pop(item.key, None)
+    _write_env(env)
+
+    # 让配置立即生效
+    load_dotenv(str(ENV_PATH), override=True)
+
+    return {"ok": True, "key": item.key}
 
 
 # ---- 静态文件 & 前端 ----

@@ -9,33 +9,36 @@
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime
 
 import httpx
-
-from src.config import BARK_URL, SERVERCHAN_KEY, WECOM_WEBHOOK_URL
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
+
+
+def _get_config():
+    """每次调用时重新读取 .env，确保配置实时生效。"""
+    load_dotenv(override=True)
+    return {
+        "bark_url": os.getenv("BARK_URL", ""),
+        "serverchan_key": os.getenv("SERVERCHAN_KEY", ""),
+        "wecom_webhook_url": os.getenv("WECOM_WEBHOOK_URL", ""),
+    }
 
 
 # ---- Bark ----
 
 def push_to_bark(title: str, body: str, group: str = "基金管家") -> bool:
-    """通过 Bark 推送消息到 iPhone。
-
-    使用方式：
-    1. App Store 下载 Bark
-    2. 打开 App，复制推送 URL（形如 https://api.day.app/xxxxxx）
-    3. 填入 .env 的 BARK_URL
-    """
-    if not BARK_URL:
+    """通过 Bark 推送消息到 iPhone。"""
+    cfg = _get_config()
+    bark_url = cfg["bark_url"]
+    if not bark_url:
         logger.warning("[推送] 未配置 BARK_URL，跳过 Bark 推送")
         return False
 
-    # Bark URL 格式：https://api.day.app/key
-    # 去掉末尾斜杠
-    base_url = BARK_URL.rstrip("/")
-
+    base_url = bark_url.rstrip("/")
     payload = {
         "title": title,
         "body": body,
@@ -62,11 +65,13 @@ def push_to_bark(title: str, body: str, group: str = "基金管家") -> bool:
 
 def push_to_serverchan(title: str, content: str = "") -> bool:
     """通过 Server酱 推送消息到微信。"""
-    if not SERVERCHAN_KEY:
+    cfg = _get_config()
+    key = cfg["serverchan_key"]
+    if not key:
         logger.warning("[推送] 未配置 SERVERCHAN_KEY，跳过 Server酱 推送")
         return False
 
-    url = f"https://sctapi.ftqq.com/{SERVERCHAN_KEY}.send"
+    url = f"https://sctapi.ftqq.com/{key}.send"
     try:
         resp = httpx.post(url, data={"title": title, "desp": content}, timeout=10)
         data = resp.json()
@@ -85,7 +90,9 @@ def push_to_serverchan(title: str, content: str = "") -> bool:
 
 def push_to_wecom(content: str) -> bool:
     """通过企业微信 Webhook 推送消息到群。"""
-    if not WECOM_WEBHOOK_URL:
+    cfg = _get_config()
+    webhook_url = cfg["wecom_webhook_url"]
+    if not webhook_url:
         logger.warning("[推送] 未配置 WECOM_WEBHOOK_URL，跳过企业微信推送")
         return False
 
@@ -94,7 +101,7 @@ def push_to_wecom(content: str) -> bool:
         "markdown": {"content": content},
     }
     try:
-        resp = httpx.post(WECOM_WEBHOOK_URL, json=payload, timeout=10)
+        resp = httpx.post(webhook_url, json=payload, timeout=10)
         data = resp.json()
         if data.get("errcode") == 0:
             logger.info("[推送] 企业微信推送成功")
@@ -110,11 +117,7 @@ def push_to_wecom(content: str) -> bool:
 # ---- 格式化 ----
 
 def format_briefing_for_push(briefing: dict) -> tuple[str, str]:
-    """将简报数据格式化为推送内容。
-
-    Returns:
-        (title, markdown_content)
-    """
+    """将简报数据格式化为推送内容。"""
     summary = briefing.get("summary", "暂无建议")
     details = briefing.get("details", [])
     market_note = briefing.get("market_note", "")
@@ -161,7 +164,6 @@ def format_briefing_for_bark(briefing: dict) -> tuple[str, str]:
 
     title = f"{today} {summary} {emoji}"
 
-    # Bark body 要简洁，通知栏能直接看完
     body_parts = []
     for d in details:
         action = d.get("action", "观望")
@@ -203,30 +205,26 @@ def format_briefing_for_wecom(briefing: dict) -> str:
 # ---- 统一推送 ----
 
 def push_briefing(briefing: dict) -> dict:
-    """推送简报到所有已配置的渠道。
-
-    Returns:
-        {"bark": True/False/None, "serverchan": True/False/None, "wecom": True/False/None}
-        None 表示未配置该渠道
-    """
+    """推送简报到所有已配置的渠道。"""
+    cfg = _get_config()
     title, content = format_briefing_for_push(briefing)
     results = {}
 
     # Bark
-    if BARK_URL:
+    if cfg["bark_url"]:
         bark_title, bark_body = format_briefing_for_bark(briefing)
         results["bark"] = push_to_bark(bark_title, bark_body)
     else:
         results["bark"] = None
 
     # Server酱
-    if SERVERCHAN_KEY:
+    if cfg["serverchan_key"]:
         results["serverchan"] = push_to_serverchan(title, content)
     else:
         results["serverchan"] = None
 
     # 企业微信
-    if WECOM_WEBHOOK_URL:
+    if cfg["wecom_webhook_url"]:
         wecom_content = format_briefing_for_wecom(briefing)
         results["wecom"] = push_to_wecom(wecom_content)
     else:
@@ -236,20 +234,21 @@ def push_briefing(briefing: dict) -> dict:
 
 
 def get_push_status() -> dict:
-    """获取推送渠道配置状态。"""
+    """获取推送渠道配置状态（实时读取 .env）。"""
+    cfg = _get_config()
     return {
         "bark": {
-            "configured": bool(BARK_URL),
+            "configured": bool(cfg["bark_url"]),
             "name": "Bark（iPhone 推送）",
             "help": "App Store 下载 Bark，打开复制推送 URL",
         },
         "serverchan": {
-            "configured": bool(SERVERCHAN_KEY),
+            "configured": bool(cfg["serverchan_key"]),
             "name": "Server酱（微信推送）",
             "help": "访问 https://sct.ftqq.com 获取 SendKey",
         },
         "wecom": {
-            "configured": bool(WECOM_WEBHOOK_URL),
+            "configured": bool(cfg["wecom_webhook_url"]),
             "name": "企业微信 Webhook",
             "help": "在企业微信群中添加群机器人获取 Webhook URL",
         },

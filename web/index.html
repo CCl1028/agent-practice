@@ -3,9 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>基金管家 — 有事叫你，没事别操心</title>
+<title>基金小助理</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { overflow-x: hidden; width: 100%; }
 
 :root {
   --bg: #0f1117;
@@ -32,17 +34,37 @@ body {
   padding-bottom: 80px;
 }
 
-.container { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+.container { max-width: 480px; margin: 0 auto; padding: 0 16px; overflow: hidden; }
 
 /* Header */
 .header {
   padding: 24px 0 16px;
-  text-align: center;
   border-bottom: 1px solid var(--border);
   margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 }
+.header-center { text-align: center; }
 .header h1 { font-size: 20px; font-weight: 600; }
 .header p { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+.settings-trigger {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: all 0.2s;
+  line-height: 1;
+}
+.settings-trigger:hover { color: var(--text); background: var(--card); }
 
 /* 简报卡片 */
 .briefing-card {
@@ -69,12 +91,14 @@ body {
   font-weight: 700;
   margin-bottom: 16px;
   position: relative;
+  word-break: break-word;
 }
 .briefing-market {
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.6;
   position: relative;
+  word-break: break-word;
 }
 
 /* 持仓列表 */
@@ -103,8 +127,9 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
+  gap: 10px;
 }
-.fund-name { font-size: 15px; font-weight: 600; }
+.fund-name { font-size: 15px; font-weight: 600; word-break: break-word; min-width: 0; }
 .fund-code { font-size: 12px; color: var(--text-secondary); }
 
 .fund-action {
@@ -115,6 +140,8 @@ body {
   border-radius: 20px;
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .action-buy { background: var(--green-bg); color: var(--green); }
 .action-sell { background: var(--red-bg); color: var(--red); }
@@ -124,6 +151,7 @@ body {
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.5;
+  word-break: break-word;
 }
 
 .fund-delete {
@@ -225,6 +253,7 @@ body {
 }
 
 /* 生成按钮 */
+.generate-area { margin-top: 16px; }
 .generate-btn {
   width: 100%;
   padding: 14px;
@@ -235,7 +264,6 @@ body {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  margin-top: 16px;
   transition: transform 0.1s, box-shadow 0.2s;
   box-shadow: 0 4px 16px rgba(99,102,241,0.3);
 }
@@ -247,6 +275,46 @@ body {
   cursor: not-allowed;
   transform: none;
 }
+.push-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.push-toggle label {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.toggle-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+  outline: none;
+}
+.toggle-switch:checked { background: var(--accent); }
+.toggle-switch::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.toggle-switch:checked::before { transform: translateX(16px); }
 
 /* Loading */
 .loading {
@@ -296,54 +364,170 @@ body {
 .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
 .empty-state-text { font-size: 14px; line-height: 1.6; }
 
-/* 推送设置 */
-.push-section {
+/* 设置抽屉 */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 900;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.drawer-overlay.open { opacity: 1; pointer-events: auto; }
+
+.drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 85vh;
   background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 16px;
-  margin-top: 20px;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  z-index: 901;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
-.push-section h3 {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 12px;
+.drawer.open { transform: translateY(0); }
+
+.drawer-handle {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 4px;
+  cursor: grab;
+  flex-shrink: 0;
 }
-.push-channel {
+.drawer-handle-bar {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.drawer-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  padding: 4px 20px 12px;
+  flex-shrink: 0;
 }
-.push-channel:last-child { border-bottom: none; }
-.push-channel-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.drawer-header h3 { font-size: 16px; font-weight: 600; }
+.drawer-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  line-height: 1;
 }
-.push-channel-name { font-size: 14px; }
-.push-channel-help { font-size: 12px; color: var(--text-secondary); }
-.push-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
-  border-radius: 20px;
+.drawer-close:hover { color: var(--text); background: var(--bg); }
+
+.drawer-body {
+  overflow-y: auto;
+  padding: 0 20px 24px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.settings-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+}
+.config-group {
+  margin-bottom: 16px;
+}
+.config-group:last-child { margin-bottom: 0; }
+.config-group-title {
   font-size: 12px;
   font-weight: 600;
+  color: var(--accent-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
 }
-.push-status.configured { background: var(--green-bg); color: var(--green); }
-.push-status.not-configured { background: rgba(107,114,128,0.15); color: #6b7280; }
+.config-item {
+  margin-bottom: 10px;
+}
+.config-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.config-label-text {
+  font-size: 13px;
+  color: var(--text);
+}
+.config-label-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.config-status {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+.config-status.on { background: var(--green-bg); color: var(--green); }
+.config-status.off { background: rgba(107,114,128,0.15); color: #6b7280; }
+.config-input-row {
+  display: flex;
+  gap: 6px;
+}
+.config-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: "SF Mono", "Menlo", monospace;
+}
+.config-input::placeholder { color: #4b5563; }
+.config-input:focus { outline: none; border-color: var(--accent); }
+.config-save-btn {
+  padding: 8px 12px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.config-save-btn:hover { background: var(--accent-light); }
+.config-save-btn:disabled { background: #374151; color: #6b7280; cursor: not-allowed; }
+.config-clear-btn {
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.config-clear-btn:hover { border-color: var(--red); color: var(--red); }
 .push-test-btn {
   background: transparent;
   border: 1px solid var(--accent);
   color: var(--accent);
-  padding: 6px 14px;
+  padding: 8px 14px;
   border-radius: 8px;
   font-size: 13px;
   cursor: pointer;
-  margin-top: 12px;
+  margin-top: 14px;
   transition: all 0.2s;
 }
 .push-test-btn:hover { background: var(--accent); color: white; }
@@ -352,6 +536,11 @@ body {
   margin-top: 8px;
   font-size: 13px;
   color: var(--text-secondary);
+}
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 14px 0;
 }
 
 /* 响应式 */
@@ -364,8 +553,11 @@ body {
 <div class="container">
   <!-- Header -->
   <div class="header">
-    <h1>📊 基金管家</h1>
-    <p>有事叫你，没事别操心</p>
+    <div class="header-center">
+      <h1>📊 基金小助理</h1>
+      <p>祝您发大财～～～</p>
+    </div>
+    <button class="settings-trigger" onclick="openDrawer()" title="设置">⚙️</button>
   </div>
 
   <!-- 简报区域 -->
@@ -377,13 +569,16 @@ body {
   </div>
 
   <!-- 生成简报按钮 -->
-  <div style="display:flex; gap:8px; margin-top:16px;">
-    <button class="generate-btn" id="generate-btn" onclick="generateBriefing(false)" style="margin-top:0; flex:1;">
+  <div class="generate-area">
+    <button class="generate-btn" id="generate-btn" onclick="generateBriefing()">
       ⚡ 生成今日简报
     </button>
-    <button class="generate-btn" id="push-btn" onclick="generateBriefing(true)" style="margin-top:0; flex:0 0 auto; font-size:14px; padding:14px 16px;">
-      📤 生成并推送
-    </button>
+    <div class="push-toggle">
+      <label>
+        <input type="checkbox" class="toggle-switch" id="push-switch" checked>
+        <span>同时推送到手机</span>
+      </label>
+    </div>
   </div>
 
   <!-- 持仓列表 -->
@@ -417,13 +612,24 @@ body {
       <button class="submit-btn" id="screenshot-submit" onclick="addFromScreenshot()" disabled>识别并添加</button>
     </div>
   </div>
+</div>
 
-  <!-- 推送设置 -->
-  <div class="push-section">
-    <h3>📤 推送设置</h3>
-    <div id="push-channels">
-      <div class="loading"><div class="spinner"></div>加载中...</div>
+<!-- 设置抽屉 -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-handle"><div class="drawer-handle-bar"></div></div>
+  <div class="drawer-header">
+    <h3>⚙️ 设置</h3>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="settings-desc">配置推送渠道和 AI 模型，修改后立即生效</div>
+
+    <div id="config-panel">
+      <div class="loading"><div class="spinner"></div>加载配置...</div>
     </div>
+
+    <hr class="divider">
     <button class="push-test-btn" id="push-test-btn" onclick="testPush()">🧪 发送测试推送</button>
     <div class="push-result" id="push-result"></div>
   </div>
@@ -436,12 +642,11 @@ body {
 const API = '';  // 同源，无需前缀
 
 // ---- 简报 ----
-async function generateBriefing(withPush = false) {
+async function generateBriefing() {
+  const withPush = document.getElementById('push-switch').checked;
   const btn = document.getElementById('generate-btn');
-  const pushBtn = document.getElementById('push-btn');
   btn.disabled = true;
-  pushBtn.disabled = true;
-  btn.textContent = '⏳ 分析中...（约10秒）';
+  btn.textContent = withPush ? '⏳ 生成并推送中...' : '⏳ 分析中...（约10秒）';
 
   const area = document.getElementById('briefing-area');
   area.innerHTML = '<div class="loading"><div class="spinner"></div>Agent 正在分析...</div>';
@@ -465,7 +670,6 @@ async function generateBriefing(withPush = false) {
     showToast('生成失败: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
-    pushBtn.disabled = false;
     btn.textContent = '⚡ 生成今日简报';
   }
 
@@ -474,6 +678,8 @@ async function generateBriefing(withPush = false) {
 
 function formatPushResults(results) {
   const parts = [];
+  if (results.bark === true) parts.push('Bark✅');
+  else if (results.bark === false) parts.push('Bark❌');
   if (results.serverchan === true) parts.push('微信✅');
   else if (results.serverchan === false) parts.push('微信❌');
   if (results.wecom === true) parts.push('企微✅');
@@ -646,45 +852,138 @@ async function addFromScreenshot() {
   }
 }
 
-// ---- 推送 ----
-async function loadPushStatus() {
-  const container = document.getElementById('push-channels');
+// ---- 设置抽屉 ----
+function preventScroll(e) { e.preventDefault(); }
+function openDrawer() {
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  document.body.style.position = 'fixed';
+  document.body.style.width = '100%';
+  document.body.style.top = '-' + window.scrollY + 'px';
+  document.getElementById('drawer-overlay').addEventListener('touchmove', preventScroll, { passive: false });
+  loadConfig();
+}
+function closeDrawer() {
+  const scrollY = document.body.style.top;
+  document.getElementById('drawer-overlay').classList.remove('open');
+  document.getElementById('drawer').classList.remove('open');
+  document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.width = '';
+  document.body.style.top = '';
+  window.scrollTo(0, parseInt(scrollY || '0') * -1);
+  document.getElementById('drawer-overlay').removeEventListener('touchmove', preventScroll);
+}
+
+// ---- 配置面板 ----
+const CONFIG_FIELDS = [
+  { group: '📤 推送渠道', items: [
+    { key: 'BARK_URL', label: 'Bark', placeholder: 'https://api.day.app/你的key', hint: 'iPhone 通知推送' },
+    { key: 'SERVERCHAN_KEY', label: 'Server酱', placeholder: 'SCTxxx', hint: '微信推送' },
+    { key: 'WECOM_WEBHOOK_URL', label: '企业微信', placeholder: 'https://qyapi.weixin.qq.com/...', hint: '企微群推送' },
+  ]},
+  { group: '🤖 AI 模型', items: [
+    { key: 'OPENAI_API_KEY', label: 'API Key', placeholder: 'sk-xxx', hint: '不填则用规则引擎' },
+    { key: 'OPENAI_BASE_URL', label: '接口地址', placeholder: 'https://api.deepseek.com', hint: '默认 DeepSeek' },
+  ]},
+];
+
+async function loadConfig() {
+  const panel = document.getElementById('config-panel');
   try {
-    const res = await fetch(API + '/api/push/status');
+    const res = await fetch(API + '/api/config');
     const data = await res.json();
-    renderPushStatus(data);
+    renderConfig(data);
   } catch (e) {
-    container.innerHTML = '<div style="font-size:13px;color:var(--text-secondary)">无法获取推送状态</div>';
+    panel.innerHTML = '<div style="font-size:13px;color:var(--text-secondary)">无法加载配置</div>';
   }
 }
 
-function renderPushStatus(channels) {
-  const container = document.getElementById('push-channels');
-  const html = Object.entries(channels).map(([key, ch]) => {
-    const statusClass = ch.configured ? 'configured' : 'not-configured';
-    const statusText = ch.configured ? '已配置' : '未配置';
-    const statusDot = ch.configured ? '🟢' : '⚪';
-    return `
-      <div class="push-channel">
-        <div class="push-channel-info">
-          <div>
-            <div class="push-channel-name">${ch.name}</div>
-            ${!ch.configured ? `<div class="push-channel-help">${ch.help}</div>` : ''}
+function renderConfig(data) {
+  const panel = document.getElementById('config-panel');
+  const html = CONFIG_FIELDS.map(group => {
+    const items = group.items.map(f => {
+      const info = data[f.key] || {};
+      const statusCls = info.has_value ? 'on' : 'off';
+      const statusText = info.has_value ? '已配置' : '未配置';
+      const displayVal = info.sensitive && info.has_value ? info.value : (info.has_value ? info.value : '');
+      return `
+        <div class="config-item">
+          <div class="config-label">
+            <span class="config-label-text">${f.label} <span class="config-label-hint">${f.hint}</span></span>
+            <span class="config-status ${statusCls}">${statusText}</span>
+          </div>
+          <div class="config-input-row">
+            <input class="config-input" id="cfg-${f.key}"
+              type="${info.sensitive ? 'password' : 'text'}"
+              placeholder="${f.placeholder}"
+              value="${displayVal}"
+              onfocus="onConfigFocus(this, '${f.key}', ${!!info.sensitive})">
+            <button class="config-save-btn" onclick="saveConfig('${f.key}')">保存</button>
+            ${info.has_value ? `<button class="config-clear-btn" onclick="clearConfig('${f.key}')">清除</button>` : ''}
           </div>
         </div>
-        <span class="push-status ${statusClass}">${statusDot} ${statusText}</span>
+      `;
+    }).join('');
+    return `
+      <div class="config-group">
+        <div class="config-group-title">${group.group}</div>
+        ${items}
       </div>
     `;
   }).join('');
 
-  container.innerHTML = html;
+  panel.innerHTML = html;
+}
 
-  // 如果都没配置，禁用测试按钮
-  const anyConfigured = Object.values(channels).some(ch => ch.configured);
-  const testBtn = document.getElementById('push-test-btn');
-  if (!anyConfigured) {
-    testBtn.disabled = true;
-    testBtn.title = '请先在 .env 文件中配置推送渠道';
+function onConfigFocus(input, key, sensitive) {
+  // 敏感字段聚焦时清空脱敏值，让用户重新输入
+  if (sensitive && input.value.includes('*')) {
+    input.value = '';
+    input.type = 'text';
+  }
+}
+
+async function saveConfig(key) {
+  const input = document.getElementById('cfg-' + key);
+  const value = input.value.trim();
+  if (!value) {
+    showToast('请输入值', 'error');
+    return;
+  }
+  // 如果是脱敏值没改，跳过
+  if (value.includes('****')) {
+    showToast('请输入新值', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch(API + '/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, value }),
+    });
+    if (!res.ok) throw new Error('保存失败');
+    showToast(`${key} 已保存 ✅`, 'success');
+    loadConfig();
+  } catch (e) {
+    showToast('保存失败: ' + e.message, 'error');
+  }
+}
+
+async function clearConfig(key) {
+  try {
+    const res = await fetch(API + '/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, value: '' }),
+    });
+    if (!res.ok) throw new Error('清除失败');
+    showToast(`${key} 已清除`, 'success');
+    loadConfig();
+  } catch (e) {
+    showToast('清除失败: ' + e.message, 'error');
   }
 }
 
@@ -699,6 +998,8 @@ async function testPush() {
     const res = await fetch(API + '/api/push/test', { method: 'POST' });
     const data = await res.json();
     const parts = [];
+    if (data.push_results.bark === true) parts.push('Bark ✅');
+    else if (data.push_results.bark === false) parts.push('Bark ❌');
     if (data.push_results.serverchan === true) parts.push('Server酱 ✅');
     else if (data.push_results.serverchan === false) parts.push('Server酱 ❌');
     if (data.push_results.wecom === true) parts.push('企业微信 ✅');
@@ -731,7 +1032,6 @@ function showToast(msg, type) {
 
 // ---- Init ----
 loadPortfolio();
-loadPushStatus();
 </script>
 </body>
 </html>
