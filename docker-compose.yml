@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  fund-assistant:
+    build: .
+    container_name: fund-assistant
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data      # 持仓数据持久化
+      - ./.env:/app/.env       # 环境变量
+    environment:
+      - TZ=Asia/Shanghai       # 确保定时任务用中国时区

@@ -296,6 +296,64 @@ body {
 .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
 .empty-state-text { font-size: 14px; line-height: 1.6; }
 
+/* 推送设置 */
+.push-section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  margin-top: 20px;
+}
+.push-section h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.push-channel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.push-channel:last-child { border-bottom: none; }
+.push-channel-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.push-channel-name { font-size: 14px; }
+.push-channel-help { font-size: 12px; color: var(--text-secondary); }
+.push-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.push-status.configured { background: var(--green-bg); color: var(--green); }
+.push-status.not-configured { background: rgba(107,114,128,0.15); color: #6b7280; }
+.push-test-btn {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: all 0.2s;
+}
+.push-test-btn:hover { background: var(--accent); color: white; }
+.push-test-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.push-result {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 /* 响应式 */
 @media (min-width: 768px) {
   .container { max-width: 520px; }
@@ -319,9 +377,14 @@ body {
   </div>
 
   <!-- 生成简报按钮 -->
-  <button class="generate-btn" id="generate-btn" onclick="generateBriefing()">
-    ⚡ 生成今日简报
-  </button>
+  <div style="display:flex; gap:8px; margin-top:16px;">
+    <button class="generate-btn" id="generate-btn" onclick="generateBriefing(false)" style="margin-top:0; flex:1;">
+      ⚡ 生成今日简报
+    </button>
+    <button class="generate-btn" id="push-btn" onclick="generateBriefing(true)" style="margin-top:0; flex:0 0 auto; font-size:14px; padding:14px 16px;">
+      📤 生成并推送
+    </button>
+  </div>
 
   <!-- 持仓列表 -->
   <div class="section-title" id="portfolio-title" style="display:none">
@@ -354,6 +417,16 @@ body {
       <button class="submit-btn" id="screenshot-submit" onclick="addFromScreenshot()" disabled>识别并添加</button>
     </div>
   </div>
+
+  <!-- 推送设置 -->
+  <div class="push-section">
+    <h3>📤 推送设置</h3>
+    <div id="push-channels">
+      <div class="loading"><div class="spinner"></div>加载中...</div>
+    </div>
+    <button class="push-test-btn" id="push-test-btn" onclick="testPush()">🧪 发送测试推送</button>
+    <div class="push-result" id="push-result"></div>
+  </div>
 </div>
 
 <!-- Toast -->
@@ -363,29 +436,49 @@ body {
 const API = '';  // 同源，无需前缀
 
 // ---- 简报 ----
-async function generateBriefing() {
+async function generateBriefing(withPush = false) {
   const btn = document.getElementById('generate-btn');
+  const pushBtn = document.getElementById('push-btn');
   btn.disabled = true;
+  pushBtn.disabled = true;
   btn.textContent = '⏳ 分析中...（约10秒）';
 
   const area = document.getElementById('briefing-area');
   area.innerHTML = '<div class="loading"><div class="spinner"></div>Agent 正在分析...</div>';
 
+  const endpoint = withPush ? '/api/briefing-and-push' : '/api/briefing';
+
   try {
-    const res = await fetch(API + '/api/briefing', { method: 'POST' });
+    const res = await fetch(API + endpoint, { method: 'POST' });
     if (!res.ok) throw new Error('服务器返回 ' + res.status);
     const data = await res.json();
     renderBriefing(data.raw);
-    showToast('简报已生成 ✅', 'success');
+
+    if (withPush && data.push_results) {
+      const pushMsg = formatPushResults(data.push_results);
+      showToast('简报已生成 ' + pushMsg, 'success');
+    } else {
+      showToast('简报已生成 ✅', 'success');
+    }
   } catch (e) {
     area.innerHTML = '<div class="empty-state"><div class="empty-state-icon">😵</div><div class="empty-state-text">生成失败，请重试</div></div>';
     showToast('生成失败: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
+    pushBtn.disabled = false;
     btn.textContent = '⚡ 生成今日简报';
   }
 
   loadPortfolio();
+}
+
+function formatPushResults(results) {
+  const parts = [];
+  if (results.serverchan === true) parts.push('微信✅');
+  else if (results.serverchan === false) parts.push('微信❌');
+  if (results.wecom === true) parts.push('企微✅');
+  else if (results.wecom === false) parts.push('企微❌');
+  return parts.length > 0 ? '| 推送: ' + parts.join(' ') : '✅';
 }
 
 function renderBriefing(briefing) {
@@ -553,6 +646,80 @@ async function addFromScreenshot() {
   }
 }
 
+// ---- 推送 ----
+async function loadPushStatus() {
+  const container = document.getElementById('push-channels');
+  try {
+    const res = await fetch(API + '/api/push/status');
+    const data = await res.json();
+    renderPushStatus(data);
+  } catch (e) {
+    container.innerHTML = '<div style="font-size:13px;color:var(--text-secondary)">无法获取推送状态</div>';
+  }
+}
+
+function renderPushStatus(channels) {
+  const container = document.getElementById('push-channels');
+  const html = Object.entries(channels).map(([key, ch]) => {
+    const statusClass = ch.configured ? 'configured' : 'not-configured';
+    const statusText = ch.configured ? '已配置' : '未配置';
+    const statusDot = ch.configured ? '🟢' : '⚪';
+    return `
+      <div class="push-channel">
+        <div class="push-channel-info">
+          <div>
+            <div class="push-channel-name">${ch.name}</div>
+            ${!ch.configured ? `<div class="push-channel-help">${ch.help}</div>` : ''}
+          </div>
+        </div>
+        <span class="push-status ${statusClass}">${statusDot} ${statusText}</span>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = html;
+
+  // 如果都没配置，禁用测试按钮
+  const anyConfigured = Object.values(channels).some(ch => ch.configured);
+  const testBtn = document.getElementById('push-test-btn');
+  if (!anyConfigured) {
+    testBtn.disabled = true;
+    testBtn.title = '请先在 .env 文件中配置推送渠道';
+  }
+}
+
+async function testPush() {
+  const btn = document.getElementById('push-test-btn');
+  const result = document.getElementById('push-result');
+  btn.disabled = true;
+  btn.textContent = '发送中...';
+  result.textContent = '';
+
+  try {
+    const res = await fetch(API + '/api/push/test', { method: 'POST' });
+    const data = await res.json();
+    const parts = [];
+    if (data.push_results.serverchan === true) parts.push('Server酱 ✅');
+    else if (data.push_results.serverchan === false) parts.push('Server酱 ❌');
+    if (data.push_results.wecom === true) parts.push('企业微信 ✅');
+    else if (data.push_results.wecom === false) parts.push('企业微信 ❌');
+
+    if (parts.length > 0) {
+      result.textContent = '测试结果：' + parts.join('、');
+      showToast('测试推送已发送', 'success');
+    } else {
+      result.textContent = '没有已配置的推送渠道';
+      showToast('请先配置推送渠道', 'error');
+    }
+  } catch (e) {
+    result.textContent = '测试失败: ' + e.message;
+    showToast('测试失败', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🧪 发送测试推送';
+  }
+}
+
 // ---- Toast ----
 function showToast(msg, type) {
   const toast = document.getElementById('toast');
@@ -564,6 +731,7 @@ function showToast(msg, type) {
 
 // ---- Init ----
 loadPortfolio();
+loadPushStatus();
 </script>
 </body>
 </html>

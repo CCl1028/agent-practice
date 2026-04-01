@@ -17,6 +17,7 @@ from src.formatter import format_briefing_card, format_full_report, format_push_
 from src.graph import app as langgraph_app
 from src.tools.nlp_input import parse_natural_language
 from src.tools.portfolio_tools import load_portfolio, save_portfolio
+from src.tools.push_tools import get_push_status, push_briefing
 
 logging.basicConfig(
     level=logging.INFO,
@@ -146,6 +147,48 @@ async def delete_holding(fund_code: str):
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+# ---- 推送相关 ----
+
+@app.get("/api/push/status")
+async def push_status():
+    """获取推送渠道配置状态"""
+    return get_push_status()
+
+
+@app.post("/api/push/test")
+async def test_push():
+    """测试推送（发送一条测试消息）"""
+    test_briefing = {
+        "summary": "这是一条推送测试",
+        "details": [
+            {
+                "fund_name": "测试基金",
+                "action": "观望",
+                "reason": "推送功能测试中",
+                "confidence": "高",
+            }
+        ],
+        "market_note": "推送测试 — 如果你收到了这条消息，说明推送配置成功！",
+    }
+    results = push_briefing(test_briefing)
+    return {"push_results": results}
+
+
+@app.post("/api/briefing-and-push")
+async def generate_and_push():
+    """生成简报并推送"""
+    result = langgraph_app.invoke({"trigger": "daily_briefing"})
+    briefing = result.get("briefing", {})
+    push_results = push_briefing(briefing)
+    return {
+        "notification": format_push_notification(briefing),
+        "card": format_briefing_card(briefing),
+        "report": format_full_report(briefing),
+        "raw": briefing,
+        "push_results": push_results,
+    }
 
 
 # ---- 静态文件 & 前端 ----

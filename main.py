@@ -41,6 +41,16 @@ def run_daily_briefing() -> None:
     if result.get("error"):
         logger.warning("⚠️  过程中有错误: %s", result["error"])
 
+    # 自动推送到微信
+    from src.tools.push_tools import push_briefing
+    push_results = push_briefing(briefing)
+    for channel, status in push_results.items():
+        if status is True:
+            logger.info("📤 %s 推送成功", channel)
+        elif status is False:
+            logger.warning("📤 %s 推送失败", channel)
+        # None = 未配置，静默跳过
+
     logger.info("✅ 简报生成完成")
 
 

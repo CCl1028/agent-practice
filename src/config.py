@@ -15,3 +15,4 @@ VISION_MODEL = "deepseek-chat"  # 后期截图识别可换多模态模型
 # 推送配置
 SERVERCHAN_KEY = os.getenv("SERVERCHAN_KEY", "")
 WECOM_WEBHOOK_URL = os.getenv("WECOM_WEBHOOK_URL", "")
+BARK_URL = os.getenv("BARK_URL", "")  # 例如 https://api.day.app/你的key
