@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
 <title>基金小助理</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -10,20 +11,20 @@
 html, body { overflow-x: hidden; width: 100%; }
 
 :root {
-  --bg: #0f1117;
-  --card: #1a1d29;
-  --card-hover: #222537;
-  --border: #2a2d3a;
-  --text: #e4e4e7;
-  --text-secondary: #9ca3af;
-  --accent: #6366f1;
-  --accent-light: #818cf8;
-  --green: #22c55e;
-  --green-bg: rgba(34,197,94,0.12);
-  --red: #ef4444;
-  --red-bg: rgba(239,68,68,0.12);
-  --yellow: #eab308;
-  --yellow-bg: rgba(234,179,8,0.12);
+  --bg: #faf5f3;
+  --card: #ffffff;
+  --card-hover: #fef0ed;
+  --border: #ecdad6;
+  --text: #3d2b2b;
+  --text-secondary: #8a7070;
+  --accent: #b84e4a;
+  --accent-light: #cf6e6a;
+  --green: #2e9464;
+  --green-bg: rgba(46,148,100,0.10);
+  --red: #c94544;
+  --red-bg: rgba(201,69,68,0.10);
+  --yellow: #b8892e;
+  --yellow-bg: rgba(184,137,46,0.10);
 }
 
 body {
@@ -31,7 +32,7 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  padding-bottom: 80px;
+  padding-bottom: 100px;
 }
 
 .container { max-width: 480px; margin: 0 auto; padding: 0 16px; overflow: hidden; }
@@ -68,8 +69,8 @@ body {
 
 /* 简报卡片 */
 .briefing-card {
-  background: linear-gradient(135deg, #1e1b4b 0%, #1a1d29 100%);
-  border: 1px solid #312e81;
+  background: linear-gradient(135deg, #fce8e4 0%, #ffffff 100%);
+  border: 1px solid #e8c4bf;
   border-radius: 16px;
   padding: 20px;
   margin-bottom: 16px;
@@ -83,7 +84,7 @@ body {
   right: -30%;
   width: 200px;
   height: 200px;
-  background: radial-gradient(circle, rgba(99,102,241,0.15), transparent);
+  background: radial-gradient(circle, rgba(184,78,74,0.06), transparent);
   border-radius: 50%;
 }
 .briefing-summary {
@@ -143,8 +144,8 @@ body {
   white-space: nowrap;
   flex-shrink: 0;
 }
-.action-buy { background: var(--green-bg); color: var(--green); }
-.action-sell { background: var(--red-bg); color: var(--red); }
+.action-buy { background: var(--red-bg); color: var(--red); }
+.action-sell { background: var(--green-bg); color: var(--green); }
 .action-hold { background: var(--yellow-bg); color: var(--yellow); }
 
 .fund-reason {
@@ -153,6 +154,21 @@ body {
   line-height: 1.5;
   word-break: break-word;
 }
+.fund-est {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.fund-est.up { background: var(--red-bg); color: var(--red); }
+.fund-est.down { background: var(--green-bg); color: var(--green); }
+.fund-est.flat { background: rgba(138,112,112,0.10); color: #8a7070; }
+.fund-est-label { font-size: 11px; color: var(--text-secondary); font-weight: 400; }
+.fund-est-time { font-size: 10px; color: var(--text-secondary); font-weight: 400; margin-left: 2px; }
 
 .fund-delete {
   background: none;
@@ -168,96 +184,107 @@ body {
 .fund-card:hover .fund-delete { opacity: 1; }
 .fund-delete:hover { color: var(--red); background: var(--red-bg); }
 
-/* 录入区域 */
-.input-section {
+/* 吸底输入栏 */
+.bottom-input-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 16px;
-  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -8px 24px rgba(0,0,0,0.12);
+  padding: 10px 16px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  z-index: 800;
 }
-.input-section h3 {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 12px;
-}
-
-.input-tabs {
+.bottom-input-bar .input-row {
   display: flex;
+  align-items: flex-end;
   gap: 8px;
-  margin-bottom: 12px;
+  max-width: 480px;
+  margin: 0 auto;
 }
-.tab-btn {
+.bottom-input-bar .text-input {
   flex: 1;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.tab-btn.active {
-  background: var(--accent);
-  color: white;
-  border-color: var(--accent);
-}
-
-.text-input {
-  width: 100%;
-  min-height: 80px;
+  min-height: 40px;
+  max-height: 120px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: 20px;
+  padding: 10px 16px;
   color: var(--text);
   font-size: 14px;
-  resize: vertical;
+  resize: none;
   font-family: inherit;
+  line-height: 1.4;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-.text-input::placeholder { color: #4b5563; }
-.text-input:focus { outline: none; border-color: var(--accent); }
+.bottom-input-bar .text-input::-webkit-scrollbar { display: none; }
+.bottom-input-bar .text-input::placeholder { color: #bca8a8; }
+.bottom-input-bar .text-input:focus { outline: none; border-color: var(--accent); }
 
-.file-upload {
-  border: 2px dashed var(--border);
-  border-radius: 10px;
-  padding: 24px;
-  text-align: center;
+.bottom-input-bar .icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: border-color 0.2s;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  font-size: 18px;
 }
-.file-upload:hover { border-color: var(--accent); }
-.file-upload input { display: none; }
-.file-upload-icon { font-size: 32px; margin-bottom: 8px; }
-.file-upload-text { font-size: 13px; color: var(--text-secondary); }
-
-.submit-btn {
-  width: 100%;
-  padding: 12px;
+.bottom-input-bar .upload-btn {
+  background: var(--bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.bottom-input-bar .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+.bottom-input-bar .upload-btn.has-file { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+.bottom-input-bar .send-btn {
   background: var(--accent);
   color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 12px;
-  transition: background 0.2s;
 }
-.submit-btn:hover { background: var(--accent-light); }
-.submit-btn:disabled {
-  background: #374151;
-  color: #6b7280;
+.bottom-input-bar .send-btn:hover { background: var(--accent-light); }
+.bottom-input-bar .send-btn:disabled {
+  background: #e8d8d5;
+  color: #a89090;
   cursor: not-allowed;
 }
+.bottom-input-bar .file-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 4px;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bottom-input-bar .file-hint .clear-file {
+  color: var(--red);
+  cursor: pointer;
+  margin-left: 4px;
+}
+.bottom-input-bar input[type="file"] { display: none; }
 
 /* 生成按钮 */
-.generate-area { margin-top: 16px; }
+.generate-area {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .generate-btn {
-  width: 100%;
+  flex: 1;
   padding: 14px;
-  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  background: linear-gradient(135deg, var(--accent), #c47a4a);
   color: white;
   border: none;
   border-radius: 12px;
@@ -265,12 +292,12 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.1s, box-shadow 0.2s;
-  box-shadow: 0 4px 16px rgba(99,102,241,0.3);
+  box-shadow: 0 4px 16px rgba(184,78,74,0.3);
 }
-.generate-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,102,241,0.4); }
+.generate-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(184,78,74,0.4); }
 .generate-btn:active { transform: translateY(0); }
 .generate-btn:disabled {
-  background: #374151;
+  background: #e8d8d5;
   box-shadow: none;
   cursor: not-allowed;
   transform: none;
@@ -278,17 +305,18 @@ body {
 .push-toggle {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 10px;
-  font-size: 13px;
+  gap: 6px;
+  font-size: 12px;
   color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .push-toggle label {
   cursor: pointer;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 .toggle-switch {
   position: relative;
@@ -349,7 +377,7 @@ body {
   font-size: 14px;
   z-index: 1000;
   transition: transform 0.3s ease;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.1);
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
 .toast.success { border-color: var(--green); }
@@ -474,7 +502,7 @@ body {
   border-radius: 10px;
 }
 .config-status.on { background: var(--green-bg); color: var(--green); }
-.config-status.off { background: rgba(107,114,128,0.15); color: #6b7280; }
+.config-status.off { background: rgba(138,112,112,0.10); color: #a89090; }
 .config-input-row {
   display: flex;
   gap: 6px;
@@ -490,7 +518,7 @@ body {
   font-size: 13px;
   font-family: "SF Mono", "Menlo", monospace;
 }
-.config-input::placeholder { color: #4b5563; }
+.config-input::placeholder { color: #bca8a8; }
 .config-input:focus { outline: none; border-color: var(--accent); }
 .config-save-btn {
   padding: 8px 12px;
@@ -506,7 +534,7 @@ body {
   flex-shrink: 0;
 }
 .config-save-btn:hover { background: var(--accent-light); }
-.config-save-btn:disabled { background: #374151; color: #6b7280; cursor: not-allowed; }
+.config-save-btn:disabled { background: #e8d8d5; color: #a89090; cursor: not-allowed; }
 .config-clear-btn {
   padding: 8px 10px;
   background: transparent;
@@ -543,6 +571,61 @@ body {
   margin: 14px 0;
 }
 
+/* 推送时间设置 */
+.schedule-section {
+  margin-top: 4px;
+}
+.schedule-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+.schedule-row input[type="time"] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 15px;
+  font-family: inherit;
+  flex: 1;
+  min-width: 0;
+}
+.schedule-row input[type="time"]:focus { outline: none; border-color: var(--accent); }
+.schedule-save-btn {
+  padding: 8px 14px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.schedule-save-btn:hover { background: var(--accent-light); }
+.schedule-save-btn:disabled { background: #e8d8d5; color: #a89090; cursor: not-allowed; }
+.schedule-info {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+.schedule-disable-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.schedule-disable-btn:hover { border-color: var(--red); color: var(--red); }
+
 /* 响应式 */
 @media (min-width: 768px) {
   .container { max-width: 520px; }
@@ -554,8 +637,8 @@ body {
   <!-- Header -->
   <div class="header">
     <div class="header-center">
-      <h1>📊 基金小助理</h1>
-      <p>祝您发大财～～～</p>
+      <h1>📈 基金小助理</h1>
+      <p>祝您发大财💰💰💰</p>
     </div>
     <button class="settings-trigger" onclick="openDrawer()" title="设置">⚙️</button>
   </div>
@@ -576,7 +659,7 @@ body {
     <div class="push-toggle">
       <label>
         <input type="checkbox" class="toggle-switch" id="push-switch" checked>
-        <span>同时推送到手机</span>
+        <span>推送</span>
       </label>
     </div>
   </div>
@@ -587,31 +670,24 @@ body {
   </div>
   <div id="portfolio-list"></div>
 
-  <!-- 录入区域 -->
-  <div class="input-section">
-    <h3>➕ 添加持仓</h3>
-    <div class="input-tabs">
-      <button class="tab-btn active" onclick="switchTab('text', this)">💬 说一句话</button>
-      <button class="tab-btn" onclick="switchTab('screenshot', this)">📸 截图识别</button>
-    </div>
 
-    <!-- 文字输入 -->
-    <div id="tab-text">
-      <textarea class="text-input" id="text-input"
-        placeholder="例如：我买了2万的易方达蓝筹，去年6月买的，目前亏了5个点"></textarea>
-      <button class="submit-btn" id="text-submit" onclick="addFromText()">识别并添加</button>
-    </div>
+</div>
 
-    <!-- 截图上传 -->
-    <div id="tab-screenshot" style="display:none">
-      <div class="file-upload" onclick="document.getElementById('file-input').click()">
-        <div class="file-upload-icon">📷</div>
-        <div class="file-upload-text" id="file-label">点击上传基金持仓截图</div>
-        <input type="file" id="file-input" accept="image/*" onchange="onFileSelected(this)">
-      </div>
-      <button class="submit-btn" id="screenshot-submit" onclick="addFromScreenshot()" disabled>识别并添加</button>
-    </div>
+<!-- 吸底输入栏 -->
+<div class="bottom-input-bar" id="bottom-bar">
+  <div class="input-row">
+    <button class="icon-btn upload-btn" id="upload-btn" onclick="document.getElementById('file-input').click()" title="上传截图">
+      📷
+    </button>
+    <input type="file" id="file-input" accept="image/*" onchange="onFileSelected(this)">
+    <textarea class="text-input" id="text-input" rows="1"
+      placeholder="描述持仓或上传截图"
+      oninput="autoGrow(this); toggleSend()"></textarea>
+    <button class="icon-btn send-btn" id="send-btn" onclick="handleSend()" disabled title="发送">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
   </div>
+  <div class="file-hint" id="file-hint" style="display:none"></div>
 </div>
 
 <!-- 设置抽屉 -->
@@ -630,6 +706,22 @@ body {
     </div>
 
     <hr class="divider">
+
+    <div class="config-group schedule-section">
+      <div class="config-group-title">⏰ 定时推送</div>
+      <div class="config-label">
+        <span class="config-label-text">每日推送时间</span>
+        <span class="config-status" id="schedule-status">加载中</span>
+      </div>
+      <div class="schedule-row">
+        <input type="time" id="push-time-input" value="14:30">
+        <button class="schedule-save-btn" id="schedule-save-btn" onclick="saveSchedule()">保存</button>
+        <button class="schedule-disable-btn" id="schedule-disable-btn" onclick="disableSchedule()">关闭</button>
+      </div>
+      <div class="schedule-info" id="schedule-info"></div>
+    </div>
+
+    <hr class="divider">
     <button class="push-test-btn" id="push-test-btn" onclick="testPush()">🧪 发送测试推送</button>
     <div class="push-result" id="push-result"></div>
   </div>
@@ -640,6 +732,26 @@ body {
 
 <script>
 const API = '';  // 同源，无需前缀
+const PORTFOLIO_KEY = 'fund_assistant_portfolio';  // localStorage key
+
+// ---- 本地存储工具 ----
+function getLocalPortfolio() {
+  try {
+    const data = localStorage.getItem(PORTFOLIO_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    console.error('读取本地持仓失败:', e);
+    return [];
+  }
+}
+
+function saveLocalPortfolio(holdings) {
+  try {
+    localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(holdings));
+  } catch (e) {
+    console.error('保存本地持仓失败:', e);
+  }
+}
 
 // ---- 简报 ----
 async function generateBriefing() {
@@ -651,10 +763,24 @@ async function generateBriefing() {
   const area = document.getElementById('briefing-area');
   area.innerHTML = '<div class="loading"><div class="spinner"></div>Agent 正在分析...</div>';
 
+  // 将本地持仓传给后端
+  const localHoldings = getLocalPortfolio();
+  if (localHoldings.length === 0) {
+    area.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">请先添加持仓再生成简报</div></div>';
+    btn.disabled = false;
+    btn.textContent = '⚡ 生成今日简报';
+    showToast('请先添加持仓', 'error');
+    return;
+  }
+
   const endpoint = withPush ? '/api/briefing-and-push' : '/api/briefing';
 
   try {
-    const res = await fetch(API + endpoint, { method: 'POST' });
+    const res = await fetch(API + endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ holdings: localHoldings }),
+    });
     if (!res.ok) throw new Error('服务器返回 ' + res.status);
     const data = await res.json();
     renderBriefing(data.raw);
@@ -672,8 +798,6 @@ async function generateBriefing() {
     btn.disabled = false;
     btn.textContent = '⚡ 生成今日简报';
   }
-
-  loadPortfolio();
 }
 
 function formatPushResults(results) {
@@ -717,12 +841,12 @@ function renderBriefing(briefing) {
 }
 
 // ---- 持仓 ----
-async function loadPortfolio() {
-  try {
-    const res = await fetch(API + '/api/portfolio');
-    const data = await res.json();
-    renderPortfolio(data.holdings);
-  } catch (e) { /* silent */ }
+function loadPortfolio() {
+  const holdings = getLocalPortfolio();
+  renderPortfolio(holdings);
+  if (holdings.length > 0) {
+    loadEstimation(holdings); // 同时拉取盘中估值
+  }
 }
 
 function renderPortfolio(holdings) {
@@ -750,26 +874,93 @@ function renderPortfolio(holdings) {
         ${h.profit_ratio ? ' · 收益: ' + (h.profit_ratio > 0 ? '+' : '') + h.profit_ratio + '%' : ''}
         ${h.hold_days ? ' · 持有' + h.hold_days + '天' : ''}
       </div>
+      <div id="est-${h.fund_code}"></div>
     </div>
   `).join('');
 }
 
-async function deleteHolding(code) {
+async function loadEstimation(holdings) {
+  if (!holdings || holdings.length === 0) return;
   try {
-    await fetch(API + '/api/portfolio/' + code, { method: 'DELETE' });
-    showToast('已删除', 'success');
-    loadPortfolio();
-  } catch (e) {
-    showToast('删除失败', 'error');
-  }
+    const res = await fetch(API + '/api/estimation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ holdings }),
+    });
+    const data = await res.json();
+    for (const f of data.funds) {
+      const el = document.getElementById('est-' + f.fund_code);
+      if (el && f.est_change !== null) {
+        // "暂无数据"的基金不显示涨跌
+        if (f.est_time === '暂无数据') {
+          el.innerHTML = `<span class="fund-est flat"><span class="fund-est-label">暂无估值数据</span></span>`;
+          continue;
+        }
+        const cls = f.est_change > 0.05 ? 'up' : f.est_change < -0.05 ? 'down' : 'flat';
+        const sign = f.est_change > 0 ? '+' : '';
+        if (f.is_live) {
+          // 交易时段：盘中估值 + 时间
+          el.innerHTML = `<span class="fund-est ${cls}">` +
+            `<span class="fund-est-label">盘中估值</span> ${sign}${f.est_change.toFixed(2)}%` +
+            (f.est_time ? ` <span class="fund-est-time">${f.est_time}</span>` : '') +
+            `</span>`;
+        } else {
+          // 非交易时段：显示 est_time（如 "03-31 收盘"）
+          el.innerHTML = `<span class="fund-est ${cls}">` +
+            `<span class="fund-est-label">${f.est_time || '上日收盘'}</span> ${sign}${f.est_change.toFixed(2)}%` +
+            `</span>`;
+        }
+      }
+    }
+  } catch (e) { /* silent */ }
 }
 
-// ---- 录入 ----
-function switchTab(tab, btn) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('tab-text').style.display = tab === 'text' ? 'block' : 'none';
-  document.getElementById('tab-screenshot').style.display = tab === 'screenshot' ? 'block' : 'none';
+function deleteHolding(code) {
+  const holdings = getLocalPortfolio();
+  const filtered = holdings.filter(h => h.fund_code !== code);
+  saveLocalPortfolio(filtered);
+  showToast('已删除', 'success');
+  loadPortfolio();
+}
+
+// ---- 吸底输入栏 ----
+let pendingFile = null;
+
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function toggleSend() {
+  const text = document.getElementById('text-input').value.trim();
+  document.getElementById('send-btn').disabled = !text && !pendingFile;
+}
+
+function onFileSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  pendingFile = file;
+  document.getElementById('upload-btn').classList.add('has-file');
+  document.getElementById('file-hint').style.display = 'block';
+  document.getElementById('file-hint').innerHTML = '📎 ' + file.name + ' <span class="clear-file" onclick="clearFile()">✕</span>';
+  toggleSend();
+}
+
+function clearFile() {
+  pendingFile = null;
+  document.getElementById('file-input').value = '';
+  document.getElementById('upload-btn').classList.remove('has-file');
+  document.getElementById('file-hint').style.display = 'none';
+  toggleSend();
+}
+
+async function handleSend() {
+  const text = document.getElementById('text-input').value.trim();
+  if (pendingFile) {
+    await addFromScreenshot();
+  } else if (text) {
+    await addFromText();
+  }
 }
 
 async function addFromText() {
@@ -777,12 +968,12 @@ async function addFromText() {
   const text = input.value.trim();
   if (!text) return;
 
-  const btn = document.getElementById('text-submit');
+  const btn = document.getElementById('send-btn');
   btn.disabled = true;
-  btn.textContent = '识别中...';
 
   try {
-    const res = await fetch(API + '/api/portfolio/add-text', {
+    // 调用后端解析自然语言，但不保存到服务器
+    const res = await fetch(API + '/api/portfolio/parse-text', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
@@ -792,9 +983,22 @@ async function addFromText() {
       throw new Error(errText || '服务器返回 ' + res.status);
     }
     const data = await res.json();
-    if (data.added && data.added.length > 0) {
-      showToast(`成功添加 ${data.added.length} 只基金 ✅`, 'success');
+    if (data.parsed && data.parsed.length > 0) {
+      // 保存到本地 localStorage
+      const existing = getLocalPortfolio();
+      const existingMap = {};
+      for (const f of existing) {
+        if (f.fund_code) existingMap[f.fund_code] = f;
+      }
+      for (const h of data.parsed) {
+        if (h.fund_code) existingMap[h.fund_code] = h;
+      }
+      const merged = Object.values(existingMap);
+      saveLocalPortfolio(merged);
+
+      showToast(`成功添加 ${data.parsed.length} 只基金 ✅`, 'success');
       input.value = '';
+      autoGrow(input);
       loadPortfolio();
     } else {
       showToast('未识别到基金信息，换个描述试试', 'error');
@@ -802,32 +1006,23 @@ async function addFromText() {
   } catch (e) {
     showToast('识别失败: ' + e.message, 'error');
   } finally {
-    btn.disabled = false;
-    btn.textContent = '识别并添加';
-  }
-}
-
-function onFileSelected(input) {
-  const file = input.files[0];
-  if (file) {
-    document.getElementById('file-label').textContent = file.name;
-    document.getElementById('screenshot-submit').disabled = false;
+    toggleSend();
   }
 }
 
 async function addFromScreenshot() {
-  const fileInput = document.getElementById('file-input');
-  const file = fileInput.files[0];
-  if (!file) return;
+  if (!pendingFile) return;
 
-  const btn = document.getElementById('screenshot-submit');
+  const btn = document.getElementById('send-btn');
   btn.disabled = true;
-  btn.textContent = '识别中...';
 
   try {
     const form = new FormData();
-    form.append('file', file);
-    const res = await fetch(API + '/api/portfolio/add-screenshot', {
+    form.append('file', pendingFile);
+    const text = document.getElementById('text-input').value.trim();
+    if (text) form.append('text', text);
+    // 调用后端解析截图，但不保存到服务器
+    const res = await fetch(API + '/api/portfolio/parse-screenshot', {
       method: 'POST',
       body: form,
     });
@@ -836,10 +1031,23 @@ async function addFromScreenshot() {
       throw new Error(errText || '服务器返回 ' + res.status);
     }
     const data = await res.json();
-    if (data.added && data.added.length > 0) {
-      showToast(`成功添加 ${data.added.length} 只基金 ✅`, 'success');
-      fileInput.value = '';
-      document.getElementById('file-label').textContent = '点击上传基金持仓截图';
+    if (data.parsed && data.parsed.length > 0) {
+      // 保存到本地 localStorage
+      const existing = getLocalPortfolio();
+      const existingMap = {};
+      for (const f of existing) {
+        if (f.fund_code) existingMap[f.fund_code] = f;
+      }
+      for (const h of data.parsed) {
+        if (h.fund_code) existingMap[h.fund_code] = h;
+      }
+      const merged = Object.values(existingMap);
+      saveLocalPortfolio(merged);
+
+      showToast(`成功添加 ${data.parsed.length} 只基金 ✅`, 'success');
+      document.getElementById('text-input').value = '';
+      autoGrow(document.getElementById('text-input'));
+      clearFile();
       loadPortfolio();
     } else {
       showToast('未识别到基金信息，换张截图试试', 'error');
@@ -847,8 +1055,7 @@ async function addFromScreenshot() {
   } catch (e) {
     showToast('识别失败: ' + e.message, 'error');
   } finally {
-    btn.disabled = false;
-    btn.textContent = '识别并添加';
+    toggleSend();
   }
 }
 
@@ -863,6 +1070,7 @@ function openDrawer() {
   document.body.style.top = '-' + window.scrollY + 'px';
   document.getElementById('drawer-overlay').addEventListener('touchmove', preventScroll, { passive: false });
   loadConfig();
+  loadSchedule();
 }
 function closeDrawer() {
   const scrollY = document.body.style.top;

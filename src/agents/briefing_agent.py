@@ -63,11 +63,14 @@ def _build_data_text(state: AgentState) -> str:
     portfolio = state.get("portfolio", [])
     for f in portfolio:
         action, reason = _rule_engine(f)
+        est_info = ""
+        if f.get("est_change") is not None:
+            est_info = f", 今日预估{f['est_change']:+.2f}%（{f.get('est_time', '')}）"
         lines.append(
             f"- {f['fund_name']}({f['fund_code']}): "
             f"成本{f['cost_nav']:.2f}, 现价{f['current_nav']:.2f}, "
             f"盈亏{f['profit_ratio']:+.2f}%, 持有{f['hold_days']}天, "
-            f"近5日趋势{f.get('trend_5d', [])}\n"
+            f"近5日趋势{f.get('trend_5d', [])}{est_info}\n"
             f"  规则初判: {action} — {reason}"
         )
 

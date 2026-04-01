@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from src.state import FundHolding
-from src.tools.market_tools import get_fund_nav
+from src.tools.market_tools import get_fund_estimation, get_fund_nav
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ def save_portfolio(portfolio: list[FundHolding]) -> None:
 
 
 def compute_metrics(portfolio: list[FundHolding]) -> list[FundHolding]:
-    """为每只基金刷新最新净值、计算盈亏。"""
+    """为每只基金刷新最新净值、盘中估值、计算盈亏。"""
     updated = []
     for fund in portfolio:
         nav_data = get_fund_nav(fund["fund_code"])
@@ -45,6 +45,18 @@ def compute_metrics(portfolio: list[FundHolding]) -> list[FundHolding]:
             fund["profit_ratio"] = round(
                 (fund["current_nav"] - fund["cost_nav"]) / fund["cost_nav"] * 100, 2
             )
+
+        # 盘中估值
+        est = get_fund_estimation(fund["fund_code"])
+        if est:
+            fund["est_change"] = est["est_change"]
+            fund["est_nav"] = est["est_nav"]
+            fund["est_time"] = est["est_time"]
+        else:
+            fund["est_change"] = None
+            fund["est_nav"] = None
+            fund["est_time"] = None
+
         updated.append(fund)
     return updated
 

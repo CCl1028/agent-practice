@@ -1,4 +1,4 @@
-"""市场数据工具 — 获取行情、板块、新闻"""
+"""市场数据工具 — 获取行情、板块、新闻、估值"""
 
 from __future__ import annotations
 
@@ -6,6 +6,109 @@ import logging
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+
+def is_trading_hours() -> bool:
+    """判断当前是否在交易时段（工作日 9:30-15:00）。"""
+    now = datetime.now()
+    if now.weekday() >= 5:  # 周六日
+        return False
+    t = now.hour * 100 + now.minute
+    return 930 <= t <= 1500
+
+
+def get_fund_estimation(fund_code: str) -> dict | None:
+    """获取基金估值数据。
+
+    交易时段：返回盘中实时估值（AKShare）。
+    非交易时段：根据最近两日净值计算上一交易日收盘涨跌幅。
+
+    Returns:
+        {
+            "est_nav": 2.05,
+            "est_change": -0.85,
+            "est_time": "15:00" 或 "03-31 收盘",
+            "is_live": True/False,
+        }
+        或 None
+    """
+    if is_trading_hours():
+        # 交易时段：尝试获取实时估值
+        try:
+            import akshare as ak
+            df = ak.fund_value_estimation_em()
+            if df is not None and not df.empty:
+                row = df[df["基金代码"] == fund_code]
+                if not row.empty:
+                    r = row.iloc[0]
+                    return {
+                        "est_nav": float(r.get("估算净值", 0) or 0),
+                        "est_change": float(r.get("估算涨跌幅", 0) or 0),
+                        "est_time": str(r.get("估算时间", "")),
+                        "is_live": True,
+                    }
+        except Exception as e:
+            logger.warning("AKShare 获取基金 %s 实时估值失败: %s", fund_code, e)
+        return None
+
+    # 非交易时段：从净值历史计算上一交易日收盘涨跌
+    return _get_last_close_change(fund_code)
+
+
+def _get_last_close_change(fund_code: str) -> dict | None:
+    """根据最近两个交易日净值，计算上一交易日收盘涨跌幅。"""
+    try:
+        import akshare as ak
+        df = ak.fund_open_fund_info_em(symbol=fund_code, indicator="单位净值走势")
+        if df is not None and not df.empty and len(df) >= 2:
+            latest = df.iloc[-1]
+            prev = df.iloc[-2]
+            nav_now = float(latest["单位净值"])
+            nav_prev = float(prev["单位净值"])
+            if nav_prev > 0:
+                change = round((nav_now - nav_prev) / nav_prev * 100, 2)
+                # 格式化日期为 MM-DD
+                date_str = str(latest["净值日期"])
+                try:
+                    dt = datetime.strptime(date_str[:10], "%Y-%m-%d")
+                    date_label = dt.strftime("%m-%d")
+                except ValueError:
+                    date_label = date_str[:10]
+                return {
+                    "est_nav": nav_now,
+                    "est_change": change,
+                    "est_time": f"{date_label} 收盘",
+                    "is_live": False,
+                }
+    except Exception as e:
+        logger.warning("AKShare 获取基金 %s 收盘净值失败: %s，使用 mock 数据", fund_code, e)
+
+    # AKShare 不可用时，用 mock 净值的 trend_5d 最后一天作为收盘涨跌
+    return _mock_last_close(fund_code)
+
+
+def _mock_last_close(fund_code: str) -> dict | None:
+    """Mock 上一交易日收盘涨跌（AKShare 不可用时兜底）。"""
+    mock_db = {
+        "005827": {"current_nav": 2.03, "trend_5d": [-0.3, 0.5, -0.8, 0.2, -1.1]},
+        "161725": {"current_nav": 1.85, "trend_5d": [1.2, 0.8, 1.5, -0.3, 0.9]},
+        "110011": {"current_nav": 4.52, "trend_5d": [-0.5, -0.2, 0.3, -0.8, -0.4]},
+    }
+    data = mock_db.get(fund_code)
+    if data and data["trend_5d"]:
+        return {
+            "est_nav": data["current_nav"],
+            "est_change": data["trend_5d"][-1],
+            "est_time": "最近收盘",
+            "is_live": False,
+        }
+    # 完全未知的基金，返回 0 涨跌而非随机数
+    return {
+        "est_nav": 0,
+        "est_change": 0.0,
+        "est_time": "暂无数据",
+        "is_live": False,
+    }
 
 
 def get_fund_nav(fund_code: str) -> dict:
@@ -75,6 +178,7 @@ def _mock_fund_nav(fund_code: str) -> dict:
     })
     data["date"] = datetime.now().strftime("%Y-%m-%d")
     return data
+
 
 
 def _mock_sector_performance() -> list[dict]:

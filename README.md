@@ -69,6 +69,47 @@ cp .env.example .env && vim .env
 docker-compose up -d
 ```
 
+### 6. 云服务器部署
+
+以腾讯云轻量应用服务器为例：
+
+**首次部署：**
+
+```bash
+# 1. 将项目上传到服务器
+rsync -avz --exclude='__pycache__' --exclude='.git' \
+  ./ root@<服务器IP>:/root/fund-assistant/
+
+# 2. SSH 登录服务器
+ssh root@<服务器IP>
+
+# 3. 配置环境变量
+cd /root/fund-assistant
+vim .env
+
+# 4. 构建并启动
+docker compose up -d --build
+```
+
+**更新代码：**
+
+```bash
+# 1. 上传最新代码
+rsync -avz --exclude='__pycache__' --exclude='.git' \
+  ./ root@<服务器IP>:/root/fund-assistant/
+
+# 2. 在服务器上重建并重启容器
+ssh root@<服务器IP> "cd /root/fund-assistant && docker compose up -d --build"
+```
+
+> **提示**：如果只改了 Python 代码（没改 `requirements.txt`），Docker 会利用缓存，重建只需几秒。如果改了依赖，会重新 pip install，大约需要 1-2 分钟。
+
+**服务器要求：**
+
+- 推荐配置：2 核 2G 及以上
+- 系统镜像：Ubuntu 22.04 + Docker
+- 需要在安全组/防火墙开放 **8000** 端口
+
 ## 项目结构
 
 ```

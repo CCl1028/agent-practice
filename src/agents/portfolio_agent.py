@@ -19,23 +19,29 @@ def portfolio_node(state: AgentState) -> dict:
     logger.info("[Portfolio Agent] 开始加载持仓数据...")
 
     try:
-        # 如果 state 中已有新录入的持仓（从截图/自然语言解析来的），合并保存
-        new_holdings = state.get("portfolio", [])
-        if new_holdings:
-            logger.info("[Portfolio Agent] 检测到新录入的 %d 只基金，合并保存", len(new_holdings))
-            existing = load_portfolio()
-            # 按基金代码去重合并（新的覆盖旧的）
-            existing_map = {f["fund_code"]: f for f in existing if f.get("fund_code")}
-            for h in new_holdings:
-                if h.get("fund_code"):
-                    existing_map[h["fund_code"]] = h
-                else:
-                    existing.append(h)
-            merged = list(existing_map.values())
-            save_portfolio(merged)
-            portfolio = merged
+        # 优先使用前端传入的 holdings（localStorage 中的用户数据）
+        holdings_from_frontend = state.get("holdings", [])
+        if holdings_from_frontend:
+            logger.info("[Portfolio Agent] 使用前端传入的 %d 只基金", len(holdings_from_frontend))
+            portfolio = holdings_from_frontend
         else:
-            portfolio = load_portfolio()
+            # 如果 state 中已有新录入的持仓（从截图/自然语言解析来的），合并保存
+            new_holdings = state.get("portfolio", [])
+            if new_holdings:
+                logger.info("[Portfolio Agent] 检测到新录入的 %d 只基金，合并保存", len(new_holdings))
+                existing = load_portfolio()
+                # 按基金代码去重合并（新的覆盖旧的）
+                existing_map = {f["fund_code"]: f for f in existing if f.get("fund_code")}
+                for h in new_holdings:
+                    if h.get("fund_code"):
+                        existing_map[h["fund_code"]] = h
+                    else:
+                        existing.append(h)
+                merged = list(existing_map.values())
+                save_portfolio(merged)
+                portfolio = merged
+            else:
+                portfolio = load_portfolio()
 
         portfolio = compute_metrics(portfolio)
 

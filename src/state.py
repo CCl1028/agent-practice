@@ -51,6 +51,9 @@ class AgentState(TypedDict, total=False):
     trigger: Literal["daily_briefing", "user_query", "new_portfolio"]
     user_query: str
 
+    # 前端传入的持仓数据（可选，若有则优先使用）
+    holdings: list[FundHolding]
+
     # 持仓数据 (Portfolio Agent 填充)
     portfolio: list[FundHolding]
 
