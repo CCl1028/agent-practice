@@ -1010,10 +1010,12 @@ async function addFromText() {
       const existing = getLocalPortfolio();
       const existingMap = {};
       for (const f of existing) {
-        if (f.fund_code) existingMap[f.fund_code] = f;
+        const key = f.fund_code || f.fund_name || '';
+        if (key) existingMap[key] = f;
       }
       for (const h of data.parsed) {
-        if (h.fund_code) existingMap[h.fund_code] = h;
+        const key = h.fund_code || h.fund_name || '';
+        if (key) existingMap[key] = h;
       }
       const merged = Object.values(existingMap);
       saveLocalPortfolio(merged);
@@ -1058,10 +1060,12 @@ async function addFromScreenshot() {
       const existing = getLocalPortfolio();
       const existingMap = {};
       for (const f of existing) {
-        if (f.fund_code) existingMap[f.fund_code] = f;
+        const key = f.fund_code || f.fund_name || '';
+        if (key) existingMap[key] = f;
       }
       for (const h of data.parsed) {
-        if (h.fund_code) existingMap[h.fund_code] = h;
+        const key = h.fund_code || h.fund_name || '';
+        if (key) existingMap[key] = h;
       }
       const merged = Object.values(existingMap);
       saveLocalPortfolio(merged);
