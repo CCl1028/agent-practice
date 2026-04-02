@@ -17,6 +17,20 @@ export BUILD_VERSION="1.0.0"
 
 echo "🚀 部署版本: ${GIT_COMMIT:0:7} | ${BUILD_TIME}"
 
+# 自签名证书：不存在则自动生成
+CERT_DIR="./certbot/conf/selfsigned"
+if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
+    echo "🔐 生成自签名 SSL 证书..."
+    mkdir -p "${CERT_DIR}"
+    openssl req -x509 -nodes -days 3650 \
+        -newkey rsa:2048 \
+        -keyout "${CERT_DIR}/privkey.pem" \
+        -out "${CERT_DIR}/fullchain.pem" \
+        -subj "/CN=106.52.248.165" \
+        -addext "subjectAltName=IP:106.52.248.165"
+    echo "✅ 证书已生成"
+fi
+
 docker compose down
 docker compose up -d --build
 
@@ -24,5 +38,6 @@ echo ""
 echo "✅ 部署完成"
 echo "   版本: ${GIT_COMMIT:0:7}"
 echo "   时间: ${BUILD_TIME}"
+echo "   访问: https://106.52.248.165"
 echo ""
 docker logs fund-assistant --tail 5
