@@ -81,6 +81,8 @@ def parse_ocr_text(ocr_text: str) -> list[dict]:
     try:
         holdings = json.loads(text)
         if isinstance(holdings, list):
+            from src.tools.market_tools import get_fund_name_by_code
+
             # 补全缺失字段
             for h in holdings:
                 h.setdefault("fund_code", "")
@@ -91,6 +93,18 @@ def parse_ocr_text(ocr_text: str) -> list[dict]:
                 h.setdefault("profit_ratio", 0)
                 h.setdefault("hold_days", 0)
                 h.setdefault("trend_5d", [])
+
+                # 用真实 API 校正基金名称
+                if h["fund_code"]:
+                    real_name = get_fund_name_by_code(h["fund_code"])
+                    if real_name:
+                        if real_name != h["fund_name"]:
+                            logger.info(
+                                "[OCR Parser] 校正基金名称: %s → %s (代码 %s)",
+                                h["fund_name"], real_name, h["fund_code"],
+                            )
+                        h["fund_name"] = real_name
+
             logger.info("[OCR Parser] 解析出 %d 只基金", len(holdings))
             return holdings
     except json.JSONDecodeError as e:

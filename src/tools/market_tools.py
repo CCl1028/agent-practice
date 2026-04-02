@@ -7,6 +7,44 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+# ---- 基金代码 → 名称查询 ----
+
+_fund_name_cache: dict[str, str] = {}
+
+
+def get_fund_name_by_code(fund_code: str) -> str | None:
+    """通过基金代码查询真实基金名称（AKShare），带内存缓存。
+
+    Returns:
+        基金名称字符串，查询失败返回 None。
+    """
+    if not fund_code or len(fund_code) != 6:
+        return None
+
+    # 命中缓存直接返回
+    if fund_code in _fund_name_cache:
+        return _fund_name_cache[fund_code]
+
+    try:
+        import akshare as ak
+        # fund_name_em 返回所有基金的代码+名称列表
+        df = ak.fund_name_em()
+        if df is not None and not df.empty:
+            # 构建完整缓存（一次加载，后续所有查询都命中缓存）
+            for _, row in df.iterrows():
+                code = str(row.get("基金代码", "")).strip()
+                name = str(row.get("基金简称", "")).strip()
+                if code and name:
+                    _fund_name_cache[code] = name
+
+            if fund_code in _fund_name_cache:
+                logger.info("[基金名称] %s → %s", fund_code, _fund_name_cache[fund_code])
+                return _fund_name_cache[fund_code]
+    except Exception as e:
+        logger.warning("[基金名称] AKShare 查询基金 %s 名称失败: %s", fund_code, e)
+
+    return None
+
 
 def is_trading_hours() -> bool:
     """判断当前是否在交易时段（工作日 9:30-15:00）。"""

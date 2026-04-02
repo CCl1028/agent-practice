@@ -60,6 +60,8 @@ def parse_natural_language(user_text: str) -> list[dict]:
     try:
         holdings = json.loads(text)
         if isinstance(holdings, list):
+            from src.tools.market_tools import get_fund_name_by_code
+
             for h in holdings:
                 h.setdefault("fund_code", "")
                 h.setdefault("fund_name", "未知基金")
@@ -69,6 +71,18 @@ def parse_natural_language(user_text: str) -> list[dict]:
                 h.setdefault("profit_ratio", 0)
                 h.setdefault("hold_days", 0)
                 h.setdefault("trend_5d", [])
+
+                # 用真实 API 校正基金名称，防止 LLM 猜错
+                if h["fund_code"]:
+                    real_name = get_fund_name_by_code(h["fund_code"])
+                    if real_name:
+                        if real_name != h["fund_name"]:
+                            logger.info(
+                                "[NLP Input] 校正基金名称: %s → %s (代码 %s)",
+                                h["fund_name"], real_name, h["fund_code"],
+                            )
+                        h["fund_name"] = real_name
+
             logger.info("[NLP Input] 从描述中解析出 %d 只基金", len(holdings))
             return holdings
     except json.JSONDecodeError as e:
