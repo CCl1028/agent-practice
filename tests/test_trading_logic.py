@@ -118,6 +118,27 @@ class TestRecalcHolding:
         assert r["total_shares"] >= 0
         assert r["total_cost"] >= 0
 
+    def test_sell_exactly_all_shares(self):
+        """精确卖出全部份额，结果归零"""
+        txs = [
+            {"type": "buy", "amount": 5000, "shares": 2500, "nav": 2.0},
+            {"type": "sell", "amount": 5000, "shares": 2500, "nav": 2.0},
+        ]
+        r = recalc_holding(txs)
+        assert r["total_shares"] == 0
+        assert r["total_cost"] == 0
+        assert r["avg_nav"] == 0
+
+    def test_sell_more_than_held_clamps_to_zero(self):
+        """卖出份额超过持有量，应被 clamp 到 0"""
+        txs = [
+            {"type": "buy", "amount": 1000, "shares": 500, "nav": 2.0},
+            {"type": "sell", "amount": 3000, "shares": 1500, "nav": 2.0},
+        ]
+        r = recalc_holding(txs)
+        assert r["total_shares"] == 0
+        assert r["total_cost"] == 0
+
     def test_auto_invest_source(self):
         """定投产生的交易和手动交易一视同仁"""
         txs = [
