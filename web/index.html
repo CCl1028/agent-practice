@@ -147,7 +147,7 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   white-space: nowrap;
   min-width: 64px;
   text-align: center;
@@ -155,10 +155,36 @@ body {
 .sort-btn:hover { border-color: var(--accent); color: var(--accent); }
 .sort-btn.active {
   border-color: var(--accent);
-  background: var(--accent);
-  color: white;
+  color: var(--accent);
+  background: rgba(184,78,74,0.06);
 }
-.sort-btn .sort-arrow { font-size: 10px; display: inline-block; width: 12px; text-align: center; }
+.sort-arrows {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0px;
+  width: 12px;
+  line-height: 1;
+}
+.sort-arrows .arrow-up,
+.sort-arrows .arrow-down {
+  font-size: 8px;
+  line-height: 1;
+  color: var(--border);
+  transition: color 0.2s;
+}
+.sort-btn.active .arrow-up.lit,
+.sort-btn.active .arrow-down.lit {
+  color: var(--accent);
+}
+.sort-btn:hover .arrow-up,
+.sort-btn:hover .arrow-down {
+  color: #cbb0ac;
+}
+.sort-btn:hover .arrow-up.lit,
+.sort-btn:hover .arrow-down.lit {
+  color: var(--accent);
+}
 
 .fund-card {
   background: var(--card);
@@ -1007,7 +1033,7 @@ body {
   <!-- 生成简报按钮 -->
   <div class="generate-area">
     <button class="generate-btn" id="generate-btn" onclick="generateBriefing()">
-      ⚡ 生成今日简报
+      生成今日简报
     </button>
     <div class="push-toggle">
       <label>
@@ -1019,13 +1045,14 @@ body {
 
   <!-- 持仓列表 -->
   <div class="section-title" id="portfolio-title" style="display:none">
-    📂 我的持仓
+    我的持仓
   </div>
   <!-- 排序栏 -->
   <div class="sort-bar" id="sort-bar" style="display:none">
-    <span class="sort-btn" onclick="toggleSort('cost')">持仓 <span class="sort-arrow" id="sort-arrow-cost"></span></span>
-    <span class="sort-btn" onclick="toggleSort('profit_ratio')">收益率 <span class="sort-arrow" id="sort-arrow-profit_ratio"></span></span>
-    <span class="sort-btn" onclick="toggleSort('profit')">收益额 <span class="sort-arrow" id="sort-arrow-profit"></span></span>
+    <span class="sort-btn active" id="sort-btn-time" onclick="toggleSort('time')">添加时间 <span class="sort-arrows"><span class="arrow-up" id="arrow-up-time">▲</span><span class="arrow-down lit" id="arrow-down-time">▼</span></span></span>
+    <span class="sort-btn" id="sort-btn-cost" onclick="toggleSort('cost')">持仓 <span class="sort-arrows"><span class="arrow-up" id="arrow-up-cost">▲</span><span class="arrow-down" id="arrow-down-cost">▼</span></span></span>
+    <span class="sort-btn" id="sort-btn-profit_ratio" onclick="toggleSort('profit_ratio')">收益率 <span class="sort-arrows"><span class="arrow-up" id="arrow-up-profit_ratio">▲</span><span class="arrow-down" id="arrow-down-profit_ratio">▼</span></span></span>
+    <span class="sort-btn" id="sort-btn-profit" onclick="toggleSort('profit')">收益额 <span class="sort-arrows"><span class="arrow-up" id="arrow-up-profit">▲</span><span class="arrow-down" id="arrow-down-profit">▼</span></span></span>
   </div>
   <!-- 定投补执行横幅 -->
   <div class="pending-invest-banner" id="pending-invest-banner">
@@ -1287,7 +1314,7 @@ async function generateBriefing() {
   if (localHoldings.length === 0) {
     area.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">请先添加持仓再生成简报</div></div>';
     btn.disabled = false;
-    btn.textContent = '⚡ 生成今日简报';
+    btn.textContent = '生成今日简报';
     showToast('请先添加持仓', 'error');
     return;
   }
@@ -1311,14 +1338,14 @@ async function generateBriefing() {
       const pushMsg = formatPushResults(data.push_results);
       showToast('简报已生成 ' + pushMsg, 'success');
     } else {
-      showToast('简报已生成 ✅', 'success');
+      showToast('简报已生成', 'success');
     }
   } catch (e) {
     area.innerHTML = '<div class="empty-state"><div class="empty-state-icon">😵</div><div class="empty-state-text">生成失败，请重试</div></div>';
     showToast('生成失败: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = '⚡ 生成今日简报';
+    btn.textContent = '生成今日简报';
   }
 }
 
@@ -1369,17 +1396,16 @@ function renderBriefing(briefing) {
 let estimationCache = {};
 
 // ---- 排序状态 ----
-// sortKey: 'cost' | 'profit_ratio' | 'profit' | null
+// sortKey: 'time' | 'cost' | 'profit_ratio' | 'profit'
 // sortDir: 'desc' | 'asc'
-let sortKey = null;
+let sortKey = 'time';
 let sortDir = 'desc';
+const SORT_KEYS = ['time', 'cost', 'profit_ratio', 'profit'];
 
 function toggleSort(key) {
   if (sortKey === key) {
-    // 同一个按钮：升降序切换
     sortDir = sortDir === 'desc' ? 'asc' : 'desc';
   } else {
-    // 切换到新维度：默认降序
     sortKey = key;
     sortDir = 'desc';
   }
@@ -1388,27 +1414,23 @@ function toggleSort(key) {
 }
 
 function updateSortUI() {
-  document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
-  ['cost', 'profit_ratio', 'profit'].forEach(k => {
-    const arrow = document.getElementById('sort-arrow-' + k);
-    if (arrow) arrow.textContent = '';
+  SORT_KEYS.forEach(k => {
+    const btn = document.getElementById('sort-btn-' + k);
+    const up = document.getElementById('arrow-up-' + k);
+    const down = document.getElementById('arrow-down-' + k);
+    if (!btn) return;
+    btn.classList.toggle('active', sortKey === k);
+    if (up) up.classList.toggle('lit', sortKey === k && sortDir === 'asc');
+    if (down) down.classList.toggle('lit', sortKey === k && sortDir === 'desc');
   });
-  if (sortKey) {
-    const btns = document.querySelectorAll('.sort-btn');
-    btns.forEach(btn => {
-      if (btn.textContent.trim().startsWith(
-        sortKey === 'cost' ? '持仓' : sortKey === 'profit_ratio' ? '收益率' : '收益额'
-      )) {
-        btn.classList.add('active');
-      }
-    });
-    const arrow = document.getElementById('sort-arrow-' + sortKey);
-    if (arrow) arrow.textContent = sortDir === 'desc' ? '↓' : '↑';
-  }
 }
 
 function sortHoldings(holdings) {
-  if (!sortKey || !holdings || holdings.length <= 1) return holdings;
+  if (!holdings || holdings.length <= 1) return holdings;
+  if (sortKey === 'time') {
+    // 添加时间：按原始顺序，desc=最新在前（反转），asc=最早在前（原序）
+    return sortDir === 'asc' ? [...holdings] : [...holdings].reverse();
+  }
   const sorted = [...holdings];
   sorted.sort((a, b) => {
     let va, vb;
