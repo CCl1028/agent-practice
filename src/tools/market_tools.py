@@ -257,6 +257,38 @@ def get_fund_nav(fund_code: str) -> dict:
     return _mock_fund_nav(fund_code)
 
 
+def get_fund_nav_history(fund_code: str, start: str = "", end: str = "") -> list[dict]:
+    """获取基金历史净值列表（用于定投补执行按历史净值计算）。
+
+    Args:
+        fund_code: 基金代码
+        start: 起始日期 YYYY-MM-DD（可选）
+        end: 截止日期 YYYY-MM-DD（可选）
+
+    Returns:
+        [{"date": "2026-03-26", "nav": 1.8310}, ...]
+    """
+    try:
+        import akshare as ak
+        df = ak.fund_open_fund_info_em(symbol=fund_code, indicator="单位净值走势")
+        if df is not None and not df.empty:
+            result = []
+            for _, row in df.iterrows():
+                date_str = str(row["净值日期"])[:10]
+                nav = float(row["单位净值"])
+                if start and date_str < start:
+                    continue
+                if end and date_str > end:
+                    continue
+                result.append({"date": date_str, "nav": nav})
+            return result
+    except Exception as e:
+        logger.warning("AKShare 获取基金 %s 历史净值失败: %s", fund_code, e)
+
+    # fallback: 返回空列表
+    return []
+
+
 def get_sector_performance() -> list[dict]:
     """获取主要板块涨跌，优先 AKShare，失败则 mock。"""
     try:

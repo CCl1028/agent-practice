@@ -14,15 +14,25 @@ from src.config import OPENAI_API_KEY, OPENAI_BASE_URL, TEXT_MODEL
 logger = logging.getLogger(__name__)
 
 EXTRACT_PROMPT = """\
-你是一个基金持仓信息提取助手。用户会用自然语言描述自己的基金持仓，你需要从中提取结构化信息。
+你是一个基金持仓信息提取助手。用户会用自然语言描述自己的基金持仓或操作，你需要从中提取结构化信息。
 
 提取以下字段：
+- intent: 操作意图，必须是以下之一：
+  - "add_holding" — 新增/描述持仓（默认）
+  - "buy" — 加仓/买入操作
+  - "sell" — 减仓/卖出操作
 - fund_code: 基金代码（6位数字），如果用户只说了名字，根据你的知识补全代码
 - fund_name: 基金名称
 - cost: 持有金额（元），如果用户说"2万"就是20000
 - cost_nav: 成本净值，如果用户没说，填0
 - profit_ratio: 收益率（%），如果用户说"亏了5个点"就是-5，找不到就填0
 - hold_days: 持有天数，如果用户说"去年6月买的"，请根据当前日期估算天数
+- amount: 交易金额（元），仅当 intent 为 buy 或 sell 时需要
+
+判断 intent 的规则：
+- 用户说"加仓"、"买入"、"追加"、"定投" → intent: "buy"
+- 用户说"减仓"、"卖出"、"赎回" → intent: "sell"
+- 其他情况（描述持仓、报基金名等） → intent: "add_holding"
 
 注意：
 - 用户可能一次描述多只基金
@@ -31,7 +41,7 @@ EXTRACT_PROMPT = """\
 - 当前日期是 {today}
 
 严格按 JSON 数组格式输出，不要输出其他内容：
-[{{"fund_code": "005827", "fund_name": "易方达蓝筹精选", "cost": 20000, "cost_nav": 0, "profit_ratio": -5, "hold_days": 280}}]
+[{{"intent": "buy", "fund_code": "005827", "fund_name": "易方达蓝筹精选", "amount": 5000, "cost": 20000, "cost_nav": 0, "profit_ratio": -5, "hold_days": 280}}]
 """
 
 
@@ -63,6 +73,7 @@ def parse_natural_language(user_text: str) -> list[dict]:
             from src.tools.market_tools import get_fund_name_by_code
 
             for h in holdings:
+                h.setdefault("intent", "add_holding")
                 h.setdefault("fund_code", "")
                 h.setdefault("fund_name", "未知基金")
                 h.setdefault("cost", 0)
@@ -71,6 +82,7 @@ def parse_natural_language(user_text: str) -> list[dict]:
                 h.setdefault("profit_ratio", 0)
                 h.setdefault("hold_days", 0)
                 h.setdefault("trend_5d", [])
+                h.setdefault("amount", 0)
 
                 # 用真实 API 校正基金名称，防止 LLM 猜错
                 if h["fund_code"]:

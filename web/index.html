@@ -637,6 +637,287 @@ body {
 }
 .schedule-disable-btn:hover { border-color: var(--red); color: var(--red); }
 
+/* 基金操作按钮组 */
+.fund-actions {
+  display: none;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.fund-card.selected .fund-actions { display: flex; }
+.fund-action-btn {
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+.fund-action-btn:hover { border-color: var(--accent); color: var(--accent); }
+.fund-action-btn.buy { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+.fund-action-btn.buy:hover { background: var(--red); color: white; }
+.fund-action-btn.sell { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+.fund-action-btn.sell:hover { background: var(--green); color: white; }
+.fund-action-btn.invest { border-color: var(--accent); color: var(--accent); }
+.fund-action-btn.invest:hover { background: var(--accent); color: white; }
+.fund-action-btn.delete { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+.fund-action-btn.delete:hover { background: var(--red); color: white; }
+
+/* 交易/定投弹窗 */
+.trade-drawer { z-index: 902; }
+.trade-drawer-overlay { z-index: 901; }
+.trade-form { padding: 0; }
+.trade-form .form-group { margin-bottom: 16px; }
+.trade-form .form-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  display: block;
+}
+.trade-form .form-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: 16px;
+  font-family: inherit;
+}
+.trade-form .form-input:focus { outline: none; border-color: var(--accent); }
+.quick-amounts {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.quick-amount {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.quick-amount:hover, .quick-amount.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+.trade-info {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+.trade-info strong { color: var(--text); font-weight: 600; }
+.trade-submit {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+.trade-submit.buy-btn {
+  background: var(--red);
+  color: white;
+}
+.trade-submit.buy-btn:hover { opacity: 0.9; }
+.trade-submit.sell-btn {
+  background: var(--green);
+  color: white;
+}
+.trade-submit.sell-btn:hover { opacity: 0.9; }
+.trade-submit.invest-btn {
+  background: linear-gradient(135deg, var(--accent), #c47a4a);
+  color: white;
+  box-shadow: 0 4px 16px rgba(184,78,74,0.3);
+}
+.trade-submit:disabled {
+  background: #e8d8d5;
+  color: #a89090;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.form-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.form-error {
+  font-size: 12px;
+  color: var(--red);
+  margin-top: 4px;
+}
+
+/* 定投频率选择 */
+.freq-row {
+  display: flex;
+  gap: 8px;
+}
+.freq-select {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  appearance: auto;
+}
+.freq-select:focus { outline: none; border-color: var(--accent); }
+
+/* 定投管理区域 */
+.invest-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.invest-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.invest-card-name { font-size: 14px; font-weight: 600; }
+.invest-card-schedule { font-size: 13px; color: var(--text-secondary); }
+.invest-card-status {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.invest-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.invest-card-actions button {
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+.invest-card-actions button:hover { border-color: var(--accent); color: var(--accent); }
+.invest-card-actions .stop-btn:hover { border-color: var(--red); color: var(--red); }
+
+/* 交易记录展开 */
+.tx-toggle {
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  margin-top: 6px;
+  display: inline-block;
+}
+.tx-toggle:hover { text-decoration: underline; }
+.tx-list {
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.tx-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.tx-item .tx-date { min-width: 46px; }
+.tx-item .tx-source {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--bg);
+}
+.tx-item .tx-type-buy { color: var(--red); font-weight: 600; }
+.tx-item .tx-type-sell { color: var(--green); font-weight: 600; }
+.tx-item .tx-nav { color: var(--text-secondary); }
+
+/* 补执行横幅 */
+.pending-invest-banner {
+  background: linear-gradient(135deg, #fff5e6, #ffffff);
+  border: 1px solid #e8d4a8;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: none;
+}
+.pending-invest-banner.show { display: block; }
+.pending-invest-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--yellow);
+}
+.pending-invest-detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+.pending-invest-actions {
+  display: flex;
+  gap: 8px;
+}
+.pending-invest-actions button {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+.pending-invest-actions .exec-btn {
+  background: var(--accent);
+  color: white;
+}
+.pending-invest-actions .exec-btn:hover { opacity: 0.9; }
+.pending-invest-actions .skip-btn {
+  background: var(--bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.pending-invest-actions .skip-btn:hover { border-color: var(--accent); }
+.pending-invest-actions .detail-btn {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+/* 定投标签（持仓卡片上） */
+.fund-invest-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(184,78,74,0.08);
+  color: var(--accent);
+  margin-top: 4px;
+}
+
 /* 响应式 */
 @media (min-width: 768px) {
   .container { max-width: 520px; }
@@ -680,7 +961,23 @@ body {
   <div class="section-title" id="portfolio-title" style="display:none">
     📂 我的持仓
   </div>
+  <!-- 定投补执行横幅 -->
+  <div class="pending-invest-banner" id="pending-invest-banner">
+    <div class="pending-invest-title" id="pending-invest-title">📅 有定投待执行</div>
+    <div class="pending-invest-detail" id="pending-invest-detail"></div>
+    <div class="pending-invest-actions">
+      <button class="detail-btn" onclick="togglePendingDetail()">查看详情</button>
+      <button class="exec-btn" onclick="executePendingInvests()">全部执行</button>
+      <button class="skip-btn" onclick="skipPendingInvests()">跳过</button>
+    </div>
+  </div>
   <div id="portfolio-list"></div>
+
+  <!-- 定投管理区域 -->
+  <div class="section-title" id="invest-title" style="display:none">
+    📅 我的定投
+  </div>
+  <div id="invest-list"></div>
 
 
 </div>
@@ -764,6 +1061,79 @@ body {
   </div>
 </div>
 
+<!-- 交易弹窗 -->
+<div class="drawer-overlay trade-drawer-overlay" id="trade-overlay" onclick="closeTradeDrawer()"></div>
+<div class="drawer trade-drawer" id="trade-drawer">
+  <div class="drawer-handle"><div class="drawer-handle-bar"></div></div>
+  <div class="drawer-header">
+    <h3 id="trade-drawer-title">加仓</h3>
+    <button class="drawer-close" onclick="closeTradeDrawer()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="trade-form">
+      <div class="form-group">
+        <label class="form-label">金额（元）</label>
+        <input class="form-input" id="trade-amount" type="number" inputmode="decimal" placeholder="输入金额" oninput="onTradeAmountInput()">
+        <div class="quick-amounts">
+          <span class="quick-amount" onclick="setTradeAmount(500)">500</span>
+          <span class="quick-amount" onclick="setTradeAmount(1000)">1000</span>
+          <span class="quick-amount" onclick="setTradeAmount(2000)">2000</span>
+          <span class="quick-amount" onclick="setTradeAmount(5000)">5000</span>
+        </div>
+        <div class="form-error" id="trade-error" style="display:none"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">备注（可选）</label>
+        <input class="form-input" id="trade-note" type="text" placeholder="备注信息">
+      </div>
+      <div class="trade-info" id="trade-info"></div>
+      <button class="trade-submit" id="trade-submit" onclick="submitTrade()" disabled>确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 定投弹窗 -->
+<div class="drawer-overlay trade-drawer-overlay" id="invest-overlay" onclick="closeInvestDrawer()"></div>
+<div class="drawer trade-drawer" id="invest-drawer">
+  <div class="drawer-handle"><div class="drawer-handle-bar"></div></div>
+  <div class="drawer-header">
+    <h3 id="invest-drawer-title">设置定投</h3>
+    <button class="drawer-close" onclick="closeInvestDrawer()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="trade-form">
+      <div class="form-group">
+        <label class="form-label">每期金额（元）</label>
+        <input class="form-input" id="invest-amount" type="number" inputmode="decimal" placeholder="每期投入金额" oninput="onInvestFormChange()">
+        <div class="quick-amounts">
+          <span class="quick-amount" onclick="setInvestAmount(200)">200</span>
+          <span class="quick-amount" onclick="setInvestAmount(500)">500</span>
+          <span class="quick-amount" onclick="setInvestAmount(1000)">1000</span>
+          <span class="quick-amount" onclick="setInvestAmount(2000)">2000</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">定投频率</label>
+        <div class="freq-row">
+          <select class="freq-select" id="invest-freq" onchange="onInvestFreqChange()">
+            <option value="weekly">每周</option>
+            <option value="biweekly">每两周</option>
+            <option value="monthly">每月</option>
+          </select>
+          <select class="freq-select" id="invest-day" onchange="onInvestFormChange()">
+            <option value="1">周一</option>
+            <option value="2">周二</option>
+            <option value="3" selected>周三</option>
+            <option value="4">周四</option>
+            <option value="5">周五</option>
+          </select>
+        </div>
+      </div>
+      <button class="trade-submit invest-btn" id="invest-submit" onclick="submitInvestPlan()" disabled>确认创建</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -771,6 +1141,8 @@ body {
 const API = '';  // 同源，无需前缀
 const PORTFOLIO_KEY = 'fund_assistant_portfolio';  // localStorage key
 const CONFIG_KEY = 'fund_assistant_config';  // localStorage key for config
+const TX_KEY = 'fund_assistant_transactions';  // 交易流水
+const INVEST_KEY = 'fund_assistant_auto_invest';  // 定投计划
 
 // ---- 本地配置存取 ----
 function getLocalConfig() {
@@ -980,15 +1352,24 @@ function renderPortfolio(holdings) {
     return;
   }
 
+  const allTx = getTransactions();
+  const allPlans = getInvestPlans();
+
   title.style.display = 'flex';
   list.innerHTML = holdings.map(h => {
-    const cost = h.cost || 0;
+    const cost = h.total_cost || h.cost || 0;
     const mv = h.market_value || cost;
     const ratio = h.profit_ratio || 0;
+    const shares = h.total_shares || 0;
+    const avgNav = h.avg_nav || 0;
     const profit = mv - cost;
     const profitSign = profit >= 0 ? '+' : '';
     const ratioSign = ratio >= 0 ? '+' : '';
     const profitColor = profit > 0 ? 'var(--red)' : profit < 0 ? 'var(--green)' : 'var(--text-secondary)';
+    const txCount = h.transaction_count || allTx.filter(t => t.fund_code === h.fund_code).length;
+    const plan = allPlans.find(p => p.fund_code === h.fund_code && p.status === 'active');
+    const investTag = plan ? `<div class="fund-invest-tag">📅 定投中 · ${formatFrequency(plan)} ¥${plan.amount}</div>` : '';
+
     return `
     <div class="fund-card" onclick="toggleFundSelect(this)">
       <div class="fund-header">
@@ -996,16 +1377,24 @@ function renderPortfolio(holdings) {
           <span class="fund-name">${h.fund_name || '未知'}</span>
           <span class="fund-code">${h.fund_code || ''}</span>
         </div>
-        <button class="fund-delete" onclick="event.stopPropagation(); deleteHolding('${h.fund_code}')">删除</button>
       </div>
       <div class="fund-reason">
-        ${cost ? '成本 ¥' + cost.toLocaleString() : ''}
+        ${cost ? '累计投入 ¥' + cost.toLocaleString() : ''}
         ${mv !== cost ? ' → 市值 ¥' + mv.toLocaleString() : ''}
         ${ratio ? ' · <span style="color:' + profitColor + ';font-weight:600">' + ratioSign + ratio + '%</span>' : ''}
         ${profit && cost ? ' · <span style="color:' + profitColor + '">' + profitSign + profit.toFixed(0) + '元</span>' : ''}
-        ${h.hold_days ? ' · 持有' + h.hold_days + '天' : ''}
       </div>
+      ${shares ? '<div class="fund-reason" style="margin-top:2px">持有 ' + shares.toFixed(2) + ' 份 · 均价 ' + avgNav.toFixed(4) + '</div>' : ''}
       <div id="est-${h.fund_code}"></div>
+      ${investTag}
+      <div class="fund-actions">
+        <button class="fund-action-btn buy" onclick="event.stopPropagation(); openTradeDrawer('${h.fund_code}', 'buy')">➕ 加仓</button>
+        <button class="fund-action-btn sell" onclick="event.stopPropagation(); openTradeDrawer('${h.fund_code}', 'sell')">➖ 减仓</button>
+        <button class="fund-action-btn invest" onclick="event.stopPropagation(); openInvestDrawer('${h.fund_code}')">📅 定投</button>
+        <button class="fund-action-btn delete" onclick="event.stopPropagation(); deleteHolding('${h.fund_code}')">删除</button>
+      </div>
+      ${txCount > 0 ? '<span class="tx-toggle" onclick="event.stopPropagation(); toggleTxList(this, \'' + h.fund_code + '\')">📋 交易记录 ' + txCount + '笔</span>' : ''}
+      <div class="tx-list" id="tx-list-${h.fund_code}" style="display:none"></div>
     </div>
   `;}).join('');
 
@@ -1155,27 +1544,75 @@ async function addFromText() {
     }
     const data = await res.json();
     if (data.parsed && data.parsed.length > 0) {
-      // 保存到本地 localStorage
-      const existing = getLocalPortfolio();
-      const existingMap = {};
-      for (const f of existing) {
-        const key = f.fund_code || f.fund_name || '';
-        if (key) existingMap[key] = f;
-      }
-      for (const h of data.parsed) {
-        const key = h.fund_code || h.fund_name || '';
-        if (key) existingMap[key] = h;
-      }
-      const merged = Object.values(existingMap);
-      saveLocalPortfolio(merged);
+      let tradeDone = false;
+      let addedCount = 0;
 
-      showToast(`成功添加 ${data.parsed.length} 只基金 ✅`, 'success');
+      for (const h of data.parsed) {
+        if (h.intent === 'buy' || h.intent === 'sell') {
+          // 加仓/减仓操作：确保持仓存在
+          const existing = getLocalPortfolio();
+          const fund = existing.find(f => f.fund_code === h.fund_code || f.fund_name === h.fund_name);
+          if (fund) {
+            // 获取最新净值
+            let nav = fund.current_nav || 0;
+            if (!nav) {
+              try {
+                const rr = await fetch(API + '/api/portfolio/refresh', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ holdings: [{ fund_code: fund.fund_code }] }),
+                });
+                const rd = await rr.json();
+                if (rd.holdings && rd.holdings[0]) nav = rd.holdings[0].current_nav || 1;
+              } catch(e) { nav = 1; }
+            }
+            const amount = h.amount || h.cost || 0;
+            if (amount > 0) {
+              const tx = {
+                id: Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+                fund_code: fund.fund_code,
+                type: h.intent,
+                amount: amount,
+                nav: Math.round(nav * 10000) / 10000,
+                shares: Math.round((amount / nav) * 100) / 100,
+                source: 'manual',
+                created_at: new Date().toISOString(),
+                note: '自然语言录入',
+              };
+              addTransaction(tx);
+              recalcHolding(fund.fund_code);
+              tradeDone = true;
+            }
+          } else {
+            showToast(`未找到持仓: ${h.fund_name || h.fund_code}，请先添加`, 'error');
+          }
+        } else {
+          // 新增持仓
+          const existing = getLocalPortfolio();
+          const existingMap = {};
+          for (const f of existing) {
+            const key = f.fund_code || f.fund_name || '';
+            if (key) existingMap[key] = f;
+          }
+          const key = h.fund_code || h.fund_name || '';
+          if (key) existingMap[key] = h;
+          const merged = Object.values(existingMap);
+          saveLocalPortfolio(merged);
+          addedCount++;
+        }
+      }
+
+      if (tradeDone) {
+        showToast('交易操作已完成 ✅', 'success');
+      } else if (addedCount > 0) {
+        showToast(`成功添加 ${addedCount} 只基金 ✅`, 'success');
+      }
+
       input.value = '';
       autoGrow(input);
-      // 收集新增基金的 code
-      const newCodes = data.parsed.map(h => h.fund_code).filter(Boolean);
-      loadPortfolio(true); // 跳过全量估值
-      loadEstimationForNew(newCodes); // 只拉新基金估值
+      const newCodes = data.parsed.filter(h => h.intent === 'add_holding' || !h.intent).map(h => h.fund_code).filter(Boolean);
+      loadPortfolio(true);
+      if (newCodes.length > 0) loadEstimationForNew(newCodes);
     } else {
       showToast('未识别到基金信息，换个描述试试', 'error');
     }
@@ -1470,8 +1907,623 @@ function showToast(msg, type) {
   setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
+// ---- 交易记录存取 ----
+function getTransactions() {
+  try { return JSON.parse(localStorage.getItem(TX_KEY)) || []; } catch(e) { return []; }
+}
+function saveTransactions(txs) {
+  localStorage.setItem(TX_KEY, JSON.stringify(txs));
+}
+function addTransaction(tx) {
+  const txs = getTransactions();
+  txs.unshift(tx); // 最新在前
+  saveTransactions(txs);
+}
+
+// ---- 定投计划存取 ----
+function getInvestPlans() {
+  try { return JSON.parse(localStorage.getItem(INVEST_KEY)) || []; } catch(e) { return []; }
+}
+function saveInvestPlans(plans) {
+  localStorage.setItem(INVEST_KEY, JSON.stringify(plans));
+}
+
+// ---- 累积持仓计算 ----
+function recalcHolding(fundCode) {
+  const txs = getTransactions().filter(t => t.fund_code === fundCode);
+  let totalShares = 0, totalCost = 0;
+  // 按时间正序处理
+  const sorted = [...txs].reverse();
+  for (const t of sorted) {
+    if (t.type === 'buy') {
+      totalShares += t.shares || 0;
+      totalCost += t.amount || 0;
+    } else if (t.type === 'sell') {
+      const sellShares = t.shares || 0;
+      if (totalShares > 0) {
+        const costPerShare = totalCost / totalShares;
+        totalCost -= costPerShare * sellShares;
+        totalShares -= sellShares;
+      }
+    }
+  }
+  totalShares = Math.max(0, totalShares);
+  totalCost = Math.max(0, totalCost);
+  const avgNav = totalShares > 0 ? totalCost / totalShares : 0;
+
+  // 更新持仓
+  const holdings = getLocalPortfolio();
+  const h = holdings.find(x => x.fund_code === fundCode);
+  if (h) {
+    h.total_shares = Math.round(totalShares * 100) / 100;
+    h.total_cost = Math.round(totalCost * 100) / 100;
+    h.avg_nav = Math.round(avgNav * 10000) / 10000;
+    h.cost = h.total_cost;
+    h.cost_nav = h.avg_nav;
+    h.transaction_count = txs.length;
+    saveLocalPortfolio(holdings);
+  }
+  return { totalShares, totalCost, avgNav };
+}
+
+// ---- 交易弹窗逻辑 ----
+let tradeContext = { fundCode: '', type: 'buy', fundName: '', currentNav: 0 };
+
+function openTradeDrawer(fundCode, type) {
+  const holdings = getLocalPortfolio();
+  const h = holdings.find(x => x.fund_code === fundCode);
+  if (!h) return;
+
+  tradeContext = {
+    fundCode, type,
+    fundName: h.fund_name || fundCode,
+    currentNav: h.current_nav || 0,
+    totalShares: h.total_shares || 0,
+    marketValue: h.market_value || h.cost || 0,
+  };
+
+  const titleEl = document.getElementById('trade-drawer-title');
+  const submitEl = document.getElementById('trade-submit');
+  titleEl.textContent = (type === 'buy' ? '➕ 加仓' : '➖ 减仓') + ' · ' + tradeContext.fundName;
+  submitEl.className = 'trade-submit ' + (type === 'buy' ? 'buy-btn' : 'sell-btn');
+  submitEl.textContent = type === 'buy' ? '确认加仓' : '确认减仓';
+  submitEl.disabled = true;
+
+  document.getElementById('trade-amount').value = '';
+  document.getElementById('trade-note').value = '';
+  document.getElementById('trade-error').style.display = 'none';
+  document.querySelectorAll('#trade-drawer .quick-amount').forEach(e => e.classList.remove('active'));
+
+  updateTradeInfo();
+
+  document.getElementById('trade-overlay').classList.add('open');
+  document.getElementById('trade-drawer').classList.add('open');
+}
+
+function closeTradeDrawer() {
+  document.getElementById('trade-overlay').classList.remove('open');
+  document.getElementById('trade-drawer').classList.remove('open');
+}
+
+function setTradeAmount(val) {
+  document.getElementById('trade-amount').value = val;
+  document.querySelectorAll('#trade-drawer .quick-amount').forEach(e => {
+    e.classList.toggle('active', parseInt(e.textContent) === val);
+  });
+  onTradeAmountInput();
+}
+
+function onTradeAmountInput() {
+  const amount = parseFloat(document.getElementById('trade-amount').value) || 0;
+  const errEl = document.getElementById('trade-error');
+  const submitEl = document.getElementById('trade-submit');
+
+  if (tradeContext.type === 'sell' && amount > tradeContext.marketValue && tradeContext.marketValue > 0) {
+    errEl.textContent = '金额不能超过当前市值 ¥' + tradeContext.marketValue.toLocaleString();
+    errEl.style.display = 'block';
+    submitEl.disabled = true;
+  } else {
+    errEl.style.display = 'none';
+    submitEl.disabled = amount <= 0;
+  }
+  updateTradeInfo();
+}
+
+function updateTradeInfo() {
+  const amount = parseFloat(document.getElementById('trade-amount').value) || 0;
+  const nav = tradeContext.currentNav;
+  const infoEl = document.getElementById('trade-info');
+
+  let html = `成交净值：<strong>${nav ? nav.toFixed(4) : '获取中...'}</strong>（最新净值）<br>`;
+  if (nav > 0 && amount > 0) {
+    const shares = amount / nav;
+    html += `预估份额：<strong>${shares.toFixed(2)}</strong> 份`;
+  }
+  if (tradeContext.type === 'sell') {
+    html += `<br>当前持有：<strong>${(tradeContext.totalShares || 0).toFixed(2)}</strong> 份`;
+    html += `<br>当前市值：<strong>¥${(tradeContext.marketValue || 0).toLocaleString()}</strong>`;
+  }
+  infoEl.innerHTML = html;
+}
+
+async function submitTrade() {
+  const amount = parseFloat(document.getElementById('trade-amount').value) || 0;
+  if (amount <= 0) return;
+
+  const submitEl = document.getElementById('trade-submit');
+  submitEl.disabled = true;
+  submitEl.textContent = '处理中...';
+
+  let nav = tradeContext.currentNav;
+  // 如果没有净值，尝试获取
+  if (!nav || nav <= 0) {
+    try {
+      const holdings = [{ fund_code: tradeContext.fundCode }];
+      const res = await fetch(API + '/api/portfolio/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ holdings }),
+      });
+      const data = await res.json();
+      if (data.holdings && data.holdings[0]) {
+        nav = data.holdings[0].current_nav || 1;
+      }
+    } catch(e) { nav = 1; }
+  }
+
+  const shares = amount / nav;
+  const tx = {
+    id: Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    fund_code: tradeContext.fundCode,
+    type: tradeContext.type,
+    amount: Math.round(amount * 100) / 100,
+    nav: Math.round(nav * 10000) / 10000,
+    shares: Math.round(shares * 100) / 100,
+    source: 'manual',
+    created_at: new Date().toISOString(),
+    note: document.getElementById('trade-note').value.trim(),
+  };
+
+  addTransaction(tx);
+  recalcHolding(tradeContext.fundCode);
+
+  closeTradeDrawer();
+  showToast(`${tradeContext.type === 'buy' ? '加仓' : '减仓'}成功 ${tradeContext.type === 'buy' ? '+' : '-'}¥${amount}`, 'success');
+  loadPortfolio(true);
+}
+
+// ---- 交易记录展示 ----
+function toggleTxList(el, fundCode) {
+  const listEl = document.getElementById('tx-list-' + fundCode);
+  if (!listEl) return;
+  if (listEl.style.display === 'none') {
+    const txs = getTransactions().filter(t => t.fund_code === fundCode);
+    const show = txs.slice(0, 5);
+    let html = show.map(t => {
+      const d = new Date(t.created_at);
+      const dateStr = (d.getMonth()+1).toString().padStart(2,'0') + '-' + d.getDate().toString().padStart(2,'0');
+      const srcLabel = t.source === 'auto_invest' ? '📅定投' : '手动';
+      const typeCls = t.type === 'buy' ? 'tx-type-buy' : 'tx-type-sell';
+      const typeLabel = t.type === 'buy' ? '买入' : '卖出';
+      return `<div class="tx-item">
+        <span class="tx-date">${dateStr}</span>
+        <span class="tx-source">${srcLabel}</span>
+        <span class="${typeCls}">${typeLabel} ¥${t.amount}</span>
+        <span class="tx-nav">${t.nav ? t.nav.toFixed(4) : '-'}</span>
+      </div>`;
+    }).join('');
+    if (txs.length > 5) {
+      html += `<div style="text-align:center;margin-top:6px;"><span class="tx-toggle" onclick="event.stopPropagation(); showAllTx('${fundCode}')">查看全部 ${txs.length} 笔</span></div>`;
+    }
+    listEl.innerHTML = html;
+    listEl.style.display = 'block';
+    el.textContent = '📋 收起记录';
+  } else {
+    listEl.style.display = 'none';
+    const txCount = getTransactions().filter(t => t.fund_code === fundCode).length;
+    el.textContent = '📋 交易记录 ' + txCount + '笔';
+  }
+}
+
+function showAllTx(fundCode) {
+  const listEl = document.getElementById('tx-list-' + fundCode);
+  if (!listEl) return;
+  const txs = getTransactions().filter(t => t.fund_code === fundCode);
+  listEl.innerHTML = txs.map(t => {
+    const d = new Date(t.created_at);
+    const dateStr = (d.getMonth()+1).toString().padStart(2,'0') + '-' + d.getDate().toString().padStart(2,'0');
+    const srcLabel = t.source === 'auto_invest' ? '📅定投' : '手动';
+    const typeCls = t.type === 'buy' ? 'tx-type-buy' : 'tx-type-sell';
+    const typeLabel = t.type === 'buy' ? '买入' : '卖出';
+    return `<div class="tx-item">
+      <span class="tx-date">${dateStr}</span>
+      <span class="tx-source">${srcLabel}</span>
+      <span class="${typeCls}">${typeLabel} ¥${t.amount}</span>
+      <span class="tx-nav">${t.nav ? t.nav.toFixed(4) : '-'}</span>
+    </div>`;
+  }).join('');
+}
+
+// ---- 定投弹窗逻辑 ----
+let investContext = { fundCode: '', fundName: '' };
+
+function openInvestDrawer(fundCode) {
+  const holdings = getLocalPortfolio();
+  const h = holdings.find(x => x.fund_code === fundCode);
+  if (!h) return;
+
+  // 检查是否已有 active 计划
+  const existing = getInvestPlans().find(p => p.fund_code === fundCode && p.status === 'active');
+  if (existing) {
+    showToast('该基金已有定投计划，请先暂停或停止现有计划', 'error');
+    return;
+  }
+
+  investContext = { fundCode, fundName: h.fund_name || fundCode };
+  document.getElementById('invest-drawer-title').textContent = '📅 设置定投 · ' + investContext.fundName;
+  document.getElementById('invest-amount').value = '';
+  document.getElementById('invest-freq').value = 'weekly';
+  onInvestFreqChange();
+  document.getElementById('invest-submit').disabled = true;
+
+  document.getElementById('invest-overlay').classList.add('open');
+  document.getElementById('invest-drawer').classList.add('open');
+}
+
+function closeInvestDrawer() {
+  document.getElementById('invest-overlay').classList.remove('open');
+  document.getElementById('invest-drawer').classList.remove('open');
+}
+
+function setInvestAmount(val) {
+  document.getElementById('invest-amount').value = val;
+  document.querySelectorAll('#invest-drawer .quick-amount').forEach(e => {
+    e.classList.toggle('active', parseInt(e.textContent) === val);
+  });
+  onInvestFormChange();
+}
+
+function onInvestFreqChange() {
+  const freq = document.getElementById('invest-freq').value;
+  const daySelect = document.getElementById('invest-day');
+  daySelect.innerHTML = '';
+  if (freq === 'monthly') {
+    for (let i = 1; i <= 28; i++) {
+      daySelect.innerHTML += `<option value="${i}">${i}号</option>`;
+    }
+    daySelect.value = '15';
+  } else {
+    const days = ['周一','周二','周三','周四','周五'];
+    for (let i = 0; i < 5; i++) {
+      daySelect.innerHTML += `<option value="${i+1}">${days[i]}</option>`;
+    }
+    daySelect.value = '3';
+  }
+  onInvestFormChange();
+}
+
+function onInvestFormChange() {
+  const amount = parseFloat(document.getElementById('invest-amount').value) || 0;
+  document.getElementById('invest-submit').disabled = amount <= 0;
+}
+
+function submitInvestPlan() {
+  const amount = parseFloat(document.getElementById('invest-amount').value) || 0;
+  if (amount <= 0) return;
+
+  const plan = {
+    id: Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    fund_code: investContext.fundCode,
+    fund_name: investContext.fundName,
+    amount: amount,
+    frequency: document.getElementById('invest-freq').value,
+    day: parseInt(document.getElementById('invest-day').value),
+    status: 'active',
+    created_at: new Date().toISOString(),
+    last_executed: '',
+    total_executed: 0,
+  };
+
+  const plans = getInvestPlans();
+  plans.push(plan);
+  saveInvestPlans(plans);
+
+  closeInvestDrawer();
+  showToast('定投计划已创建 ✅', 'success');
+  loadPortfolio(true);
+  renderInvestList();
+}
+
+// ---- 定投管理区域渲染 ----
+function formatFrequency(plan) {
+  if (plan.frequency === 'monthly') return '每月' + plan.day + '号';
+  if (plan.frequency === 'biweekly') {
+    const days = ['','周一','周二','周三','周四','周五'];
+    return '每两周' + (days[plan.day] || '');
+  }
+  const days = ['','周一','周二','周三','周四','周五'];
+  return '每' + (days[plan.day] || '');
+}
+
+function renderInvestList() {
+  const plans = getInvestPlans().filter(p => p.status !== 'stopped');
+  const titleEl = document.getElementById('invest-title');
+  const listEl = document.getElementById('invest-list');
+
+  if (plans.length === 0) {
+    titleEl.style.display = 'none';
+    listEl.innerHTML = '';
+    return;
+  }
+
+  titleEl.style.display = 'flex';
+  listEl.innerHTML = plans.map(p => {
+    const statusIcon = p.status === 'active' ? '🟢' : '⏸️';
+    const statusText = p.status === 'active' ? '执行中' : '已暂停';
+    const totalAmount = p.total_executed * p.amount;
+    let actions = '';
+    if (p.status === 'active') {
+      actions = `<button onclick="pauseInvest('${p.id}')">暂停</button>`;
+    } else {
+      actions = `<button onclick="resumeInvest('${p.id}')">恢复</button>
+                 <button class="stop-btn" onclick="stopInvest('${p.id}')">停止</button>`;
+    }
+    return `<div class="invest-card">
+      <div class="invest-card-header">
+        <span class="invest-card-name">${p.fund_name}</span>
+        <span class="invest-card-schedule">${formatFrequency(p)} ¥${p.amount}</span>
+      </div>
+      <div class="invest-card-status">
+        ${statusIcon} ${statusText} · 已执行${p.total_executed}次 · 累计¥${totalAmount.toLocaleString()}
+      </div>
+      <div class="invest-card-actions">${actions}</div>
+    </div>`;
+  }).join('');
+}
+
+function pauseInvest(planId) {
+  const plans = getInvestPlans();
+  const p = plans.find(x => x.id === planId);
+  if (p) { p.status = 'paused'; saveInvestPlans(plans); }
+  showToast('定投已暂停', 'success');
+  renderInvestList();
+  loadPortfolio(true);
+}
+
+function resumeInvest(planId) {
+  const plans = getInvestPlans();
+  const p = plans.find(x => x.id === planId);
+  if (p) { p.status = 'active'; saveInvestPlans(plans); }
+  showToast('定投已恢复', 'success');
+  renderInvestList();
+  loadPortfolio(true);
+}
+
+function stopInvest(planId) {
+  const plans = getInvestPlans();
+  const p = plans.find(x => x.id === planId);
+  if (p) { p.status = 'stopped'; saveInvestPlans(plans); }
+  showToast('定投已停止', 'success');
+  renderInvestList();
+  loadPortfolio(true);
+}
+
+// ---- 定投自动执行检查 ----
+let pendingInvestData = []; // [{plan, periods: [{date, nav}]}]
+
+async function checkAutoInvest() {
+  const plans = getInvestPlans().filter(p => p.status === 'active');
+  if (plans.length === 0) return;
+
+  const now = new Date();
+  let totalPending = 0;
+  let totalAmount = 0;
+  pendingInvestData = [];
+
+  for (const plan of plans) {
+    const periods = getPendingPeriods(plan, now);
+    if (periods.length > 0) {
+      totalPending += periods.length;
+      totalAmount += periods.length * plan.amount;
+      pendingInvestData.push({ plan, periods });
+    }
+  }
+
+  if (totalPending === 0) return;
+
+  if (totalPending === 1 && pendingInvestData.length === 1) {
+    // 单期：静默执行
+    await executeSingleInvest(pendingInvestData[0].plan);
+  } else {
+    // 多期：显示横幅
+    const banner = document.getElementById('pending-invest-banner');
+    document.getElementById('pending-invest-title').textContent = `📅 有 ${totalPending} 期定投待执行（共¥${totalAmount.toLocaleString()}）`;
+    let detail = pendingInvestData.map(d =>
+      `${d.plan.fund_name}：${d.periods.length} 期 × ¥${d.plan.amount}`
+    ).join('\n');
+    document.getElementById('pending-invest-detail').textContent = detail;
+    banner.classList.add('show');
+  }
+}
+
+function getPendingPeriods(plan, now) {
+  const periods = [];
+  let lastExec = plan.last_executed ? new Date(plan.last_executed) : new Date(plan.created_at);
+  let nextDate = getNextInvestDate(plan, lastExec);
+
+  // 最多补 10 期，避免极端情况
+  let maxPeriods = 10;
+  while (nextDate <= now && maxPeriods > 0) {
+    periods.push({ date: nextDate.toISOString().slice(0, 10) });
+    lastExec = nextDate;
+    nextDate = getNextInvestDate(plan, lastExec);
+    maxPeriods--;
+  }
+  return periods;
+}
+
+function getNextInvestDate(plan, fromDate) {
+  const d = new Date(fromDate);
+  if (plan.frequency === 'monthly') {
+    d.setMonth(d.getMonth() + 1);
+    d.setDate(Math.min(plan.day, 28));
+  } else if (plan.frequency === 'biweekly') {
+    d.setDate(d.getDate() + 14);
+    // 调整到目标周几
+    const diff = (plan.day - d.getDay() + 7) % 7;
+    if (diff > 0) d.setDate(d.getDate() + diff);
+  } else {
+    // weekly
+    d.setDate(d.getDate() + 1); // 至少往后一天
+    while (d.getDay() !== plan.day % 7) {
+      d.setDate(d.getDate() + 1);
+    }
+  }
+  // 跳过周末
+  while (d.getDay() === 0 || d.getDay() === 6) {
+    d.setDate(d.getDate() + 1);
+  }
+  d.setHours(12, 0, 0, 0);
+  return d;
+}
+
+async function executeSingleInvest(plan) {
+  // 获取最新净值
+  let nav = 0;
+  try {
+    const res = await fetch(API + '/api/portfolio/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ holdings: [{ fund_code: plan.fund_code }] }),
+    });
+    const data = await res.json();
+    if (data.holdings && data.holdings[0]) {
+      nav = data.holdings[0].current_nav || 1;
+    }
+  } catch(e) { nav = 1; }
+
+  const shares = plan.amount / nav;
+  const tx = {
+    id: Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    fund_code: plan.fund_code,
+    type: 'buy',
+    amount: plan.amount,
+    nav: Math.round(nav * 10000) / 10000,
+    shares: Math.round(shares * 100) / 100,
+    source: 'auto_invest',
+    created_at: new Date().toISOString(),
+    note: '自动定投',
+  };
+  addTransaction(tx);
+
+  // 更新计划
+  const plans = getInvestPlans();
+  const p = plans.find(x => x.id === plan.id);
+  if (p) {
+    p.last_executed = new Date().toISOString();
+    p.total_executed = (p.total_executed || 0) + 1;
+    saveInvestPlans(plans);
+  }
+
+  recalcHolding(plan.fund_code);
+  showToast(`定投已执行：${plan.fund_name} +¥${plan.amount}`, 'success');
+  loadPortfolio(true);
+  renderInvestList();
+}
+
+async function executePendingInvests() {
+  const banner = document.getElementById('pending-invest-banner');
+  const execBtn = banner.querySelector('.exec-btn');
+  execBtn.disabled = true;
+  execBtn.textContent = '执行中...';
+
+  for (const { plan, periods } of pendingInvestData) {
+    // 尝试获取历史净值
+    let navMap = {};
+    try {
+      const start = periods[0].date;
+      const end = periods[periods.length - 1].date;
+      const res = await fetch(API + `/api/fund/${plan.fund_code}/nav-history?start=${start}&end=${end}`);
+      const data = await res.json();
+      if (data.nav_list) {
+        for (const n of data.nav_list) navMap[n.date] = n.nav;
+      }
+    } catch(e) {}
+
+    // 获取最新净值作为兜底
+    let fallbackNav = 1;
+    try {
+      const res = await fetch(API + '/api/portfolio/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ holdings: [{ fund_code: plan.fund_code }] }),
+      });
+      const data = await res.json();
+      if (data.holdings && data.holdings[0]) {
+        fallbackNav = data.holdings[0].current_nav || 1;
+      }
+    } catch(e) {}
+
+    for (const period of periods) {
+      const nav = navMap[period.date] || fallbackNav;
+      const shares = plan.amount / nav;
+      const tx = {
+        id: Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+        fund_code: plan.fund_code,
+        type: 'buy',
+        amount: plan.amount,
+        nav: Math.round(nav * 10000) / 10000,
+        shares: Math.round(shares * 100) / 100,
+        source: 'auto_invest',
+        created_at: period.date + 'T12:00:00.000Z',
+        note: '定投补执行',
+      };
+      addTransaction(tx);
+    }
+
+    // 更新计划
+    const plans = getInvestPlans();
+    const p = plans.find(x => x.id === plan.id);
+    if (p) {
+      p.last_executed = new Date().toISOString();
+      p.total_executed = (p.total_executed || 0) + periods.length;
+      saveInvestPlans(plans);
+    }
+    recalcHolding(plan.fund_code);
+  }
+
+  banner.classList.remove('show');
+  pendingInvestData = [];
+  showToast('所有定投已执行 ✅', 'success');
+  loadPortfolio(true);
+  renderInvestList();
+}
+
+function skipPendingInvests() {
+  // 更新 last_executed 到当前，跳过所有未执行期
+  for (const { plan } of pendingInvestData) {
+    const plans = getInvestPlans();
+    const p = plans.find(x => x.id === plan.id);
+    if (p) {
+      p.last_executed = new Date().toISOString();
+      saveInvestPlans(plans);
+    }
+  }
+  document.getElementById('pending-invest-banner').classList.remove('show');
+  pendingInvestData = [];
+  showToast('已跳过', 'success');
+}
+
+function togglePendingDetail() {
+  const el = document.getElementById('pending-invest-detail');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
 // ---- Init ----
 loadPortfolio();
+renderInvestList();
+// 延迟检查定投（等待净值数据加载）
+setTimeout(checkAutoInvest, 3000);
 </script>
 </body>
 </html>

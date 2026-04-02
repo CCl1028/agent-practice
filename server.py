@@ -465,6 +465,21 @@ async def get_estimation():
     }
 
 
+# ---- 历史净值 ----
+
+@app.get("/api/fund/{fund_code}/nav-history")
+async def get_nav_history(fund_code: str, start: str = Query(""), end: str = Query("")):
+    """获取基金历史净值（用于定投补执行按历史净值计算）"""
+    from src.tools.market_tools import get_fund_nav_history
+    try:
+        nav_list = get_fund_nav_history(fund_code, start, end)
+        return {"fund_code": fund_code, "nav_list": nav_list}
+    except Exception as e:
+        logger.error("获取历史净值失败: %s", e)
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
 # ---- 推送相关 ----
 
 class PushTestInput(BaseModel):
