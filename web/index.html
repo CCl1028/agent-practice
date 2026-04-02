@@ -882,11 +882,14 @@ function renderBriefing(briefing) {
 }
 
 // ---- 持仓 ----
-function loadPortfolio() {
+// 前端估值缓存：{fund_code: {est_change, est_nav, est_time, is_live}}
+let estimationCache = {};
+
+function loadPortfolio(skipEstimation) {
   const holdings = getLocalPortfolio();
   renderPortfolio(holdings);
-  if (holdings.length > 0) {
-    loadEstimation(holdings); // 同时拉取盘中估值
+  if (!skipEstimation && holdings.length > 0) {
+    loadEstimation(holdings);
   }
 }
 
@@ -918,6 +921,38 @@ function renderPortfolio(holdings) {
       <div id="est-${h.fund_code}"></div>
     </div>
   `).join('');
+
+  // 立即用缓存的估值数据填充 DOM
+  applyEstimationCache(holdings);
+}
+
+function applyEstimationCache(holdings) {
+  for (const h of holdings) {
+    const f = estimationCache[h.fund_code];
+    if (!f) continue;
+    renderSingleEstimation(h.fund_code, f);
+  }
+}
+
+function renderSingleEstimation(fund_code, f) {
+  const el = document.getElementById('est-' + fund_code);
+  if (!el || f.est_change === null || f.est_change === undefined) return;
+  if (f.est_time === '暂无数据') {
+    el.innerHTML = `<span class="fund-est flat"><span class="fund-est-label">暂无估值数据</span></span>`;
+    return;
+  }
+  const cls = f.est_change > 0.05 ? 'up' : f.est_change < -0.05 ? 'down' : 'flat';
+  const sign = f.est_change > 0 ? '+' : '';
+  if (f.is_live) {
+    el.innerHTML = `<span class="fund-est ${cls}">` +
+      `<span class="fund-est-label">盘中估值</span> ${sign}${f.est_change.toFixed(2)}%` +
+      (f.est_time ? ` <span class="fund-est-time">${f.est_time}</span>` : '') +
+      `</span>`;
+  } else {
+    el.innerHTML = `<span class="fund-est ${cls}">` +
+      `<span class="fund-est-label">${f.est_time || '上日收盘'}</span> ${sign}${f.est_change.toFixed(2)}%` +
+      `</span>`;
+  }
 }
 
 async function loadEstimation(holdings) {
@@ -930,28 +965,27 @@ async function loadEstimation(holdings) {
     });
     const data = await res.json();
     for (const f of data.funds) {
-      const el = document.getElementById('est-' + f.fund_code);
-      if (el && f.est_change !== null) {
-        // "暂无数据"的基金不显示涨跌
-        if (f.est_time === '暂无数据') {
-          el.innerHTML = `<span class="fund-est flat"><span class="fund-est-label">暂无估值数据</span></span>`;
-          continue;
-        }
-        const cls = f.est_change > 0.05 ? 'up' : f.est_change < -0.05 ? 'down' : 'flat';
-        const sign = f.est_change > 0 ? '+' : '';
-        if (f.is_live) {
-          // 交易时段：盘中估值 + 时间
-          el.innerHTML = `<span class="fund-est ${cls}">` +
-            `<span class="fund-est-label">盘中估值</span> ${sign}${f.est_change.toFixed(2)}%` +
-            (f.est_time ? ` <span class="fund-est-time">${f.est_time}</span>` : '') +
-            `</span>`;
-        } else {
-          // 非交易时段：显示 est_time（如 "03-31 收盘"）
-          el.innerHTML = `<span class="fund-est ${cls}">` +
-            `<span class="fund-est-label">${f.est_time || '上日收盘'}</span> ${sign}${f.est_change.toFixed(2)}%` +
-            `</span>`;
-        }
-      }
+      // 更新前端缓存
+      estimationCache[f.fund_code] = f;
+      renderSingleEstimation(f.fund_code, f);
+    }
+  } catch (e) { /* silent */ }
+}
+
+// 只对新增的基金拉取估值，不刷新已有基金
+async function loadEstimationForNew(newCodes) {
+  if (!newCodes || newCodes.length === 0) return;
+  const holdings = newCodes.map(c => ({ fund_code: c }));
+  try {
+    const res = await fetch(API + '/api/estimation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ holdings }),
+    });
+    const data = await res.json();
+    for (const f of data.funds) {
+      estimationCache[f.fund_code] = f;
+      renderSingleEstimation(f.fund_code, f);
     }
   } catch (e) { /* silent */ }
 }
@@ -961,7 +995,7 @@ function deleteHolding(code) {
   const filtered = holdings.filter(h => h.fund_code !== code);
   saveLocalPortfolio(filtered);
   showToast('已删除', 'success');
-  loadPortfolio();
+  loadPortfolio(true); // skipEstimation: 不重新拉估值，用缓存
 }
 
 // ---- 吸底输入栏 ----
@@ -1042,7 +1076,10 @@ async function addFromText() {
       showToast(`成功添加 ${data.parsed.length} 只基金 ✅`, 'success');
       input.value = '';
       autoGrow(input);
-      loadPortfolio();
+      // 收集新增基金的 code
+      const newCodes = data.parsed.map(h => h.fund_code).filter(Boolean);
+      loadPortfolio(true); // 跳过全量估值
+      loadEstimationForNew(newCodes); // 只拉新基金估值
     } else {
       showToast('未识别到基金信息，换个描述试试', 'error');
     }
@@ -1093,7 +1130,9 @@ async function addFromScreenshot() {
       document.getElementById('text-input').value = '';
       autoGrow(document.getElementById('text-input'));
       clearFile();
-      loadPortfolio();
+      const newCodes = data.parsed.map(h => h.fund_code).filter(Boolean);
+      loadPortfolio(true); // 跳过全量估值
+      loadEstimationForNew(newCodes); // 只拉新基金估值
     } else {
       showToast('未识别到基金信息，换张截图试试', 'error');
     }

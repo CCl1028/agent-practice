@@ -77,6 +77,7 @@ logger = logging.getLogger(__name__)
 scheduler = BackgroundScheduler(timezone="Asia/Shanghai")
 
 PUSH_JOB_ID = "daily_push"
+ESTIMATION_JOB_ID = "estimation_refresh"
 DEFAULT_PUSH_TIME = "14:30"  # 默认下午两点半
 
 
@@ -95,6 +96,19 @@ def _scheduled_push():
         logger.info("[定时推送] 执行完成")
     except Exception as e:
         logger.error("[定时推送] 执行失败: %s", e, exc_info=True)
+
+
+def _scheduled_estimation_refresh():
+    """定时任务：每 10 分钟刷新持仓估值缓存。"""
+    from src.tools.market_tools import refresh_estimation_cache
+    try:
+        holdings = load_portfolio()
+        codes = [h.get("fund_code", "") for h in holdings if h.get("fund_code")]
+        if not codes:
+            return
+        refresh_estimation_cache(codes)
+    except Exception as e:
+        logger.error("[估值缓存] 定时刷新失败: %s", e, exc_info=True)
 
 
 def _get_push_time() -> str:
@@ -131,8 +145,23 @@ async def lifespan(app_instance):
     """应用启动/关闭生命周期。"""
     push_time = _get_push_time()
     _update_scheduler(push_time)
+
+    # 每 10 分钟刷新估值缓存
+    from apscheduler.triggers.interval import IntervalTrigger
+    scheduler.add_job(
+        _scheduled_estimation_refresh,
+        trigger=IntervalTrigger(minutes=10),
+        id=ESTIMATION_JOB_ID,
+        replace_existing=True,
+    )
+
     scheduler.start()
-    logger.info("[调度器] 已启动")
+    logger.info("[调度器] 已启动（定时推送 + 估值缓存 10min 刷新）")
+
+    # 启动时立即预热一次估值缓存
+    import threading
+    threading.Thread(target=_scheduled_estimation_refresh, daemon=True).start()
+
     yield
     scheduler.shutdown(wait=False)
     logger.info("[调度器] 已关闭")
