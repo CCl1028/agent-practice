@@ -19,21 +19,24 @@ logger = logging.getLogger(__name__)
 
 
 def _get_config(override: dict | None = None):
-    """获取推送配置。优先使用 override 传入的配置，其次读 .env。"""
+    """获取推送配置。
+    
+    如果 override 非空（前端传来了用户配置），则只使用 override 中的值，
+    不 fallback 到 .env，避免用户未配置时推送到开发者的渠道。
+    如果 override 为空/None，才读 .env（用于后端直接调用的场景）。
+    """
+    if override:
+        return {
+            "bark_url": override.get("BARK_URL", ""),
+            "serverchan_key": override.get("SERVERCHAN_KEY", ""),
+            "wecom_webhook_url": override.get("WECOM_WEBHOOK_URL", ""),
+        }
     load_dotenv(override=True)
-    base = {
+    return {
         "bark_url": os.getenv("BARK_URL", ""),
         "serverchan_key": os.getenv("SERVERCHAN_KEY", ""),
         "wecom_webhook_url": os.getenv("WECOM_WEBHOOK_URL", ""),
     }
-    if override:
-        if override.get("BARK_URL"):
-            base["bark_url"] = override["BARK_URL"]
-        if override.get("SERVERCHAN_KEY"):
-            base["serverchan_key"] = override["SERVERCHAN_KEY"]
-        if override.get("WECOM_WEBHOOK_URL"):
-            base["wecom_webhook_url"] = override["WECOM_WEBHOOK_URL"]
-    return base
 
 
 # ---- Bark ----
