@@ -4,10 +4,14 @@
 
 set -e
 
-echo "📦 拉取最新代码..."
-git pull
+BRANCH="main"
 
-export GIT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+echo "📦 拉取最新代码 (${BRANCH})..."
+git fetch origin
+git checkout ${BRANCH}
+git reset --hard origin/${BRANCH}
+
+export GIT_COMMIT=$(git rev-parse HEAD)
 export BUILD_TIME=$(date '+%Y-%m-%d %H:%M')
 export BUILD_VERSION="1.0.0"
 
