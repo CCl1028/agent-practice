@@ -32,7 +32,8 @@ if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
 fi
 
 docker compose down
-docker compose up -d --build
+GIT_COMMIT="${GIT_COMMIT}" BUILD_TIME="${BUILD_TIME}" BUILD_VERSION="${BUILD_VERSION}" \
+  docker compose up -d --build
 
 echo ""
 echo "✅ 部署完成"
