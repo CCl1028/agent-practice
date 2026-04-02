@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b84e4a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='22 7 13.5 15.5 8.5 10.5 2 17'/><polyline points='16 7 22 7 22 13'/></svg>">
-<title>天才交易员</title>
+<title>FundPal</title>
 <!-- Lucide Icons -->
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <style>
@@ -395,24 +395,72 @@ body {
 }
 .generate-btn {
   flex: 1;
-  padding: 14px;
-  background: linear-gradient(135deg, var(--accent), #c47a4a);
+  padding: 16px 24px;
+  background: linear-gradient(135deg, var(--accent) 0%, #c47a4a 50%, var(--accent) 100%);
+  background-size: 200% 200%;
   color: white;
   border: none;
-  border-radius: 12px;
+  border-radius: 22px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 1px;
   cursor: pointer;
-  transition: transform 0.1s, box-shadow 0.2s;
-  box-shadow: 0 4px 16px rgba(184,78,74,0.3);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-shadow: 0 4px 16px rgba(184,78,74,0.3), 0 1px 3px rgba(0,0,0,0.1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
-.generate-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(184,78,74,0.4); }
-.generate-btn:active { transform: translateY(0); }
+.generate-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left 0.5s ease;
+}
+.generate-btn:hover::before {
+  left: 100%;
+}
+.generate-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(184,78,74,0.45), 0 2px 6px rgba(0,0,0,0.12);
+  background-position: 100% 100%;
+}
+.generate-btn:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 10px rgba(184,78,74,0.3);
+}
 .generate-btn:disabled {
-  background: #e8d8d5;
+  background: linear-gradient(135deg, #e8d8d5, #d5c5c2);
   box-shadow: none;
   cursor: not-allowed;
   transform: none;
+}
+.generate-btn:disabled::before {
+  display: none;
+}
+.generate-btn .btn-icon {
+  display: inline-flex;
+  transition: transform 0.3s ease;
+}
+.generate-btn:hover .btn-icon {
+  transform: rotate(15deg) scale(1.1);
+}
+@keyframes btn-pulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(184,78,74,0.3), 0 0 0 0 rgba(184,78,74,0.3); }
+  50% { box-shadow: 0 4px 16px rgba(184,78,74,0.3), 0 0 0 8px rgba(184,78,74,0); }
+}
+.generate-btn:not(:disabled) {
+  animation: btn-pulse 3s ease-in-out infinite;
+}
+.generate-btn:hover {
+  animation: none;
 }
 .push-toggle {
   display: flex;
@@ -1029,7 +1077,7 @@ body {
   <!-- Header -->
   <div class="header">
     <div class="header-center">
-      <h1><i data-lucide="trending-up" style="width:22px;height:22px;vertical-align:-3px;color:var(--accent);"></i> 天才交易员</h1>
+      <h1><i data-lucide="trending-up" style="width:22px;height:22px;vertical-align:-3px;color:var(--accent);"></i> FundPal</h1>
       <p style="font-size:13px;color:var(--text-secondary);margin-top:4px;">智能基金投顾助手</p>
     </div>
     <button class="settings-trigger" onclick="openDrawer()" title="设置"><i data-lucide="settings" style="width:20px;height:20px;"></i></button>
@@ -1046,6 +1094,7 @@ body {
   <!-- 生成简报按钮 -->
   <div class="generate-area">
     <button class="generate-btn" id="generate-btn" onclick="generateBriefing()">
+      <span class="btn-icon"><i data-lucide="sparkles" style="width:20px;height:20px;"></i></span>
       生成今日简报
     </button>
     <div class="push-toggle">
@@ -1762,7 +1811,15 @@ async function addFromText() {
     });
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(errText || '服务器返回 ' + res.status);
+      let msg = '服务器返回 ' + res.status;
+      if (res.status === 504 || errText.includes('Gateway Time-out')) {
+        msg = '服务器处理超时，请稍后重试';
+      } else if (res.status === 502 || errText.includes('Bad Gateway')) {
+        msg = '服务暂时不可用，请稍后重试';
+      } else if (errText && !errText.startsWith('<')) {
+        msg = errText;
+      }
+      throw new Error(msg);
     }
     const data = await res.json();
     if (data.parsed && data.parsed.length > 0) {
@@ -1862,7 +1919,15 @@ async function addFromScreenshot() {
     });
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(errText || '服务器返回 ' + res.status);
+      let msg = '服务器返回 ' + res.status;
+      if (res.status === 504 || errText.includes('Gateway Time-out')) {
+        msg = '服务器处理超时，请稍后重试';
+      } else if (res.status === 502 || errText.includes('Bad Gateway')) {
+        msg = '服务暂时不可用，请稍后重试';
+      } else if (errText && !errText.startsWith('<')) {
+        msg = errText;
+      }
+      throw new Error(msg);
     }
     const data = await res.json();
     if (data.parsed && data.parsed.length > 0) {
