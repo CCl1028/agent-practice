@@ -8,7 +8,13 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-html, body { overflow-x: hidden; width: 100%; }
+html, body {
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+}
 
 :root {
   --bg: #faf5f3;
@@ -31,11 +37,20 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
-  min-height: 100vh;
+}
+
+.scroll-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: 100px;
 }
 
-.container { max-width: 480px; margin: 0 auto; padding: 0 16px; overflow: hidden; }
+.container { max-width: 480px; margin: 0 auto; padding: 0 16px; }
 
 /* Header */
 .header {
@@ -633,12 +648,13 @@ body {
 </style>
 </head>
 <body>
+<div class="scroll-wrapper" id="scroll-wrapper">
 <div class="container">
   <!-- Header -->
   <div class="header">
     <div class="header-center">
       <h1>📈 基金小助理</h1>
-      <p>祝您发大财💰💰💰</p>
+      <p>💰💰💰</p>
     </div>
     <button class="settings-trigger" onclick="openDrawer()" title="设置">⚙️</button>
   </div>
@@ -672,6 +688,7 @@ body {
 
 
 </div>
+</div><!-- end scroll-wrapper -->
 
 <!-- 吸底输入栏 -->
 <div class="bottom-input-bar" id="bottom-bar">
@@ -1069,23 +1086,19 @@ function preventScroll(e) { e.preventDefault(); }
 function openDrawer() {
   document.getElementById('drawer-overlay').classList.add('open');
   document.getElementById('drawer').classList.add('open');
-  document.body.style.overflow = 'hidden';
-  document.body.style.position = 'fixed';
-  document.body.style.width = '100%';
-  document.body.style.top = '-' + window.scrollY + 'px';
+  var sw = document.getElementById('scroll-wrapper');
+  sw._savedScrollTop = sw.scrollTop;
+  sw.style.overflow = 'hidden';
   document.getElementById('drawer-overlay').addEventListener('touchmove', preventScroll, { passive: false });
   loadConfig();
   loadVersion();
 }
 function closeDrawer() {
-  const scrollY = document.body.style.top;
   document.getElementById('drawer-overlay').classList.remove('open');
   document.getElementById('drawer').classList.remove('open');
-  document.body.style.overflow = '';
-  document.body.style.position = '';
-  document.body.style.width = '';
-  document.body.style.top = '';
-  window.scrollTo(0, parseInt(scrollY || '0') * -1);
+  var sw = document.getElementById('scroll-wrapper');
+  sw.style.overflow = '';
+  if (sw._savedScrollTop != null) sw.scrollTop = sw._savedScrollTop;
   document.getElementById('drawer-overlay').removeEventListener('touchmove', preventScroll);
 }
 
