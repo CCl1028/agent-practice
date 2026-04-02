@@ -527,21 +527,24 @@ body {
 /* Toast */
 .toast {
   position: fixed;
-  top: 20px;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%) translateY(-100px);
+  transform: translate(-50%, -50%) scale(0.8);
+  opacity: 0;
+  pointer-events: none;
   background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 20px;
-  font-size: 14px;
-  z-index: 1000;
-  transition: transform 0.3s ease;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 28px;
+  font-size: 15px;
+  font-weight: 500;
+  z-index: 9999;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.15);
 }
-.toast.show { transform: translateX(-50%) translateY(0); }
-.toast.success { border-color: var(--green); }
-.toast.error { border-color: var(--red); }
+.toast.show { transform: translate(-50%, -50%) scale(1); opacity: 1; pointer-events: auto; }
+.toast.success { border-color: var(--green); background: linear-gradient(135deg, var(--card) 0%, rgba(52,199,89,0.08) 100%); }
+.toast.error { border-color: var(--red); background: linear-gradient(135deg, var(--card) 0%, rgba(255,59,48,0.08) 100%); }
 
 /* Empty state */
 .empty-state {
