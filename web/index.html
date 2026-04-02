@@ -1801,11 +1801,13 @@ async function addFromText() {
   lockInputBar();
 
   try {
+    // 获取用户配置的 AI 参数
+    const config = getLocalConfig();
     // 调用后端解析自然语言，但不保存到服务器
     const res = await fetch(API + '/api/portfolio/parse-text', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, config }),
     });
     if (!res.ok) {
       const errText = await res.text();

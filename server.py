@@ -188,6 +188,7 @@ class BriefingResponse(BaseModel):
 
 class TextInput(BaseModel):
     text: str
+    config: dict = {}  # 前端传入的 AI 配置（API Key 等）
 
 
 class HoldingsInput(BaseModel):
@@ -258,11 +259,14 @@ async def add_from_text(input: TextInput):
 async def parse_text(input: TextInput):
     """解析自然语言持仓描述（只解析不保存）"""
     import asyncio
+    from functools import partial
     try:
         # 整体超时 45 秒，防止长时间阻塞
         loop = asyncio.get_event_loop()
+        # 传入 config（包含用户的 API Key 配置）
+        func = partial(parse_natural_language, input.text, input.config)
         new_holdings = await asyncio.wait_for(
-            loop.run_in_executor(None, parse_natural_language, input.text),
+            loop.run_in_executor(None, func),
             timeout=45.0
         )
         return ParseResult(parsed=new_holdings or [])

@@ -45,15 +45,29 @@ EXTRACT_PROMPT = """\
 """
 
 
-def parse_natural_language(user_text: str) -> list[dict]:
-    """从自然语言描述中提取持仓信息。"""
+def parse_natural_language(user_text: str, config: dict = None) -> list[dict]:
+    """从自然语言描述中提取持仓信息。
+    
+    Args:
+        user_text: 用户输入的自然语言描述
+        config: 可选配置，支持传入 OPENAI_API_KEY 和 OPENAI_BASE_URL
+    """
     if not user_text.strip():
+        return []
+
+    # 优先使用传入的配置，否则使用环境变量
+    config = config or {}
+    api_key = config.get("OPENAI_API_KEY") or OPENAI_API_KEY
+    base_url = config.get("OPENAI_BASE_URL") or OPENAI_BASE_URL
+    
+    if not api_key:
+        logger.error("[NLP Input] 未配置 API Key，无法调用 LLM")
         return []
 
     llm = ChatOpenAI(
         model=TEXT_MODEL,
-        api_key=OPENAI_API_KEY,
-        base_url=OPENAI_BASE_URL,
+        api_key=api_key,
+        base_url=base_url,
         temperature=0,
         timeout=30,  # 请求超时 30 秒
         max_retries=1,  # 减少重试次数，加快失败响应
