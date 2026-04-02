@@ -1,5 +1,11 @@
 #!/bin/bash
-# 部署脚本 — 自动注入版本信息并构建部署
+# 部署脚本 — 在服务器上执行
+# 用法: ssh root@106.52.248.165 "cd ~/agent-practice && bash deploy.sh"
+
+set -e
+
+echo "📦 拉取最新代码..."
+git pull
 
 export GIT_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 export BUILD_TIME=$(date '+%Y-%m-%d %H:%M')
@@ -10,5 +16,9 @@ echo "🚀 部署版本: ${GIT_COMMIT:0:7} | ${BUILD_TIME}"
 docker compose down
 docker compose up -d --build
 
+echo ""
 echo "✅ 部署完成"
+echo "   版本: ${GIT_COMMIT:0:7}"
+echo "   时间: ${BUILD_TIME}"
+echo ""
 docker logs fund-assistant --tail 5
