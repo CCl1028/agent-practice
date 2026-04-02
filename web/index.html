@@ -1075,7 +1075,6 @@ function openDrawer() {
   document.body.style.top = '-' + window.scrollY + 'px';
   document.getElementById('drawer-overlay').addEventListener('touchmove', preventScroll, { passive: false });
   loadConfig();
-  loadSchedule();
   loadVersion();
 }
 function closeDrawer() {
