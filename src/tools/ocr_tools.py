@@ -229,12 +229,5 @@ def process_screenshot(image_path: str) -> list[dict]:
         if holdings:
             return _enrich_holdings(holdings)
 
-    # 两种方案都失败，抛出明确的错误
-    raise RuntimeError(
-        "截图识别失败：当前模型不支持图片输入，且 PaddleOCR 未安装。"
-        "请在 .env 中配置支持视觉的多模态模型，例如：\n"
-        "VISION_MODEL=Qwen/Qwen2.5-VL-72B-Instruct\n"
-        "VISION_API_KEY=你的API Key\n"
-        "VISION_BASE_URL=https://api.siliconflow.cn/v1\n"
-        "（可在 https://siliconflow.cn 免费注册获取 API Key）"
-    )
+    logger.warning("[Screenshot] 未能从截图中识别到基金持仓信息")
+    return []
