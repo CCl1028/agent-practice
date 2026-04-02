@@ -13,7 +13,6 @@ git reset --hard origin/${BRANCH}
 
 export GIT_COMMIT=$(git rev-parse HEAD)
 export BUILD_TIME=$(date '+%Y-%m-%d %H:%M')
-export BUILD_VERSION="1.0.0"
 
 echo "🚀 部署版本: ${GIT_COMMIT:0:7} | ${BUILD_TIME}"
 
@@ -32,7 +31,7 @@ if [ ! -f "${CERT_DIR}/fullchain.pem" ]; then
 fi
 
 docker compose down
-GIT_COMMIT="${GIT_COMMIT}" BUILD_TIME="${BUILD_TIME}" BUILD_VERSION="${BUILD_VERSION}" \
+GIT_COMMIT="${GIT_COMMIT}" BUILD_TIME="${BUILD_TIME}" \
   docker compose up -d --build
 
 echo ""

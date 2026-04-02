@@ -1165,8 +1165,6 @@ body {
     <button class="drawer-close" onclick="closeDrawer()">✕</button>
   </div>
   <div class="drawer-body">
-    <div class="settings-desc">配置推送渠道和 AI 模型，修改后立即生效</div>
-
     <div id="config-panel">
       <div class="loading"><div class="spinner"></div>加载配置...</div>
     </div>
@@ -2175,12 +2173,24 @@ async function loadVersion() {
   try {
     const res = await fetch(API + '/api/version');
     const v = await res.json();
-    const commit = v.git_commit && v.git_commit !== 'unknown' ? v.git_commit.substring(0, 7) : '';
-    const time = v.build_time && v.build_time !== 'unknown' ? v.build_time : '';
     const parts = [];
-    if (commit) parts.push(commit);
-    if (time) parts.push(time);
-    el.textContent = parts.length > 0 ? '版本: ' + parts.join(' · ') : '版本: dev';
+    // 优先显示语义化版本号
+    if (v.version && v.version !== 'dev') {
+      parts.push('v' + v.version);
+    }
+    // 显示代号（如果有）
+    if (v.codename) {
+      parts.push(v.codename);
+    }
+    // 显示构建时间（简化格式）
+    if (v.build_time && v.build_time !== 'unknown') {
+      parts.push(v.build_time);
+    }
+    // 显示 git commit（仅生产环境，非 local）
+    if (v.git_commit && v.git_commit !== 'unknown' && v.git_commit !== 'local') {
+      parts.push(v.git_commit.substring(0, 7));
+    }
+    el.textContent = parts.length > 0 ? parts.join(' · ') : '开发版本';
   } catch (e) {
     el.textContent = '版本信息不可用';
   }

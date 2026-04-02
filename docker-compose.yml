@@ -5,7 +5,6 @@ services:
     build:
       context: .
       args:
-        - BUILD_VERSION=${BUILD_VERSION:-dev}
         - BUILD_TIME=${BUILD_TIME:-unknown}
         - GIT_COMMIT=${GIT_COMMIT:-unknown}
     container_name: fund-assistant

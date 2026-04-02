@@ -295,6 +295,30 @@ Briefing Agent 采用 **规则引擎 + LLM 润色** 的双层策略：
 pytest tests/ -v
 ```
 
+## 🏷️ 版本管理
+
+采用 [语义化版本](https://semver.org/lang/zh-CN/) 规范：`v{主版本}.{次版本}.{修订号}`
+
+| 版本 | 发布日期 | 主要功能 |
+|------|---------|---------|
+| v1.0.0 | 2026-03 | MVP：持仓管理 + 每日简报 + 三渠道推送 |
+| v1.1.0 | 2026-04 | 交易记录 + 定投计划（自动执行、补执行） |
+| v1.2.0 | 2026-04 | 盘中估值 + Web 设置面板 + 在线配置 |
+
+**版本文件**：`version.json`
+
+```json
+{
+  "version": "1.2.0",
+  "name": "FundPal",
+  "codename": "智能投顾",
+  "build_time": "2026-04-03",
+  "git_commit": "local"
+}
+```
+
+> Docker 构建时会自动注入 `build_time` 和 `git_commit`，设置弹窗中显示格式：`v1.2.0 · 智能投顾 · 2026-04-03`
+
 ## 📋 开发计划
 
 - [x] 核心 Agent 链路（Portfolio → Market → Briefing）
