@@ -558,18 +558,6 @@ body {
 }
 .config-save-btn:hover { background: var(--accent-light); }
 .config-save-btn:disabled { background: #e8d8d5; color: #a89090; cursor: not-allowed; }
-.config-clear-btn {
-  padding: 8px 10px;
-  background: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 12px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.2s;
-}
-.config-clear-btn:hover { border-color: var(--red); color: var(--red); }
 .push-test-btn {
   background: transparent;
   border: 1px solid var(--accent);
@@ -1310,9 +1298,10 @@ function renderConfig(config) {
               type="${f.sensitive ? 'password' : 'text'}"
               placeholder="${f.placeholder}"
               value="${displayVal}"
-              onfocus="onConfigFocus(this, '${f.key}', ${!!f.sensitive})">
-            <button class="config-save-btn" onclick="saveConfig('${f.key}')">保存</button>
-            ${hasValue ? `<button class="config-clear-btn" onclick="clearConfig('${f.key}')">清除</button>` : ''}
+              data-original="${displayVal}"
+              onfocus="onConfigFocus(this, '${f.key}', ${!!f.sensitive})"
+              oninput="onConfigInput('${f.key}')">
+            <button class="config-save-btn" id="cfg-btn-${f.key}" onclick="saveConfig('${f.key}')" ${hasValue ? 'disabled' : ''}>保存</button>
           </div>
         </div>
       `;
@@ -1338,7 +1327,18 @@ function onConfigFocus(input, key, sensitive) {
   if (sensitive && input.value.includes('*')) {
     input.value = '';
     input.type = 'text';
+    input.dataset.original = '';
+    onConfigInput(key);
   }
+}
+
+function onConfigInput(key) {
+  const input = document.getElementById('cfg-' + key);
+  const btn = document.getElementById('cfg-btn-' + key);
+  if (!input || !btn) return;
+  const current = input.value.trim();
+  const original = input.dataset.original || '';
+  btn.disabled = !current || current === original;
 }
 
 function saveConfig(key) {
@@ -1354,12 +1354,6 @@ function saveConfig(key) {
   }
   setConfigValue(key, value);
   showToast(`${key} 已保存 ✅`, 'success');
-  loadConfig();
-}
-
-function clearConfig(key) {
-  setConfigValue(key, '');
-  showToast(`${key} 已清除`, 'success');
   loadConfig();
 }
 
