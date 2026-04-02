@@ -172,8 +172,12 @@ def parse_ocr_text(ocr_text: str) -> list[dict]:
 
 
 def _enrich_holdings(holdings: list[dict]) -> list[dict]:
-    """补全字段并用真实 API 校正基金名称。"""
-    from src.tools.market_tools import get_fund_name_by_code
+    """补全字段并用真实 API 校正基金代码和名称。
+
+    LLM 识别的基金代码可能不准确（尤其当截图中不显示代码时），
+    通过 verify_and_fix_fund 进行双向校验和修正。
+    """
+    from src.tools.market_tools import verify_and_fix_fund
 
     for h in holdings:
         h.setdefault("fund_code", "")
@@ -185,16 +189,17 @@ def _enrich_holdings(holdings: list[dict]) -> list[dict]:
         h.setdefault("hold_days", 0)
         h.setdefault("trend_5d", [])
 
-        # 用真实 API 校正基金名称
-        if h["fund_code"]:
-            real_name = get_fund_name_by_code(h["fund_code"])
-            if real_name:
-                if real_name != h["fund_name"]:
-                    logger.info(
-                        "[OCR Parser] 校正基金名称: %s → %s (代码 %s)",
-                        h["fund_name"], real_name, h["fund_code"],
-                    )
-                h["fund_name"] = real_name
+        # 双向校验：代码↔名称，修正 LLM 可能猜错的代码
+        old_code, old_name = h["fund_code"], h["fund_name"]
+        corrected_code, corrected_name = verify_and_fix_fund(old_code, old_name)
+
+        if corrected_code != old_code or corrected_name != old_name:
+            logger.info(
+                "[OCR Parser] 校正基金: %s(%s) → %s(%s)",
+                old_name, old_code, corrected_name, corrected_code,
+            )
+        h["fund_code"] = corrected_code
+        h["fund_name"] = corrected_name
 
     return holdings
 

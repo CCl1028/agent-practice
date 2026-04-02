@@ -54,6 +54,130 @@ def get_fund_name_by_code(fund_code: str) -> str | None:
     return None
 
 
+def _ensure_name_cache() -> None:
+    """确保基金名称缓存已加载（供反向查找使用）。"""
+    if _fund_name_cache:
+        return
+    try:
+        import akshare as ak
+        df = ak.fund_name_em()
+        if df is not None and not df.empty:
+            for _, row in df.iterrows():
+                code = str(row.get("基金代码", "")).strip()
+                name = str(row.get("基金简称", "")).strip()
+                if code and name:
+                    _fund_name_cache[code] = name
+    except Exception as e:
+        logger.warning("[基金名称] AKShare 加载基金列表失败: %s", e)
+
+
+def get_fund_code_by_name(fund_name: str) -> str | None:
+    """通过基金名称反向查找基金代码（模糊匹配）。
+
+    匹配策略（按优先级）：
+    1. 精确匹配
+    2. 名称包含查询词（如 "易方达蓝筹" 匹配 "易方达蓝筹精选混合"）
+    3. 查询词包含基金名称
+    4. 去掉后缀（混合/A/C/LOF等）后匹配
+
+    Returns:
+        基金代码字符串，匹配失败返回 None。
+    """
+    if not fund_name or fund_name == "未知基金":
+        return None
+
+    _ensure_name_cache()
+    if not _fund_name_cache:
+        return None
+
+    query = fund_name.strip()
+
+    # 1. 精确匹配
+    for code, name in _fund_name_cache.items():
+        if name == query:
+            logger.info("[基金反查] 精确匹配: %s → %s", query, code)
+            return code
+
+    # 2. 基金名称包含查询词 或 查询词包含基金名称
+    candidates = []
+    for code, name in _fund_name_cache.items():
+        if query in name or name in query:
+            candidates.append((code, name, abs(len(name) - len(query))))
+
+    if candidates:
+        # 选择长度最接近的匹配
+        candidates.sort(key=lambda x: x[2])
+        best_code, best_name, _ = candidates[0]
+        logger.info("[基金反查] 模糊匹配: %s → %s (%s)", query, best_code, best_name)
+        return best_code
+
+    # 3. 去掉常见后缀后再试
+    import re
+    cleaned = re.sub(r'(混合|股票|债券|指数|联接|增强|优选|精选|成长|价值|平衡|稳健|灵活配置|LOF|ETF|QDII|FOF)[A-Ca-c]?$', '', query).strip()
+    if cleaned and cleaned != query:
+        for code, name in _fund_name_cache.items():
+            if cleaned in name or name.startswith(cleaned):
+                logger.info("[基金反查] 清洗后匹配: %s → %s → %s (%s)", query, cleaned, code, name)
+                return code
+
+    logger.info("[基金反查] 未找到匹配: %s", query)
+    return None
+
+
+def verify_and_fix_fund(fund_code: str, fund_name: str) -> tuple[str, str]:
+    """验证基金代码与名称是否匹配，不匹配时尝试修正。
+
+    Returns:
+        (corrected_code, corrected_name)
+    """
+    if not fund_code and not fund_name:
+        return fund_code, fund_name
+
+    _ensure_name_cache()
+
+    # 情况1: 有代码，验证代码对应的名称
+    if fund_code and len(fund_code) == 6:
+        real_name = _fund_name_cache.get(fund_code)
+        if real_name:
+            # 代码有效，检查名称是否大致匹配
+            if fund_name and fund_name != "未知基金":
+                # 名称完全不相关 → 代码可能是 LLM 猜错的
+                if fund_name not in real_name and real_name not in fund_name:
+                    # 用名称反查正确代码
+                    correct_code = get_fund_code_by_name(fund_name)
+                    if correct_code:
+                        correct_name = _fund_name_cache.get(correct_code, fund_name)
+                        logger.info(
+                            "[基金校正] 代码名称不匹配！代码 %s→%s 名称 %s→%s",
+                            fund_code, correct_code, real_name, correct_name,
+                        )
+                        return correct_code, correct_name
+            # 代码有效且名称匹配（或无名称可比对），用真实名称
+            return fund_code, real_name
+        else:
+            # 代码无效（不存在），用名称反查
+            if fund_name and fund_name != "未知基金":
+                correct_code = get_fund_code_by_name(fund_name)
+                if correct_code:
+                    correct_name = _fund_name_cache.get(correct_code, fund_name)
+                    logger.info(
+                        "[基金校正] 无效代码 %s，通过名称 %s 反查到 %s (%s)",
+                        fund_code, fund_name, correct_code, correct_name,
+                    )
+                    return correct_code, correct_name
+            return fund_code, fund_name
+
+    # 情况2: 无代码，只有名称
+    if fund_name and fund_name != "未知基金":
+        correct_code = get_fund_code_by_name(fund_name)
+        if correct_code:
+            correct_name = _fund_name_cache.get(correct_code, fund_name)
+            logger.info("[基金校正] 无代码，通过名称 %s 查到 %s (%s)", fund_name, correct_code, correct_name)
+            return correct_code, correct_name
+
+    return fund_code or "", fund_name or "未知基金"
+
+
 def is_trading_hours() -> bool:
     """判断当前是否在交易时段（工作日 9:30-15:00）。"""
     now = datetime.now()

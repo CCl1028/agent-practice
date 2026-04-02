@@ -70,7 +70,7 @@ def parse_natural_language(user_text: str) -> list[dict]:
     try:
         holdings = json.loads(text)
         if isinstance(holdings, list):
-            from src.tools.market_tools import get_fund_name_by_code
+            from src.tools.market_tools import verify_and_fix_fund
 
             for h in holdings:
                 h.setdefault("intent", "add_holding")
@@ -84,16 +84,17 @@ def parse_natural_language(user_text: str) -> list[dict]:
                 h.setdefault("trend_5d", [])
                 h.setdefault("amount", 0)
 
-                # 用真实 API 校正基金名称，防止 LLM 猜错
-                if h["fund_code"]:
-                    real_name = get_fund_name_by_code(h["fund_code"])
-                    if real_name:
-                        if real_name != h["fund_name"]:
-                            logger.info(
-                                "[NLP Input] 校正基金名称: %s → %s (代码 %s)",
-                                h["fund_name"], real_name, h["fund_code"],
-                            )
-                        h["fund_name"] = real_name
+                # 双向校验：代码↔名称，修正 LLM 可能猜错的代码
+                old_code, old_name = h["fund_code"], h["fund_name"]
+                corrected_code, corrected_name = verify_and_fix_fund(old_code, old_name)
+
+                if corrected_code != old_code or corrected_name != old_name:
+                    logger.info(
+                        "[NLP Input] 校正基金: %s(%s) → %s(%s)",
+                        old_name, old_code, corrected_name, corrected_code,
+                    )
+                h["fund_code"] = corrected_code
+                h["fund_name"] = corrected_name
 
             logger.info("[NLP Input] 从描述中解析出 %d 只基金", len(holdings))
             return holdings

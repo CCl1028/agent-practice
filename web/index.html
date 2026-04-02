@@ -1317,8 +1317,10 @@ function saveLocalPortfolio(holdings) {
 async function generateBriefing() {
   const withPush = document.getElementById('push-switch').checked;
   const btn = document.getElementById('generate-btn');
+  if (btn.disabled) return; // 防止重复点击
   btn.disabled = true;
   btn.textContent = withPush ? '生成并推送中...' : '分析中...（约10秒）';
+  lockInputBar(); // 生成期间禁止操作持仓
 
   const area = document.getElementById('briefing-area');
   area.innerHTML = '<div class="loading"><div class="spinner"></div>Agent 正在分析...</div>';
@@ -1330,6 +1332,7 @@ async function generateBriefing() {
     lucide.createIcons({nodes: [area]});
     btn.disabled = false;
     btn.textContent = '生成今日简报';
+    unlockInputBar();
     showToast('请先添加持仓', 'error');
     return;
   }
@@ -1362,6 +1365,7 @@ async function generateBriefing() {
   } finally {
     btn.disabled = false;
     btn.textContent = '生成今日简报';
+    unlockInputBar();
   }
 }
 
@@ -1665,14 +1669,18 @@ function toggleFundSelect(card) {
 
 function deleteHolding(code) {
   const holdings = getLocalPortfolio();
+  const h = holdings.find(x => x.fund_code === code);
+  const name = h ? (h.fund_name || code) : code;
+  if (!confirm(`确认删除「${name}」？删除后持仓和交易记录将保留。`)) return;
   const filtered = holdings.filter(h => h.fund_code !== code);
   saveLocalPortfolio(filtered);
   showToast('已删除', 'success');
-  loadPortfolio(true); // skipEstimation: 不重新拉估值，用缓存
+  loadPortfolio(true);
 }
 
 // ---- 吸底输入栏 ----
 let pendingFile = null;
+let isSending = false; // 全局发送锁，防止重复提交
 
 function autoGrow(el) {
   el.style.height = 'auto';
@@ -1681,10 +1689,33 @@ function autoGrow(el) {
 
 function toggleSend() {
   const text = document.getElementById('text-input').value.trim();
-  document.getElementById('send-btn').disabled = !text && !pendingFile;
+  document.getElementById('send-btn').disabled = isSending || (!text && !pendingFile);
+}
+
+// 锁定底部输入栏（发送/解析期间禁止一切操作）
+function lockInputBar() {
+  isSending = true;
+  document.getElementById('send-btn').disabled = true;
+  document.getElementById('upload-btn').disabled = true;
+  document.getElementById('upload-btn').style.opacity = '0.5';
+  document.getElementById('upload-btn').style.pointerEvents = 'none';
+  document.getElementById('text-input').disabled = true;
+  document.getElementById('text-input').style.opacity = '0.6';
+}
+
+// 解锁底部输入栏
+function unlockInputBar() {
+  isSending = false;
+  document.getElementById('upload-btn').disabled = false;
+  document.getElementById('upload-btn').style.opacity = '';
+  document.getElementById('upload-btn').style.pointerEvents = '';
+  document.getElementById('text-input').disabled = false;
+  document.getElementById('text-input').style.opacity = '';
+  toggleSend();
 }
 
 function onFileSelected(input) {
+  if (isSending) return; // 发送中不允许选文件
   const file = input.files[0];
   if (!file) return;
   pendingFile = file;
@@ -1695,7 +1726,8 @@ function onFileSelected(input) {
   toggleSend();
 }
 
-function clearFile() {
+function clearFile(force) {
+  if (!force && isSending) return; // 发送中不允许用户手动清除文件
   pendingFile = null;
   document.getElementById('file-input').value = '';
   document.getElementById('upload-btn').classList.remove('has-file');
@@ -1704,7 +1736,9 @@ function clearFile() {
 }
 
 async function handleSend() {
+  if (isSending) return; // 防止重复提交
   const text = document.getElementById('text-input').value.trim();
+  if (!text && !pendingFile) return;
   if (pendingFile) {
     await addFromScreenshot();
   } else if (text) {
@@ -1717,8 +1751,7 @@ async function addFromText() {
   const text = input.value.trim();
   if (!text) return;
 
-  const btn = document.getElementById('send-btn');
-  btn.disabled = true;
+  lockInputBar();
 
   try {
     // 调用后端解析自然语言，但不保存到服务器
@@ -1808,15 +1841,14 @@ async function addFromText() {
   } catch (e) {
     showToast('识别失败: ' + e.message, 'error');
   } finally {
-    toggleSend();
+    unlockInputBar();
   }
 }
 
 async function addFromScreenshot() {
   if (!pendingFile) return;
 
-  const btn = document.getElementById('send-btn');
-  btn.disabled = true;
+  lockInputBar();
 
   try {
     const form = new FormData();
@@ -1851,7 +1883,7 @@ async function addFromScreenshot() {
       showToast(`成功添加 ${data.parsed.length} 只基金`, 'success');
       document.getElementById('text-input').value = '';
       autoGrow(document.getElementById('text-input'));
-      clearFile();
+      clearFile(true);
       const newCodes = data.parsed.map(h => h.fund_code).filter(Boolean);
       loadPortfolio(true); // 跳过全量估值
       loadEstimationForNew(newCodes); // 只拉新基金估值
@@ -1861,7 +1893,7 @@ async function addFromScreenshot() {
   } catch (e) {
     showToast('识别失败: ' + e.message, 'error');
   } finally {
-    toggleSend();
+    unlockInputBar();
   }
 }
 
@@ -2265,63 +2297,68 @@ async function submitTrade() {
   if (amount <= 0) return;
 
   const submitEl = document.getElementById('trade-submit');
+  if (submitEl.disabled) return; // 防止重复提交
   submitEl.disabled = true;
+  const origText = submitEl.textContent;
   submitEl.textContent = '处理中...';
 
-  let nav = tradeContext.currentNav;
-  // 如果没有净值，尝试获取
-  if (!nav || nav <= 0) {
-    try {
-      const holdings = [{ fund_code: tradeContext.fundCode }];
-      const res = await fetch(API + '/api/portfolio/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ holdings }),
-      });
-      const data = await res.json();
-      if (data.holdings && data.holdings[0]) {
-        nav = data.holdings[0].current_nav || 1;
+  try {
+    let nav = tradeContext.currentNav;
+    // 如果没有净值，尝试获取
+    if (!nav || nav <= 0) {
+      try {
+        const holdings = [{ fund_code: tradeContext.fundCode }];
+        const res = await fetch(API + '/api/portfolio/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ holdings }),
+        });
+        const data = await res.json();
+        if (data.holdings && data.holdings[0]) {
+          nav = data.holdings[0].current_nav || 1;
+        }
+      } catch(e) { nav = 1; }
+    }
+
+    const shares = amount / nav;
+
+    // 减仓兜底：份额不能超过持有量
+    if (tradeContext.type === 'sell') {
+      const holdShares = tradeContext.totalShares || 0;
+      if (holdShares <= 0) {
+        showToast('当前无持仓可减', 'error');
+        return;
       }
-    } catch(e) { nav = 1; }
-  }
-
-  const shares = amount / nav;
-
-  // 减仓兜底：份额不能超过持有量
-  if (tradeContext.type === 'sell') {
-    const holdShares = tradeContext.totalShares || 0;
-    if (holdShares <= 0) {
-      showToast('当前无持仓可减', 'error');
-      submitEl.disabled = false;
-      submitEl.textContent = '确认减仓';
-      return;
+      if (shares > holdShares) {
+        showToast(`赎回份额 ${shares.toFixed(2)} 超过持有 ${holdShares.toFixed(2)} 份`, 'error');
+        return;
+      }
     }
-    if (shares > holdShares) {
-      showToast(`赎回份额 ${shares.toFixed(2)} 超过持有 ${holdShares.toFixed(2)} 份`, 'error');
-      submitEl.disabled = false;
-      submitEl.textContent = '确认减仓';
-      return;
-    }
+
+    const tx = {
+      id: Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+      fund_code: tradeContext.fundCode,
+      type: tradeContext.type,
+      amount: Math.round(amount * 100) / 100,
+      nav: Math.round(nav * 10000) / 10000,
+      shares: Math.round(shares * 100) / 100,
+      source: 'manual',
+      created_at: new Date().toISOString(),
+      note: document.getElementById('trade-note').value.trim(),
+    };
+
+    addTransaction(tx);
+    recalcHolding(tradeContext.fundCode);
+
+    closeTradeDrawer();
+    showToast(`${tradeContext.type === 'buy' ? '加仓' : '减仓'}成功 ${tradeContext.type === 'buy' ? '+' : '-'}¥${amount}`, 'success');
+    loadPortfolio(true);
+  } catch (e) {
+    showToast('操作失败: ' + e.message, 'error');
+  } finally {
+    submitEl.disabled = false;
+    submitEl.textContent = origText;
   }
-
-  const tx = {
-    id: Date.now() + '_' + Math.random().toString(36).slice(2, 8),
-    fund_code: tradeContext.fundCode,
-    type: tradeContext.type,
-    amount: Math.round(amount * 100) / 100,
-    nav: Math.round(nav * 10000) / 10000,
-    shares: Math.round(shares * 100) / 100,
-    source: 'manual',
-    created_at: new Date().toISOString(),
-    note: document.getElementById('trade-note').value.trim(),
-  };
-
-  addTransaction(tx);
-  recalcHolding(tradeContext.fundCode);
-
-  closeTradeDrawer();
-  showToast(`${tradeContext.type === 'buy' ? '加仓' : '减仓'}成功 ${tradeContext.type === 'buy' ? '+' : '-'}¥${amount}`, 'success');
-  loadPortfolio(true);
 }
 
 // ---- 交易记录展示 ----
@@ -2447,27 +2484,39 @@ function submitInvestPlan() {
   const amount = parseFloat(document.getElementById('invest-amount').value) || 0;
   if (amount <= 0) return;
 
-  const plan = {
-    id: Date.now() + '_' + Math.random().toString(36).slice(2, 8),
-    fund_code: investContext.fundCode,
-    fund_name: investContext.fundName,
-    amount: amount,
-    frequency: document.getElementById('invest-freq').value,
-    day: parseInt(document.getElementById('invest-day').value),
-    status: 'active',
-    created_at: new Date().toISOString(),
-    last_executed: '',
-    total_executed: 0,
-  };
+  const submitEl = document.getElementById('invest-submit');
+  if (submitEl.disabled) return; // 防止重复提交
+  submitEl.disabled = true;
+  submitEl.textContent = '创建中...';
 
-  const plans = getInvestPlans();
-  plans.push(plan);
-  saveInvestPlans(plans);
+  try {
+    const plan = {
+      id: Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+      fund_code: investContext.fundCode,
+      fund_name: investContext.fundName,
+      amount: amount,
+      frequency: document.getElementById('invest-freq').value,
+      day: parseInt(document.getElementById('invest-day').value),
+      status: 'active',
+      created_at: new Date().toISOString(),
+      last_executed: '',
+      total_executed: 0,
+    };
 
-  closeInvestDrawer();
-  showToast('定投计划已创建', 'success');
-  loadPortfolio(true);
-  renderInvestList();
+    const plans = getInvestPlans();
+    plans.push(plan);
+    saveInvestPlans(plans);
+
+    closeInvestDrawer();
+    showToast('定投计划已创建', 'success');
+    loadPortfolio(true);
+    renderInvestList();
+  } catch (e) {
+    showToast('创建失败: ' + e.message, 'error');
+  } finally {
+    submitEl.disabled = false;
+    submitEl.textContent = '确认创建';
+  }
 }
 
 // ---- 定投管理区域渲染 ----
@@ -2673,69 +2722,82 @@ async function executeSingleInvest(plan) {
 async function executePendingInvests() {
   const banner = document.getElementById('pending-invest-banner');
   const execBtn = banner.querySelector('.exec-btn');
+  const skipBtn = banner.querySelector('.skip-btn');
+  const detailBtn = banner.querySelector('.detail-btn');
   execBtn.disabled = true;
   execBtn.textContent = '执行中...';
+  if (skipBtn) skipBtn.disabled = true;
+  if (detailBtn) detailBtn.disabled = true;
 
-  for (const { plan, periods } of pendingInvestData) {
-    // 尝试获取历史净值
-    let navMap = {};
-    try {
-      const start = periods[0].date;
-      const end = periods[periods.length - 1].date;
-      const res = await fetch(API + `/api/fund/${plan.fund_code}/nav-history?start=${start}&end=${end}`);
-      const data = await res.json();
-      if (data.nav_list) {
-        for (const n of data.nav_list) navMap[n.date] = n.nav;
+  try {
+    for (const { plan, periods } of pendingInvestData) {
+      // 尝试获取历史净值
+      let navMap = {};
+      try {
+        const start = periods[0].date;
+        const end = periods[periods.length - 1].date;
+        const res = await fetch(API + `/api/fund/${plan.fund_code}/nav-history?start=${start}&end=${end}`);
+        const data = await res.json();
+        if (data.nav_list) {
+          for (const n of data.nav_list) navMap[n.date] = n.nav;
+        }
+      } catch(e) {}
+
+      // 获取最新净值作为兜底
+      let fallbackNav = 1;
+      try {
+        const res = await fetch(API + '/api/portfolio/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ holdings: [{ fund_code: plan.fund_code }] }),
+        });
+        const data = await res.json();
+        if (data.holdings && data.holdings[0]) {
+          fallbackNav = data.holdings[0].current_nav || 1;
+        }
+      } catch(e) {}
+
+      for (const period of periods) {
+        const nav = navMap[period.date] || fallbackNav;
+        const shares = plan.amount / nav;
+        const tx = {
+          id: Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+          fund_code: plan.fund_code,
+          type: 'buy',
+          amount: plan.amount,
+          nav: Math.round(nav * 10000) / 10000,
+          shares: Math.round(shares * 100) / 100,
+          source: 'auto_invest',
+          created_at: period.date + 'T12:00:00.000Z',
+          note: '定投补执行',
+        };
+        addTransaction(tx);
       }
-    } catch(e) {}
 
-    // 获取最新净值作为兜底
-    let fallbackNav = 1;
-    try {
-      const res = await fetch(API + '/api/portfolio/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ holdings: [{ fund_code: plan.fund_code }] }),
-      });
-      const data = await res.json();
-      if (data.holdings && data.holdings[0]) {
-        fallbackNav = data.holdings[0].current_nav || 1;
+      // 更新计划
+      const plans = getInvestPlans();
+      const p = plans.find(x => x.id === plan.id);
+      if (p) {
+        p.last_executed = new Date().toISOString();
+        p.total_executed = (p.total_executed || 0) + periods.length;
+        saveInvestPlans(plans);
       }
-    } catch(e) {}
-
-    for (const period of periods) {
-      const nav = navMap[period.date] || fallbackNav;
-      const shares = plan.amount / nav;
-      const tx = {
-        id: Date.now() + '_' + Math.random().toString(36).slice(2, 8),
-        fund_code: plan.fund_code,
-        type: 'buy',
-        amount: plan.amount,
-        nav: Math.round(nav * 10000) / 10000,
-        shares: Math.round(shares * 100) / 100,
-        source: 'auto_invest',
-        created_at: period.date + 'T12:00:00.000Z',
-        note: '定投补执行',
-      };
-      addTransaction(tx);
+      recalcHolding(plan.fund_code);
     }
 
-    // 更新计划
-    const plans = getInvestPlans();
-    const p = plans.find(x => x.id === plan.id);
-    if (p) {
-      p.last_executed = new Date().toISOString();
-      p.total_executed = (p.total_executed || 0) + periods.length;
-      saveInvestPlans(plans);
-    }
-    recalcHolding(plan.fund_code);
+    banner.classList.remove('show');
+    pendingInvestData = [];
+    showToast('所有定投已执行', 'success');
+    loadPortfolio(true);
+    renderInvestList();
+  } catch (e) {
+    showToast('执行失败: ' + e.message, 'error');
+  } finally {
+    execBtn.disabled = false;
+    execBtn.textContent = '全部执行';
+    if (skipBtn) skipBtn.disabled = false;
+    if (detailBtn) detailBtn.disabled = false;
   }
-
-  banner.classList.remove('show');
-  pendingInvestData = [];
-  showToast('所有定投已执行', 'success');
-  loadPortfolio(true);
-  renderInvestList();
 }
 
 function skipPendingInvests() {
