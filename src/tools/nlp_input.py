@@ -55,13 +55,19 @@ def parse_natural_language(user_text: str) -> list[dict]:
         api_key=OPENAI_API_KEY,
         base_url=OPENAI_BASE_URL,
         temperature=0,
+        timeout=30,  # 请求超时 30 秒
+        max_retries=1,  # 减少重试次数，加快失败响应
     )
 
     today = datetime.now().strftime("%Y年%m月%d日")
-    response = llm.invoke([
-        SystemMessage(content=EXTRACT_PROMPT.format(today=today)),
-        HumanMessage(content=user_text),
-    ])
+    try:
+        response = llm.invoke([
+            SystemMessage(content=EXTRACT_PROMPT.format(today=today)),
+            HumanMessage(content=user_text),
+        ])
+    except Exception as e:
+        logger.error("[NLP Input] LLM 调用失败（可能超时）: %s", e)
+        return []
 
     text = response.content.strip()
     if text.startswith("```"):

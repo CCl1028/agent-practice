@@ -1,7 +1,7 @@
 {
   "version": "1.2.0",
   "name": "FundPal",
-  "codename": "智能投顾",
+  "codename": "FundPal",
   "build_time": "2026-04-03",
   "git_commit": "local"
 }

@@ -54,21 +54,51 @@ def get_fund_name_by_code(fund_code: str) -> str | None:
     return None
 
 
-def _ensure_name_cache() -> None:
-    """确保基金名称缓存已加载（供反向查找使用）。"""
+_name_cache_loading = False
+_name_cache_lock = threading.Lock()
+
+
+def _ensure_name_cache(timeout: float = 10.0) -> None:
+    """确保基金名称缓存已加载（供反向查找使用）。
+    
+    Args:
+        timeout: 加载超时时间（秒），超时后直接返回，不阻塞调用方
+    """
+    global _name_cache_loading
+    
     if _fund_name_cache:
         return
-    try:
-        import akshare as ak
-        df = ak.fund_name_em()
-        if df is not None and not df.empty:
-            for _, row in df.iterrows():
-                code = str(row.get("基金代码", "")).strip()
-                name = str(row.get("基金简称", "")).strip()
-                if code and name:
-                    _fund_name_cache[code] = name
-    except Exception as e:
-        logger.warning("[基金名称] AKShare 加载基金列表失败: %s", e)
+    
+    # 防止多线程重复加载
+    with _name_cache_lock:
+        if _fund_name_cache or _name_cache_loading:
+            return
+        _name_cache_loading = True
+    
+    def _load_cache():
+        global _name_cache_loading
+        try:
+            import akshare as ak
+            df = ak.fund_name_em()
+            if df is not None and not df.empty:
+                for _, row in df.iterrows():
+                    code = str(row.get("基金代码", "")).strip()
+                    name = str(row.get("基金简称", "")).strip()
+                    if code and name:
+                        _fund_name_cache[code] = name
+                logger.info("[基金名称] 已加载 %d 只基金到缓存", len(_fund_name_cache))
+        except Exception as e:
+            logger.warning("[基金名称] AKShare 加载基金列表失败: %s", e)
+        finally:
+            _name_cache_loading = False
+    
+    # 使用线程加载，设置超时
+    load_thread = threading.Thread(target=_load_cache, daemon=True)
+    load_thread.start()
+    load_thread.join(timeout=timeout)
+    
+    if load_thread.is_alive():
+        logger.warning("[基金名称] 加载基金列表超时（%.1fs），跳过校验", timeout)
 
 
 def get_fund_code_by_name(fund_name: str) -> str | None:
@@ -124,8 +154,13 @@ def get_fund_code_by_name(fund_name: str) -> str | None:
     return None
 
 
-def verify_and_fix_fund(fund_code: str, fund_name: str) -> tuple[str, str]:
+def verify_and_fix_fund(fund_code: str, fund_name: str, timeout: float = 5.0) -> tuple[str, str]:
     """验证基金代码与名称是否匹配，不匹配时尝试修正。
+    
+    Args:
+        fund_code: 基金代码
+        fund_name: 基金名称
+        timeout: 缓存加载超时时间（秒）
 
     Returns:
         (corrected_code, corrected_name)
@@ -133,7 +168,7 @@ def verify_and_fix_fund(fund_code: str, fund_name: str) -> tuple[str, str]:
     if not fund_code and not fund_name:
         return fund_code, fund_name
 
-    _ensure_name_cache()
+    _ensure_name_cache(timeout=timeout)
 
     # 情况1: 有代码，验证代码对应的名称
     if fund_code and len(fund_code) == 6:

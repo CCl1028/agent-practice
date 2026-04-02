@@ -257,9 +257,19 @@ async def add_from_text(input: TextInput):
 @app.post("/api/portfolio/parse-text", response_model=ParseResult)
 async def parse_text(input: TextInput):
     """解析自然语言持仓描述（只解析不保存）"""
+    import asyncio
     try:
-        new_holdings = parse_natural_language(input.text)
+        # 整体超时 45 秒，防止长时间阻塞
+        loop = asyncio.get_event_loop()
+        new_holdings = await asyncio.wait_for(
+            loop.run_in_executor(None, parse_natural_language, input.text),
+            timeout=45.0
+        )
         return ParseResult(parsed=new_holdings or [])
+    except asyncio.TimeoutError:
+        logger.error("parse-text 超时（45秒）")
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=504, content={"error": "解析超时，请稍后重试"})
     except Exception as e:
         logger.error("parse-text 失败: %s", e)
         from fastapi.responses import JSONResponse
