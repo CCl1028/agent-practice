@@ -263,6 +263,19 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/api/version")
+async def version():
+    """获取当前版本信息"""
+    import json
+    version_file = Path(__file__).parent / "version.json"
+    if version_file.exists():
+        try:
+            return json.loads(version_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {"version": "dev", "build_time": "unknown", "git_commit": "unknown"}
+
+
 # ---- 盘中估值 ----
 
 @app.post("/api/estimation")

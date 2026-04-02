@@ -724,6 +724,11 @@ body {
     <hr class="divider">
     <button class="push-test-btn" id="push-test-btn" onclick="testPush()">🧪 发送测试推送</button>
     <div class="push-result" id="push-result"></div>
+
+    <hr class="divider">
+    <div class="version-info" id="version-info" style="font-size:11px;color:var(--text-secondary);text-align:center;padding:4px 0 8px;">
+      加载版本信息...
+    </div>
   </div>
 </div>
 
@@ -1071,6 +1076,7 @@ function openDrawer() {
   document.getElementById('drawer-overlay').addEventListener('touchmove', preventScroll, { passive: false });
   loadConfig();
   loadSchedule();
+  loadVersion();
 }
 function closeDrawer() {
   const scrollY = document.body.style.top;
@@ -1226,6 +1232,23 @@ async function testPush() {
   } finally {
     btn.disabled = false;
     btn.textContent = '🧪 发送测试推送';
+  }
+}
+
+// ---- 版本信息 ----
+async function loadVersion() {
+  const el = document.getElementById('version-info');
+  try {
+    const res = await fetch(API + '/api/version');
+    const v = await res.json();
+    const commit = v.git_commit && v.git_commit !== 'unknown' ? v.git_commit.substring(0, 7) : '';
+    const time = v.build_time && v.build_time !== 'unknown' ? v.build_time : '';
+    const parts = [];
+    if (commit) parts.push(commit);
+    if (time) parts.push(time);
+    el.textContent = parts.length > 0 ? '版本: ' + parts.join(' · ') : '版本: dev';
+  } catch (e) {
+    el.textContent = '版本信息不可用';
   }
 }
 

@@ -2,6 +2,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# 版本信息（构建时注入）
+ARG BUILD_VERSION=dev
+ARG BUILD_TIME=unknown
+ARG GIT_COMMIT=unknown
+RUN echo "{\"version\":\"${BUILD_VERSION}\",\"build_time\":\"${BUILD_TIME}\",\"git_commit\":\"${GIT_COMMIT}\"}" > /app/version.json
+
 # 安装 Python 依赖
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
