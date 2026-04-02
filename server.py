@@ -362,6 +362,60 @@ async def version():
     return {"version": "dev", "build_time": "unknown", "git_commit": "unknown"}
 
 
+# ---- 持仓刷新（根据最新净值更新市值和收益率） ----
+
+@app.post("/api/portfolio/refresh")
+async def refresh_portfolio(input: HoldingsInput = None):
+    """根据最新净值，为每只基金计算当前市值和收益率。
+
+    前端传入持仓列表（含 cost / cost_nav），后端查最新净值后返回更新后的持仓。
+    不会修改服务器存储。
+    """
+    from src.tools.market_tools import get_fund_nav
+
+    holdings = input.holdings if input and input.holdings else []
+    updated = []
+    for h in holdings:
+        fund_code = h.get("fund_code", "")
+        if not fund_code:
+            updated.append(h)
+            continue
+
+        item = {**h}  # shallow copy
+        try:
+            nav_data = get_fund_nav(fund_code)
+            current_nav = nav_data.get("current_nav", 0)
+            item["current_nav"] = current_nav
+            item["trend_5d"] = nav_data.get("trend_5d", [])
+
+            cost_nav = h.get("cost_nav", 0)
+            cost = h.get("cost", 0)
+
+            if cost_nav and cost_nav > 0 and current_nav > 0:
+                # 有成本净值：精确计算收益率和当前市值
+                item["profit_ratio"] = round(
+                    (current_nav - cost_nav) / cost_nav * 100, 2
+                )
+                if cost > 0:
+                    shares = cost / cost_nav  # 持有份额
+                    item["market_value"] = round(shares * current_nav, 2)
+                else:
+                    item["market_value"] = 0
+            elif cost > 0 and current_nav > 0:
+                # 没有成本净值但有成本金额：用估值涨跌近似
+                old_ratio = h.get("profit_ratio", 0) or 0
+                item["market_value"] = round(cost * (1 + old_ratio / 100), 2)
+            else:
+                item["market_value"] = h.get("cost", 0)
+        except Exception as e:
+            logger.warning("[持仓刷新] %s 获取净值失败: %s", fund_code, e)
+            item["market_value"] = h.get("cost", 0)
+
+        updated.append(item)
+
+    return {"holdings": updated}
+
+
 # ---- 盘中估值 ----
 
 @app.post("/api/estimation")

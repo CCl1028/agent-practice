@@ -896,9 +896,44 @@ let estimationCache = {};
 function loadPortfolio(skipEstimation) {
   const holdings = getLocalPortfolio();
   renderPortfolio(holdings);
-  if (!skipEstimation && holdings.length > 0) {
-    loadEstimation(holdings);
+  if (holdings.length > 0) {
+    // 刷新最新净值和市值
+    refreshPortfolioNav(holdings);
+    if (!skipEstimation) {
+      loadEstimation(holdings);
+    }
   }
+}
+
+async function refreshPortfolioNav(holdings) {
+  try {
+    const res = await fetch(API + '/api/portfolio/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ holdings }),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.holdings && data.holdings.length > 0) {
+      // 用最新数据更新本地存储
+      const localMap = {};
+      for (const h of getLocalPortfolio()) {
+        localMap[h.fund_code] = h;
+      }
+      for (const h of data.holdings) {
+        if (h.fund_code && localMap[h.fund_code]) {
+          // 更新净值相关字段，保留用户原始的 cost
+          localMap[h.fund_code].current_nav = h.current_nav;
+          localMap[h.fund_code].profit_ratio = h.profit_ratio;
+          localMap[h.fund_code].market_value = h.market_value;
+          localMap[h.fund_code].trend_5d = h.trend_5d;
+        }
+      }
+      const updated = Object.values(localMap);
+      saveLocalPortfolio(updated);
+      renderPortfolio(updated);
+    }
+  } catch (e) { /* silent */ }
 }
 
 function renderPortfolio(holdings) {
@@ -912,7 +947,15 @@ function renderPortfolio(holdings) {
   }
 
   title.style.display = 'flex';
-  list.innerHTML = holdings.map(h => `
+  list.innerHTML = holdings.map(h => {
+    const cost = h.cost || 0;
+    const mv = h.market_value || cost;
+    const ratio = h.profit_ratio || 0;
+    const profit = mv - cost;
+    const profitSign = profit >= 0 ? '+' : '';
+    const ratioSign = ratio >= 0 ? '+' : '';
+    const profitColor = profit > 0 ? 'var(--red)' : profit < 0 ? 'var(--green)' : 'var(--text-secondary)';
+    return `
     <div class="fund-card" onclick="toggleFundSelect(this)">
       <div class="fund-header">
         <div>
@@ -922,13 +965,15 @@ function renderPortfolio(holdings) {
         <button class="fund-delete" onclick="event.stopPropagation(); deleteHolding('${h.fund_code}')">删除</button>
       </div>
       <div class="fund-reason">
-        成本: ¥${(h.cost || 0).toLocaleString()}
-        ${h.profit_ratio ? ' · 收益: ' + (h.profit_ratio > 0 ? '+' : '') + h.profit_ratio + '%' : ''}
+        ${cost ? '成本 ¥' + cost.toLocaleString() : ''}
+        ${mv !== cost ? ' → 市值 ¥' + mv.toLocaleString() : ''}
+        ${ratio ? ' · <span style="color:' + profitColor + ';font-weight:600">' + ratioSign + ratio + '%</span>' : ''}
+        ${profit && cost ? ' · <span style="color:' + profitColor + '">' + profitSign + profit.toFixed(0) + '元</span>' : ''}
         ${h.hold_days ? ' · 持有' + h.hold_days + '天' : ''}
       </div>
       <div id="est-${h.fund_code}"></div>
     </div>
-  `).join('');
+  `;}).join('');
 
   // 立即用缓存的估值数据填充 DOM
   applyEstimationCache(holdings);
