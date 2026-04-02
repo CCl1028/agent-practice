@@ -1,19 +1,46 @@
-"""截图识别工具 — PaddleOCR 识别 + LLM 结构化解析"""
+"""截图识别工具 — 多模态 LLM 识别 + 结构化解析（无需 PaddleOCR）"""
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
+import mimetypes
 from pathlib import Path
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
-from src.config import OPENAI_API_KEY, OPENAI_BASE_URL, TEXT_MODEL
+from src.config import (
+    OPENAI_API_KEY, OPENAI_BASE_URL, TEXT_MODEL,
+    VISION_MODEL, VISION_API_KEY, VISION_BASE_URL,
+)
 
 logger = logging.getLogger(__name__)
 
 PARSE_PROMPT = """\
+你是一个基金持仓数据解析专家。用户会发送一张基金App的截图，你需要从中识别出持仓信息。
+
+请从截图中提取所有能找到的基金持仓，每只基金提取以下字段：
+- fund_code: 基金代码（6位数字）
+- fund_name: 基金名称
+- cost: 持有金额（元），找不到就填 0
+- cost_nav: 成本净值，找不到就填 0
+- current_nav: 最新净值，找不到就填 0
+- profit_ratio: 持有收益率（%），找不到就填 0
+- hold_days: 持有天数，找不到就填 0
+
+注意：
+- 有些截图可能只有部分信息，尽量提取能找到的
+- 收益率可能显示为 "+5.23%" 或 "-3.12%"，转为数字
+- 如果找到买入时间，可以估算持有天数
+- 如果实在无法识别，返回空数组
+
+严格按以下 JSON 格式输出，不要输出其他内容：
+[{"fund_code": "005827", "fund_name": "易方达蓝筹精选", "cost": 20000, "cost_nav": 2.15, "current_nav": 2.03, "profit_ratio": -5.6, "hold_days": 280}]
+"""
+
+PARSE_TEXT_PROMPT = """\
 你是一个基金持仓数据解析专家。用户从基金App截图中提取了OCR文字，你需要从中识别出持仓信息。
 
 请从文字中提取所有能找到的基金持仓，每只基金提取以下字段：
@@ -36,24 +63,80 @@ PARSE_PROMPT = """\
 """
 
 
+def _image_to_base64_url(image_path: str) -> str:
+    """将图片文件转为 base64 data URL。"""
+    path = Path(image_path)
+    mime_type, _ = mimetypes.guess_type(str(path))
+    if not mime_type:
+        mime_type = "image/png"
+    with open(path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("utf-8")
+    return f"data:{mime_type};base64,{b64}"
+
+
+def ocr_image_with_vision(image_path: str) -> list[dict]:
+    """用多模态 LLM 直接从图片中识别并提取持仓数据。"""
+    logger.info("[Vision OCR] 使用多模态模型: %s", VISION_MODEL)
+
+    image_url = _image_to_base64_url(image_path)
+
+    llm = ChatOpenAI(
+        model=VISION_MODEL,
+        api_key=VISION_API_KEY,
+        base_url=VISION_BASE_URL,
+        temperature=0,
+        max_tokens=2000,
+    )
+
+    response = llm.invoke([
+        SystemMessage(content=PARSE_PROMPT),
+        HumanMessage(content=[
+            {"type": "text", "text": "请识别这张基金App截图中的持仓信息："},
+            {"type": "image_url", "image_url": {"url": image_url, "detail": "high"}},
+        ]),
+    ])
+
+    text = response.content.strip()
+    logger.info("[Vision OCR] LLM 返回:\n%s", text)
+
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+
+    try:
+        holdings = json.loads(text)
+        if isinstance(holdings, list):
+            return holdings
+    except json.JSONDecodeError as e:
+        logger.error("[Vision OCR] JSON 解析失败: %s", e)
+
+    return []
+
+
 def ocr_image(image_path: str) -> str:
-    """用 PaddleOCR 识别图片中的文字。"""
-    import os
-    os.environ["PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK"] = "True"
-    from paddleocr import PaddleOCR
+    """用 PaddleOCR 识别图片中的文字（备选方案）。"""
+    try:
+        import os
+        os.environ["PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK"] = "True"
+        from paddleocr import PaddleOCR
 
-    ocr = PaddleOCR(lang="ch")
-    results = ocr.predict(image_path)
+        ocr = PaddleOCR(lang="ch")
+        results = ocr.predict(image_path)
 
-    texts = []
-    for result in results:
-        rec_texts = result.get("rec_texts", None) if hasattr(result, "get") else result["rec_texts"]
-        if rec_texts:
-            texts.extend(rec_texts)
+        texts = []
+        for result in results:
+            rec_texts = result.get("rec_texts", None) if hasattr(result, "get") else result["rec_texts"]
+            if rec_texts:
+                texts.extend(rec_texts)
 
-    full_text = "\n".join(texts)
-    logger.info("[OCR] 识别到 %d 行文字", len(texts))
-    return full_text
+        full_text = "\n".join(texts)
+        logger.info("[OCR] 识别到 %d 行文字", len(texts))
+        return full_text
+    except ImportError:
+        logger.warning("[OCR] PaddleOCR 未安装，将使用多模态 LLM 方案")
+        return ""
+    except Exception as e:
+        logger.error("[OCR] PaddleOCR 识别失败: %s", e)
+        return ""
 
 
 def parse_ocr_text(ocr_text: str) -> list[dict]:
@@ -70,7 +153,7 @@ def parse_ocr_text(ocr_text: str) -> list[dict]:
     )
 
     response = llm.invoke([
-        SystemMessage(content=PARSE_PROMPT),
+        SystemMessage(content=PARSE_TEXT_PROMPT),
         HumanMessage(content=f"以下是从基金App截图中OCR识别的文字：\n\n{ocr_text}"),
     ])
 
@@ -81,31 +164,6 @@ def parse_ocr_text(ocr_text: str) -> list[dict]:
     try:
         holdings = json.loads(text)
         if isinstance(holdings, list):
-            from src.tools.market_tools import get_fund_name_by_code
-
-            # 补全缺失字段
-            for h in holdings:
-                h.setdefault("fund_code", "")
-                h.setdefault("fund_name", "未知基金")
-                h.setdefault("cost", 0)
-                h.setdefault("cost_nav", 0)
-                h.setdefault("current_nav", 0)
-                h.setdefault("profit_ratio", 0)
-                h.setdefault("hold_days", 0)
-                h.setdefault("trend_5d", [])
-
-                # 用真实 API 校正基金名称
-                if h["fund_code"]:
-                    real_name = get_fund_name_by_code(h["fund_code"])
-                    if real_name:
-                        if real_name != h["fund_name"]:
-                            logger.info(
-                                "[OCR Parser] 校正基金名称: %s → %s (代码 %s)",
-                                h["fund_name"], real_name, h["fund_code"],
-                            )
-                        h["fund_name"] = real_name
-
-            logger.info("[OCR Parser] 解析出 %d 只基金", len(holdings))
             return holdings
     except json.JSONDecodeError as e:
         logger.error("[OCR Parser] JSON 解析失败: %s", e)
@@ -113,8 +171,40 @@ def parse_ocr_text(ocr_text: str) -> list[dict]:
     return []
 
 
+def _enrich_holdings(holdings: list[dict]) -> list[dict]:
+    """补全字段并用真实 API 校正基金名称。"""
+    from src.tools.market_tools import get_fund_name_by_code
+
+    for h in holdings:
+        h.setdefault("fund_code", "")
+        h.setdefault("fund_name", "未知基金")
+        h.setdefault("cost", 0)
+        h.setdefault("cost_nav", 0)
+        h.setdefault("current_nav", 0)
+        h.setdefault("profit_ratio", 0)
+        h.setdefault("hold_days", 0)
+        h.setdefault("trend_5d", [])
+
+        # 用真实 API 校正基金名称
+        if h["fund_code"]:
+            real_name = get_fund_name_by_code(h["fund_code"])
+            if real_name:
+                if real_name != h["fund_name"]:
+                    logger.info(
+                        "[OCR Parser] 校正基金名称: %s → %s (代码 %s)",
+                        h["fund_name"], real_name, h["fund_code"],
+                    )
+                h["fund_name"] = real_name
+
+    return holdings
+
+
 def process_screenshot(image_path: str) -> list[dict]:
-    """完整流程：截图 → OCR → LLM 解析 → 结构化持仓。"""
+    """完整流程：截图 → 识别 → 结构化持仓。
+
+    优先使用多模态 LLM 直接识别图片；
+    如果 VISION_MODEL 不可用，则回退到 PaddleOCR + LLM 解析。
+    """
     path = Path(image_path)
     if not path.exists():
         logger.error("[Screenshot] 文件不存在: %s", image_path)
@@ -122,14 +212,29 @@ def process_screenshot(image_path: str) -> list[dict]:
 
     logger.info("[Screenshot] 开始处理截图: %s", image_path)
 
-    # Step 1: OCR 识别
+    # 方案 1: 多模态 LLM 直接识别（推荐）
+    try:
+        holdings = ocr_image_with_vision(image_path)
+        if holdings:
+            logger.info("[Screenshot] 多模态识别成功，识别到 %d 只基金", len(holdings))
+            return _enrich_holdings(holdings)
+    except Exception as e:
+        logger.warning("[Screenshot] 多模态识别失败，回退到 OCR 方案: %s", e)
+
+    # 方案 2: PaddleOCR + LLM 解析（回退）
     ocr_text = ocr_image(image_path)
-    if not ocr_text:
-        logger.warning("[Screenshot] OCR 未识别到文字")
-        return []
+    if ocr_text:
+        logger.info("[Screenshot] OCR 文字:\n%s", ocr_text)
+        holdings = parse_ocr_text(ocr_text)
+        if holdings:
+            return _enrich_holdings(holdings)
 
-    logger.info("[Screenshot] OCR 文字:\n%s", ocr_text)
-
-    # Step 2: LLM 解析
-    holdings = parse_ocr_text(ocr_text)
-    return holdings
+    # 两种方案都失败，抛出明确的错误
+    raise RuntimeError(
+        "截图识别失败：当前模型不支持图片输入，且 PaddleOCR 未安装。"
+        "请在 .env 中配置支持视觉的多模态模型，例如：\n"
+        "VISION_MODEL=Qwen/Qwen2.5-VL-72B-Instruct\n"
+        "VISION_API_KEY=你的API Key\n"
+        "VISION_BASE_URL=https://api.siliconflow.cn/v1\n"
+        "（可在 https://siliconflow.cn 免费注册获取 API Key）"
+    )
