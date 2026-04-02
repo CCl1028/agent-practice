@@ -1368,7 +1368,7 @@ function renderPortfolio(holdings) {
     const profitColor = profit > 0 ? 'var(--red)' : profit < 0 ? 'var(--green)' : 'var(--text-secondary)';
     const txCount = h.transaction_count || allTx.filter(t => t.fund_code === h.fund_code).length;
     const plan = allPlans.find(p => p.fund_code === h.fund_code && p.status === 'active');
-    const investTag = plan ? `<div class="fund-invest-tag">📅 定投中 · ${formatFrequency(plan)} ¥${plan.amount}</div>` : '';
+    const investTag = plan ? `<div class="fund-invest-tag">定投中 · ${formatFrequency(plan)} ¥${plan.amount}</div>` : '';
 
     return `
     <div class="fund-card" onclick="toggleFundSelect(this)">
@@ -1388,12 +1388,12 @@ function renderPortfolio(holdings) {
       <div id="est-${h.fund_code}"></div>
       ${investTag}
       <div class="fund-actions">
-        <button class="fund-action-btn buy" onclick="event.stopPropagation(); openTradeDrawer('${h.fund_code}', 'buy')">➕ 加仓</button>
-        <button class="fund-action-btn sell" onclick="event.stopPropagation(); openTradeDrawer('${h.fund_code}', 'sell')">➖ 减仓</button>
-        <button class="fund-action-btn invest" onclick="event.stopPropagation(); openInvestDrawer('${h.fund_code}')">📅 定投</button>
+        <button class="fund-action-btn buy" onclick="event.stopPropagation(); openTradeDrawer('${h.fund_code}', 'buy')">加仓</button>
+        <button class="fund-action-btn sell" onclick="event.stopPropagation(); openTradeDrawer('${h.fund_code}', 'sell')">减仓</button>
+        <button class="fund-action-btn invest" onclick="event.stopPropagation(); openInvestDrawer('${h.fund_code}')">定投</button>
         <button class="fund-action-btn delete" onclick="event.stopPropagation(); deleteHolding('${h.fund_code}')">删除</button>
       </div>
-      ${txCount > 0 ? '<span class="tx-toggle" onclick="event.stopPropagation(); toggleTxList(this, \'' + h.fund_code + '\')">📋 交易记录 ' + txCount + '笔</span>' : ''}
+      ${txCount > 0 ? '<span class="tx-toggle" onclick="event.stopPropagation(); toggleTxList(this, \'' + h.fund_code + '\')">交易记录 ' + txCount + '笔</span>' : ''}
       <div class="tx-list" id="tx-list-${h.fund_code}" style="display:none"></div>
     </div>
   `;}).join('');
@@ -1984,7 +1984,7 @@ function openTradeDrawer(fundCode, type) {
 
   const titleEl = document.getElementById('trade-drawer-title');
   const submitEl = document.getElementById('trade-submit');
-  titleEl.textContent = (type === 'buy' ? '➕ 加仓' : '➖ 减仓') + ' · ' + tradeContext.fundName;
+  titleEl.textContent = (type === 'buy' ? '加仓' : '减仓') + ' · ' + tradeContext.fundName;
   submitEl.className = 'trade-submit ' + (type === 'buy' ? 'buy-btn' : 'sell-btn');
   submitEl.textContent = type === 'buy' ? '确认加仓' : '确认减仓';
   submitEl.disabled = true;
