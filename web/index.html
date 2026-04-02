@@ -3,8 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b84e4a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='22 7 13.5 15.5 8.5 10.5 2 17'/><polyline points='16 7 22 7 22 13'/></svg>">
 <title>天才交易员</title>
+<!-- Lucide Icons -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1004,6 +1006,17 @@ body {
   margin-top: 4px;
 }
 
+/* inline icon */
+.icon { display: inline-flex; align-items: center; vertical-align: -0.125em; flex-shrink: 0; }
+.icon svg { width: 1em; height: 1em; }
+.icon-sm svg { width: 14px; height: 14px; }
+.icon-md svg { width: 18px; height: 18px; }
+.icon-lg svg { width: 24px; height: 24px; }
+.icon-xl svg { width: 48px; height: 48px; }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.status-dot.active { background: var(--green); }
+.status-dot.paused { background: var(--text-secondary); }
+
 /* 响应式 */
 @media (min-width: 768px) {
   .container { max-width: 520px; }
@@ -1016,16 +1029,16 @@ body {
   <!-- Header -->
   <div class="header">
     <div class="header-center">
-      <h1>📈 天才交易员</h1>
-      <p>💰💰💰</p>
+      <h1><i data-lucide="trending-up" style="width:22px;height:22px;vertical-align:-3px;color:var(--accent);"></i> 天才交易员</h1>
+      <p style="font-size:13px;color:var(--text-secondary);margin-top:4px;">智能基金投顾助手</p>
     </div>
-    <button class="settings-trigger" onclick="openDrawer()" title="设置">⚙️</button>
+    <button class="settings-trigger" onclick="openDrawer()" title="设置"><i data-lucide="settings" style="width:20px;height:20px;"></i></button>
   </div>
 
   <!-- 简报区域 -->
   <div id="briefing-area">
     <div class="empty-state" id="empty-briefing">
-      <div class="empty-state-icon">🎯</div>
+      <div class="empty-state-icon"><i data-lucide="target" style="width:48px;height:48px;color:var(--accent);"></i></div>
       <div class="empty-state-text">点击下方按钮<br>生成今日操作建议</div>
     </div>
   </div>
@@ -1053,10 +1066,11 @@ body {
     <span class="sort-btn" id="sort-btn-cost" onclick="toggleSort('cost')">持仓 <span class="sort-arrows"><span class="arrow-up" id="arrow-up-cost">▲</span><span class="arrow-down" id="arrow-down-cost">▼</span></span></span>
     <span class="sort-btn" id="sort-btn-profit_ratio" onclick="toggleSort('profit_ratio')">收益率 <span class="sort-arrows"><span class="arrow-up" id="arrow-up-profit_ratio">▲</span><span class="arrow-down" id="arrow-down-profit_ratio">▼</span></span></span>
     <span class="sort-btn" id="sort-btn-profit" onclick="toggleSort('profit')">收益额 <span class="sort-arrows"><span class="arrow-up" id="arrow-up-profit">▲</span><span class="arrow-down" id="arrow-down-profit">▼</span></span></span>
+    <span class="sort-btn" id="sort-btn-today" onclick="toggleSort('today')">今日涨幅 <span class="sort-arrows"><span class="arrow-up" id="arrow-up-today">▲</span><span class="arrow-down" id="arrow-down-today">▼</span></span></span>
   </div>
   <!-- 定投补执行横幅 -->
   <div class="pending-invest-banner" id="pending-invest-banner">
-    <div class="pending-invest-title" id="pending-invest-title">📅 有定投待执行</div>
+    <div class="pending-invest-title" id="pending-invest-title"><i data-lucide="calendar-clock" style="width:16px;height:16px;vertical-align:-2px;"></i> 有定投待执行</div>
     <div class="pending-invest-detail" id="pending-invest-detail"></div>
     <div class="pending-invest-actions">
       <button class="detail-btn" onclick="togglePendingDetail()">查看详情</button>
@@ -1068,7 +1082,7 @@ body {
 
   <!-- 定投管理区域 -->
   <div class="section-title" id="invest-title" style="display:none">
-    📅 我的定投
+    <i data-lucide="calendar" style="width:16px;height:16px;"></i> 我的定投
   </div>
   <div id="invest-list"></div>
 
@@ -1080,7 +1094,7 @@ body {
 <div class="bottom-input-bar" id="bottom-bar">
   <div class="input-row">
     <button class="icon-btn upload-btn" id="upload-btn" onclick="document.getElementById('file-input').click()" title="上传截图">
-      📷
+      <i data-lucide="camera" style="width:18px;height:18px;"></i>
     </button>
     <input type="file" id="file-input" accept="image/*" onchange="onFileSelected(this)">
     <textarea class="text-input" id="text-input" rows="1"
@@ -1098,7 +1112,7 @@ body {
 <div class="drawer" id="drawer">
   <div class="drawer-handle"><div class="drawer-handle-bar"></div></div>
   <div class="drawer-header">
-    <h3>⚙️ 设置</h3>
+    <h3><i data-lucide="settings" style="width:18px;height:18px;vertical-align:-3px;"></i> 设置</h3>
     <button class="drawer-close" onclick="closeDrawer()">✕</button>
   </div>
   <div class="drawer-body">
@@ -1111,7 +1125,7 @@ body {
     <hr class="divider">
 
     <div class="config-group schedule-section" style="opacity:0.45;pointer-events:none;">
-      <div class="config-group-title">⏰ 定时推送</div>
+      <div class="config-group-title"><i data-lucide="clock" style="width:14px;height:14px;vertical-align:-2px;"></i> 定时推送</div>
       <div class="config-label">
         <span class="config-label-text">每日推送时间</span>
         <span class="config-status off">未开放</span>
@@ -1125,11 +1139,11 @@ body {
     </div>
 
     <hr class="divider">
-    <button class="push-test-btn" id="push-test-btn" onclick="testPush()">🧪 发送测试推送</button>
+    <button class="push-test-btn" id="push-test-btn" onclick="testPush()"><i data-lucide="flask-conical" style="width:14px;height:14px;vertical-align:-2px;"></i> 发送测试推送</button>
     <div class="push-result" id="push-result"></div>
 
     <hr class="divider">
-    <button class="push-test-btn" id="logs-toggle-btn" onclick="toggleLogs()">📋 查看错误日志</button>
+    <button class="push-test-btn" id="logs-toggle-btn" onclick="toggleLogs()"><i data-lucide="file-text" style="width:14px;height:14px;vertical-align:-2px;"></i> 查看错误日志</button>
     <div id="logs-panel" style="display:none;margin-top:10px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
         <select id="log-level-filter" onchange="fetchLogs()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--text);">
@@ -1138,8 +1152,8 @@ body {
           <option value="WARNING">WARNING</option>
           <option value="INFO">INFO</option>
         </select>
-        <button onclick="fetchLogs()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--text-secondary);cursor:pointer;">🔄 刷新</button>
-        <button onclick="clearLogs()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--red);cursor:pointer;">🗑️ 清空</button>
+        <button onclick="fetchLogs()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--text-secondary);cursor:pointer;display:inline-flex;align-items:center;gap:3px;"><i data-lucide="refresh-cw" style="width:12px;height:12px;"></i> 刷新</button>
+        <button onclick="clearLogs()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--red);cursor:pointer;display:inline-flex;align-items:center;gap:3px;"><i data-lucide="trash-2" style="width:12px;height:12px;"></i> 清空</button>
       </div>
       <div id="logs-content" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;max-height:300px;overflow-y:auto;font-family:'SF Mono','Menlo',monospace;font-size:11px;line-height:1.6;color:var(--text);white-space:pre-wrap;word-break:break-all;">
         加载中...
@@ -1304,7 +1318,7 @@ async function generateBriefing() {
   const withPush = document.getElementById('push-switch').checked;
   const btn = document.getElementById('generate-btn');
   btn.disabled = true;
-  btn.textContent = withPush ? '⏳ 生成并推送中...' : '⏳ 分析中...（约10秒）';
+  btn.textContent = withPush ? '生成并推送中...' : '分析中...（约10秒）';
 
   const area = document.getElementById('briefing-area');
   area.innerHTML = '<div class="loading"><div class="spinner"></div>Agent 正在分析...</div>';
@@ -1312,7 +1326,8 @@ async function generateBriefing() {
   // 将本地持仓传给后端
   const localHoldings = getLocalPortfolio();
   if (localHoldings.length === 0) {
-    area.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">请先添加持仓再生成简报</div></div>';
+    area.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i data-lucide="folder-open" style="width:48px;height:48px;color:var(--text-secondary);"></i></div><div class="empty-state-text">请先添加持仓再生成简报</div></div>';
+    lucide.createIcons({nodes: [area]});
     btn.disabled = false;
     btn.textContent = '生成今日简报';
     showToast('请先添加持仓', 'error');
@@ -1341,7 +1356,8 @@ async function generateBriefing() {
       showToast('简报已生成', 'success');
     }
   } catch (e) {
-    area.innerHTML = '<div class="empty-state"><div class="empty-state-icon">😵</div><div class="empty-state-text">生成失败，请重试</div></div>';
+    area.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i data-lucide="alert-circle" style="width:48px;height:48px;color:var(--red);"></i></div><div class="empty-state-text">生成失败，请重试</div></div>';
+    lucide.createIcons({nodes: [area]});
     showToast('生成失败: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
@@ -1351,13 +1367,13 @@ async function generateBriefing() {
 
 function formatPushResults(results) {
   const parts = [];
-  if (results.bark === true) parts.push('Bark✅');
-  else if (results.bark === false) parts.push('Bark❌');
-  if (results.serverchan === true) parts.push('微信✅');
-  else if (results.serverchan === false) parts.push('微信❌');
-  if (results.wecom === true) parts.push('企微✅');
-  else if (results.wecom === false) parts.push('企微❌');
-  return parts.length > 0 ? '| 推送: ' + parts.join(' ') : '✅';
+  if (results.bark === true) parts.push('Bark(成功)');
+  else if (results.bark === false) parts.push('Bark(失败)');
+  if (results.serverchan === true) parts.push('微信(成功)');
+  else if (results.serverchan === false) parts.push('微信(失败)');
+  if (results.wecom === true) parts.push('企微(成功)');
+  else if (results.wecom === false) parts.push('企微(失败)');
+  return parts.length > 0 ? '| 推送: ' + parts.join(' ') : '';
 }
 
 function renderBriefing(briefing) {
@@ -1366,7 +1382,7 @@ function renderBriefing(briefing) {
 
   let fundsHtml = details.map(d => {
     const cls = d.action === '加仓' ? 'action-buy' : d.action === '减仓' ? 'action-sell' : 'action-hold';
-    const emoji = d.action === '加仓' ? '🟢' : d.action === '减仓' ? '🔴' : '⏸️';
+    const emoji = d.action === '加仓' ? '<i data-lucide="arrow-up-circle" style="width:14px;height:14px;"></i>' : d.action === '减仓' ? '<i data-lucide="arrow-down-circle" style="width:14px;height:14px;"></i>' : '<i data-lucide="pause-circle" style="width:14px;height:14px;"></i>';
     return `
       <div class="fund-card">
         <div class="fund-card-left">
@@ -1384,11 +1400,12 @@ function renderBriefing(briefing) {
 
   area.innerHTML = `
     <div class="briefing-card">
-      <div class="briefing-summary">💡 ${briefing.summary || '暂无建议'}</div>
+      <div class="briefing-summary"><i data-lucide="lightbulb" style="width:20px;height:20px;vertical-align:-3px;color:var(--accent);"></i> ${briefing.summary || '暂无建议'}</div>
       <div class="briefing-market">${briefing.market_note || ''}</div>
     </div>
     ${fundsHtml}
   `;
+  lucide.createIcons({nodes: [area]});
 }
 
 // ---- 持仓 ----
@@ -1400,7 +1417,7 @@ let estimationCache = {};
 // sortDir: 'desc' | 'asc'
 let sortKey = 'time';
 let sortDir = 'desc';
-const SORT_KEYS = ['time', 'cost', 'profit_ratio', 'profit'];
+const SORT_KEYS = ['time', 'cost', 'profit_ratio', 'profit', 'today'];
 
 function toggleSort(key) {
   if (sortKey === key) {
@@ -1447,6 +1464,11 @@ function sortHoldings(holdings) {
       const costB = b.total_cost || b.cost || 0;
       const mvB = b.market_value || costB;
       vb = mvB - costB;
+    } else if (sortKey === 'today') {
+      const eA = estimationCache[a.fund_code];
+      const eB = estimationCache[b.fund_code];
+      va = (eA && eA.est_change != null) ? eA.est_change : -9999;
+      vb = (eB && eB.est_change != null) ? eB.est_change : -9999;
     }
     return sortDir === 'desc' ? vb - va : va - vb;
   });
@@ -1668,7 +1690,8 @@ function onFileSelected(input) {
   pendingFile = file;
   document.getElementById('upload-btn').classList.add('has-file');
   document.getElementById('file-hint').style.display = 'block';
-  document.getElementById('file-hint').innerHTML = '📎 ' + file.name + ' <span class="clear-file" onclick="clearFile()">✕</span>';
+  document.getElementById('file-hint').innerHTML = '<i data-lucide="paperclip" style="width:12px;height:12px;vertical-align:-1px;"></i> ' + file.name + ' <span class="clear-file" onclick="clearFile()">✕</span>';
+  lucide.createIcons({nodes: [document.getElementById('file-hint')]});
   toggleSend();
 }
 
@@ -1769,9 +1792,9 @@ async function addFromText() {
       }
 
       if (tradeDone) {
-        showToast('交易操作已完成 ✅', 'success');
+        showToast('交易操作已完成', 'success');
       } else if (addedCount > 0) {
-        showToast(`成功添加 ${addedCount} 只基金 ✅`, 'success');
+        showToast(`成功添加 ${addedCount} 只基金`, 'success');
       }
 
       input.value = '';
@@ -1825,7 +1848,7 @@ async function addFromScreenshot() {
       const merged = Object.values(existingMap);
       saveLocalPortfolio(merged);
 
-      showToast(`成功添加 ${data.parsed.length} 只基金 ✅`, 'success');
+      showToast(`成功添加 ${data.parsed.length} 只基金`, 'success');
       document.getElementById('text-input').value = '';
       autoGrow(document.getElementById('text-input'));
       clearFile();
@@ -1865,12 +1888,12 @@ function closeDrawer() {
 
 // ---- 配置面板（本地 localStorage） ----
 const CONFIG_FIELDS = [
-  { group: '📤 推送渠道', items: [
+  { group: '推送渠道', items: [
     { key: 'BARK_URL', label: 'Bark', placeholder: 'https://api.day.app/你的key', hint: 'iPhone 通知推送', sensitive: false },
     { key: 'SERVERCHAN_KEY', label: 'Server酱', placeholder: 'SCTxxx', hint: '微信推送', sensitive: true },
     { key: 'WECOM_WEBHOOK_URL', label: '企业微信', placeholder: 'https://qyapi.weixin.qq.com/...', hint: '企微群推送', sensitive: false },
   ]},
-  { group: '🤖 AI 模型', items: [
+  { group: 'AI 模型', items: [
     { key: 'OPENAI_API_KEY', label: 'API Key', placeholder: 'sk-xxx', hint: '不填则用规则引擎', sensitive: true },
     { key: 'OPENAI_BASE_URL', label: '接口地址', placeholder: 'https://api.deepseek.com', hint: '默认 DeepSeek', sensitive: false },
   ]},
@@ -1956,7 +1979,7 @@ function saveConfig(key) {
     return;
   }
   setConfigValue(key, value);
-  showToast(`${key} 已保存 ✅`, 'success');
+  showToast(`${key} 已保存`, 'success');
   loadConfig();
 }
 
@@ -1975,12 +1998,12 @@ async function testPush() {
     });
     const data = await res.json();
     const parts = [];
-    if (data.push_results.bark === true) parts.push('Bark ✅');
-    else if (data.push_results.bark === false) parts.push('Bark ❌');
-    if (data.push_results.serverchan === true) parts.push('Server酱 ✅');
-    else if (data.push_results.serverchan === false) parts.push('Server酱 ❌');
-    if (data.push_results.wecom === true) parts.push('企业微信 ✅');
-    else if (data.push_results.wecom === false) parts.push('企业微信 ❌');
+    if (data.push_results.bark === true) parts.push('Bark(成功)');
+    else if (data.push_results.bark === false) parts.push('Bark(失败)');
+    if (data.push_results.serverchan === true) parts.push('Server酱(成功)');
+    else if (data.push_results.serverchan === false) parts.push('Server酱(失败)');
+    if (data.push_results.wecom === true) parts.push('企业微信(成功)');
+    else if (data.push_results.wecom === false) parts.push('企业微信(失败)');
 
     if (parts.length > 0) {
       result.textContent = '测试结果：' + parts.join('、');
@@ -1994,7 +2017,8 @@ async function testPush() {
     showToast('测试失败', 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = '🧪 发送测试推送';
+    btn.innerHTML = '<i data-lucide="flask-conical" style="width:14px;height:14px;vertical-align:-2px;"></i> 发送测试推送';
+    lucide.createIcons({nodes: [btn]});
   }
 }
 
@@ -2006,7 +2030,8 @@ function toggleLogs() {
   const btn = document.getElementById('logs-toggle-btn');
   logsVisible = !logsVisible;
   panel.style.display = logsVisible ? 'block' : 'none';
-  btn.textContent = logsVisible ? '📋 收起日志' : '📋 查看错误日志';
+  btn.innerHTML = logsVisible ? '<i data-lucide="file-text" style="width:14px;height:14px;vertical-align:-2px;"></i> 收起日志' : '<i data-lucide="file-text" style="width:14px;height:14px;vertical-align:-2px;"></i> 查看错误日志';
+  lucide.createIcons({nodes: [btn]});
   if (logsVisible) fetchLogs();
 }
 
@@ -2309,7 +2334,7 @@ function toggleTxList(el, fundCode) {
     let html = show.map(t => {
       const d = new Date(t.created_at);
       const dateStr = (d.getMonth()+1).toString().padStart(2,'0') + '-' + d.getDate().toString().padStart(2,'0');
-      const srcLabel = t.source === 'auto_invest' ? '📅定投' : '手动';
+      const srcLabel = t.source === 'auto_invest' ? '定投' : '手动';
       const typeCls = t.type === 'buy' ? 'tx-type-buy' : 'tx-type-sell';
       const typeLabel = t.type === 'buy' ? '买入' : '卖出';
       return `<div class="tx-item">
@@ -2324,11 +2349,11 @@ function toggleTxList(el, fundCode) {
     }
     listEl.innerHTML = html;
     listEl.style.display = 'block';
-    el.textContent = '📋 收起记录';
+    el.textContent = '收起记录';
   } else {
     listEl.style.display = 'none';
     const txCount = getTransactions().filter(t => t.fund_code === fundCode).length;
-    el.textContent = '📋 交易记录 ' + txCount + '笔';
+    el.textContent = '交易记录 ' + txCount + '笔';
   }
 }
 
@@ -2339,7 +2364,7 @@ function showAllTx(fundCode) {
   listEl.innerHTML = txs.map(t => {
     const d = new Date(t.created_at);
     const dateStr = (d.getMonth()+1).toString().padStart(2,'0') + '-' + d.getDate().toString().padStart(2,'0');
-    const srcLabel = t.source === 'auto_invest' ? '📅定投' : '手动';
+    const srcLabel = t.source === 'auto_invest' ? '定投' : '手动';
     const typeCls = t.type === 'buy' ? 'tx-type-buy' : 'tx-type-sell';
     const typeLabel = t.type === 'buy' ? '买入' : '卖出';
     return `<div class="tx-item">
@@ -2367,7 +2392,7 @@ function openInvestDrawer(fundCode) {
   }
 
   investContext = { fundCode, fundName: h.fund_name || fundCode };
-  document.getElementById('invest-drawer-title').textContent = '📅 设置定投 · ' + investContext.fundName;
+  document.getElementById('invest-drawer-title').textContent = '设置定投 · ' + investContext.fundName;
   document.getElementById('invest-amount').value = '';
   document.getElementById('invest-freq').value = 'weekly';
   onInvestFreqChange();
@@ -2440,7 +2465,7 @@ function submitInvestPlan() {
   saveInvestPlans(plans);
 
   closeInvestDrawer();
-  showToast('定投计划已创建 ✅', 'success');
+  showToast('定投计划已创建', 'success');
   loadPortfolio(true);
   renderInvestList();
 }
@@ -2470,7 +2495,7 @@ function renderInvestList() {
 
   titleEl.style.display = 'flex';
   listEl.innerHTML = plans.map(p => {
-    const statusIcon = p.status === 'active' ? '🟢' : '⏸️';
+    const statusIcon = p.status === 'active' ? '<span class="status-dot active"></span>' : '<span class="status-dot paused"></span>';
     const statusText = p.status === 'active' ? '执行中' : '已暂停';
     const totalAmount = p.total_executed * p.amount;
     let actions = '';
@@ -2549,7 +2574,7 @@ async function checkAutoInvest() {
   } else {
     // 多期：显示横幅
     const banner = document.getElementById('pending-invest-banner');
-    document.getElementById('pending-invest-title').textContent = `📅 有 ${totalPending} 期定投待执行（共¥${totalAmount.toLocaleString()}）`;
+    document.getElementById('pending-invest-title').textContent = `有 ${totalPending} 期定投待执行（共¥${totalAmount.toLocaleString()}）`;
     let detail = pendingInvestData.map(d =>
       `${d.plan.fund_name}：${d.periods.length} 期 × ¥${d.plan.amount}`
     ).join('\n');
@@ -2708,7 +2733,7 @@ async function executePendingInvests() {
 
   banner.classList.remove('show');
   pendingInvestData = [];
-  showToast('所有定投已执行 ✅', 'success');
+  showToast('所有定投已执行', 'success');
   loadPortfolio(true);
   renderInvestList();
 }
@@ -2734,6 +2759,8 @@ function togglePendingDetail() {
 }
 
 // ---- Init ----
+// 初始化 Lucide Icons
+lucide.createIcons();
 loadPortfolio();
 renderInvestList();
 // 延迟检查定投（等待净值数据加载）
