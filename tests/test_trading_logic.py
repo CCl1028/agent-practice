@@ -167,7 +167,9 @@ def get_next_invest_date(frequency: str, day: int, from_date: datetime) -> datet
     """计算下一个定投执行日期。"""
     d = from_date
 
-    if frequency == "monthly":
+    if frequency == "daily":
+        d = d + timedelta(days=1)
+    elif frequency == "monthly":
         # 下个月的目标日
         month = d.month + 1
         year = d.year
@@ -288,9 +290,34 @@ class TestInvestSchedule:
 
     def test_next_date_never_on_weekend(self):
         """所有频率的下次执行日都不应在周末"""
-        for freq in ["weekly", "biweekly", "monthly"]:
+        for freq in ["daily", "weekly", "biweekly", "monthly"]:
             for day in range(1, 6):
                 for offset in range(0, 30):
                     base = datetime(2026, 3, 1, 12, 0) + timedelta(days=offset)
                     nxt = get_next_invest_date(freq, day if freq != "monthly" else 15, base)
                     assert nxt.weekday() < 5, f"{freq} day={day} from={base} → {nxt} is weekend!"
+
+    def test_daily_basic(self):
+        """每天定投：周三→周四"""
+        last = datetime(2026, 4, 1, 12, 0)  # 周三
+        nxt = get_next_invest_date("daily", 0, last)
+        assert nxt.date() == datetime(2026, 4, 2).date()  # 周四
+
+    def test_daily_skips_weekend(self):
+        """每天定投：周五→下周一"""
+        last = datetime(2026, 4, 3, 12, 0)  # 周五
+        nxt = get_next_invest_date("daily", 0, last)
+        assert nxt.weekday() == 0  # 周一
+        assert nxt.date() == datetime(2026, 4, 6).date()
+
+    def test_daily_pending_one_week(self):
+        """每天定投：一周没打开应有5期（跳过周末）"""
+        last = datetime(2026, 3, 27, 12, 0)  # 周五
+        now = datetime(2026, 4, 4, 14, 0)    # 下周五
+        periods = get_pending_periods("daily", 0, last, now)
+        # 3/30周一, 3/31周二, 4/1周三, 4/2周四, 4/3周五 = 5期
+        assert len(periods) == 5
+        # 所有日期都不在周末
+        for p in periods:
+            d = datetime.strptime(p, "%Y-%m-%d")
+            assert d.weekday() < 5

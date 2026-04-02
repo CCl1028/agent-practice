@@ -144,10 +144,13 @@ body {
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 3px;
+  justify-content: center;
+  gap: 2px;
   white-space: nowrap;
+  min-width: 64px;
+  text-align: center;
 }
 .sort-btn:hover { border-color: var(--accent); color: var(--accent); }
 .sort-btn.active {
@@ -155,7 +158,7 @@ body {
   background: var(--accent);
   color: white;
 }
-.sort-btn .sort-arrow { font-size: 10px; }
+.sort-btn .sort-arrow { font-size: 10px; display: inline-block; width: 12px; text-align: center; }
 
 .fund-card {
   background: var(--card);
@@ -168,7 +171,7 @@ body {
   user-select: none;
   cursor: pointer;
   display: flex;
-  align-items: stretch;
+  align-items: flex-start;
   gap: 12px;
 }
 .fund-card:hover { background: var(--card-hover); }
@@ -186,10 +189,10 @@ body {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  justify-content: center;
   flex-shrink: 0;
   text-align: right;
   min-width: 80px;
+  padding-top: 2px;
 }
 .fund-profit-ratio {
   font-size: 18px;
@@ -1082,7 +1085,7 @@ body {
     <hr class="divider">
 
     <div class="config-group schedule-section" style="opacity:0.45;pointer-events:none;">
-      <div class="config-group-title">⏰ 定时推送 <span style="font-size:11px;font-weight:400;color:var(--text-secondary);text-transform:none;letter-spacing:0;">（即将上线）</span></div>
+      <div class="config-group-title">⏰ 定时推送</div>
       <div class="config-label">
         <span class="config-label-text">每日推送时间</span>
         <span class="config-status off">未开放</span>
@@ -1092,7 +1095,7 @@ body {
         <button class="schedule-save-btn" disabled>保存</button>
         <button class="schedule-disable-btn" disabled>关闭</button>
       </div>
-      <div class="schedule-info" id="schedule-info" style="font-size:12px;color:var(--text-secondary);margin-top:6px;">该功能正在开发中，敬请期待</div>
+      <div class="schedule-info" id="schedule-info" style="font-size:12px;color:var(--text-secondary);margin-top:6px;">该功能正在开发中</div>
     </div>
 
     <hr class="divider">
@@ -1180,6 +1183,7 @@ body {
         <label class="form-label">定投频率</label>
         <div class="freq-row">
           <select class="freq-select" id="invest-freq" onchange="onInvestFreqChange()">
+            <option value="daily">每天</option>
             <option value="weekly">每周</option>
             <option value="biweekly">每两周</option>
             <option value="monthly">每月</option>
@@ -1373,14 +1377,10 @@ let sortDir = 'desc';
 
 function toggleSort(key) {
   if (sortKey === key) {
-    if (sortDir === 'desc') {
-      sortDir = 'asc';
-    } else {
-      // 第三次点击：取消排序
-      sortKey = null;
-      sortDir = 'desc';
-    }
+    // 同一个按钮：升降序切换
+    sortDir = sortDir === 'desc' ? 'asc' : 'desc';
   } else {
+    // 切换到新维度：默认降序
     sortKey = key;
     sortDir = 'desc';
   }
@@ -2373,12 +2373,16 @@ function onInvestFreqChange() {
   const freq = document.getElementById('invest-freq').value;
   const daySelect = document.getElementById('invest-day');
   daySelect.innerHTML = '';
-  if (freq === 'monthly') {
+  if (freq === 'daily') {
+    daySelect.style.display = 'none';
+  } else if (freq === 'monthly') {
+    daySelect.style.display = '';
     for (let i = 1; i <= 28; i++) {
       daySelect.innerHTML += `<option value="${i}">${i}号</option>`;
     }
     daySelect.value = '15';
   } else {
+    daySelect.style.display = '';
     const days = ['周一','周二','周三','周四','周五'];
     for (let i = 0; i < 5; i++) {
       daySelect.innerHTML += `<option value="${i+1}">${days[i]}</option>`;
@@ -2422,6 +2426,7 @@ function submitInvestPlan() {
 
 // ---- 定投管理区域渲染 ----
 function formatFrequency(plan) {
+  if (plan.frequency === 'daily') return '每天';
   if (plan.frequency === 'monthly') return '每月' + plan.day + '号';
   if (plan.frequency === 'biweekly') {
     const days = ['','周一','周二','周三','周四','周五'];
@@ -2550,7 +2555,9 @@ function getPendingPeriods(plan, now) {
 
 function getNextInvestDate(plan, fromDate) {
   const d = new Date(fromDate);
-  if (plan.frequency === 'monthly') {
+  if (plan.frequency === 'daily') {
+    d.setDate(d.getDate() + 1);
+  } else if (plan.frequency === 'monthly') {
     d.setMonth(d.getMonth() + 1);
     d.setDate(Math.min(plan.day, 28));
   } else if (plan.frequency === 'biweekly') {
