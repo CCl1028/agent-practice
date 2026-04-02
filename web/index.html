@@ -732,18 +732,18 @@ body {
 
     <hr class="divider">
 
-    <div class="config-group schedule-section">
-      <div class="config-group-title">⏰ 定时推送</div>
+    <div class="config-group schedule-section" style="opacity:0.45;pointer-events:none;">
+      <div class="config-group-title">⏰ 定时推送 <span style="font-size:11px;font-weight:400;color:var(--text-secondary);text-transform:none;letter-spacing:0;">（即将上线）</span></div>
       <div class="config-label">
         <span class="config-label-text">每日推送时间</span>
-        <span class="config-status" id="schedule-status">加载中</span>
+        <span class="config-status off">未开放</span>
       </div>
       <div class="schedule-row">
-        <input type="time" id="push-time-input" value="14:30">
-        <button class="schedule-save-btn" id="schedule-save-btn" onclick="saveSchedule()">保存</button>
-        <button class="schedule-disable-btn" id="schedule-disable-btn" onclick="disableSchedule()">关闭</button>
+        <input type="time" id="push-time-input" value="14:30" disabled>
+        <button class="schedule-save-btn" disabled>保存</button>
+        <button class="schedule-disable-btn" disabled>关闭</button>
       </div>
-      <div class="schedule-info" id="schedule-info"></div>
+      <div class="schedule-info" id="schedule-info" style="font-size:12px;color:var(--text-secondary);margin-top:6px;">该功能正在开发中，敬请期待</div>
     </div>
 
     <hr class="divider">
@@ -782,6 +782,49 @@ body {
 <script>
 const API = '';  // 同源，无需前缀
 const PORTFOLIO_KEY = 'fund_assistant_portfolio';  // localStorage key
+const CONFIG_KEY = 'fund_assistant_config';  // localStorage key for config
+
+// ---- 本地配置存取 ----
+function getLocalConfig() {
+  try {
+    const data = localStorage.getItem(CONFIG_KEY);
+    return data ? JSON.parse(data) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveLocalConfig(config) {
+  try {
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+  } catch (e) {
+    console.error('保存配置失败:', e);
+  }
+}
+
+function getConfigValue(key) {
+  return getLocalConfig()[key] || '';
+}
+
+function setConfigValue(key, value) {
+  const config = getLocalConfig();
+  if (value) {
+    config[key] = value;
+  } else {
+    delete config[key];
+  }
+  saveLocalConfig(config);
+}
+
+// 获取推送相关配置（用于传给后端）
+function getPushConfig() {
+  const cfg = getLocalConfig();
+  const push = {};
+  if (cfg.BARK_URL) push.BARK_URL = cfg.BARK_URL;
+  if (cfg.SERVERCHAN_KEY) push.SERVERCHAN_KEY = cfg.SERVERCHAN_KEY;
+  if (cfg.WECOM_WEBHOOK_URL) push.WECOM_WEBHOOK_URL = cfg.WECOM_WEBHOOK_URL;
+  return push;
+}
 
 // ---- 本地存储工具 ----
 function getLocalPortfolio() {
@@ -825,10 +868,13 @@ async function generateBriefing() {
   const endpoint = withPush ? '/api/briefing-and-push' : '/api/briefing';
 
   try {
+    const reqBody = { holdings: localHoldings };
+    if (withPush) reqBody.config = getPushConfig();
+
     const res = await fetch(API + endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ holdings: localHoldings }),
+      body: JSON.stringify(reqBody),
     });
     if (!res.ok) throw new Error('服务器返回 ' + res.status);
     const data = await res.json();
@@ -1226,38 +1272,33 @@ function closeDrawer() {
   document.getElementById('drawer-overlay').removeEventListener('touchmove', preventScroll);
 }
 
-// ---- 配置面板 ----
+// ---- 配置面板（本地 localStorage） ----
 const CONFIG_FIELDS = [
   { group: '📤 推送渠道', items: [
-    { key: 'BARK_URL', label: 'Bark', placeholder: 'https://api.day.app/你的key', hint: 'iPhone 通知推送' },
-    { key: 'SERVERCHAN_KEY', label: 'Server酱', placeholder: 'SCTxxx', hint: '微信推送' },
-    { key: 'WECOM_WEBHOOK_URL', label: '企业微信', placeholder: 'https://qyapi.weixin.qq.com/...', hint: '企微群推送' },
+    { key: 'BARK_URL', label: 'Bark', placeholder: 'https://api.day.app/你的key', hint: 'iPhone 通知推送', sensitive: false },
+    { key: 'SERVERCHAN_KEY', label: 'Server酱', placeholder: 'SCTxxx', hint: '微信推送', sensitive: true },
+    { key: 'WECOM_WEBHOOK_URL', label: '企业微信', placeholder: 'https://qyapi.weixin.qq.com/...', hint: '企微群推送', sensitive: false },
   ]},
   { group: '🤖 AI 模型', items: [
-    { key: 'OPENAI_API_KEY', label: 'API Key', placeholder: 'sk-xxx', hint: '不填则用规则引擎' },
-    { key: 'OPENAI_BASE_URL', label: '接口地址', placeholder: 'https://api.deepseek.com', hint: '默认 DeepSeek' },
+    { key: 'OPENAI_API_KEY', label: 'API Key', placeholder: 'sk-xxx', hint: '不填则用规则引擎', sensitive: true },
+    { key: 'OPENAI_BASE_URL', label: '接口地址', placeholder: 'https://api.deepseek.com', hint: '默认 DeepSeek', sensitive: false },
   ]},
 ];
 
-async function loadConfig() {
-  const panel = document.getElementById('config-panel');
-  try {
-    const res = await fetch(API + '/api/config');
-    const data = await res.json();
-    renderConfig(data);
-  } catch (e) {
-    panel.innerHTML = '<div style="font-size:13px;color:var(--text-secondary)">无法加载配置</div>';
-  }
+function loadConfig() {
+  const config = getLocalConfig();
+  renderConfig(config);
 }
 
-function renderConfig(data) {
+function renderConfig(config) {
   const panel = document.getElementById('config-panel');
   const html = CONFIG_FIELDS.map(group => {
     const items = group.items.map(f => {
-      const info = data[f.key] || {};
-      const statusCls = info.has_value ? 'on' : 'off';
-      const statusText = info.has_value ? '已配置' : '未配置';
-      const displayVal = info.sensitive && info.has_value ? info.value : (info.has_value ? info.value : '');
+      const value = config[f.key] || '';
+      const hasValue = !!value;
+      const statusCls = hasValue ? 'on' : 'off';
+      const statusText = hasValue ? '已配置' : '未配置';
+      const displayVal = f.sensitive && hasValue ? maskValue(value) : value;
       return `
         <div class="config-item">
           <div class="config-label">
@@ -1266,12 +1307,12 @@ function renderConfig(data) {
           </div>
           <div class="config-input-row">
             <input class="config-input" id="cfg-${f.key}"
-              type="${info.sensitive ? 'password' : 'text'}"
+              type="${f.sensitive ? 'password' : 'text'}"
               placeholder="${f.placeholder}"
               value="${displayVal}"
-              onfocus="onConfigFocus(this, '${f.key}', ${!!info.sensitive})">
+              onfocus="onConfigFocus(this, '${f.key}', ${!!f.sensitive})">
             <button class="config-save-btn" onclick="saveConfig('${f.key}')">保存</button>
-            ${info.has_value ? `<button class="config-clear-btn" onclick="clearConfig('${f.key}')">清除</button>` : ''}
+            ${hasValue ? `<button class="config-clear-btn" onclick="clearConfig('${f.key}')">清除</button>` : ''}
           </div>
         </div>
       `;
@@ -1287,54 +1328,39 @@ function renderConfig(data) {
   panel.innerHTML = html;
 }
 
+function maskValue(val) {
+  if (!val) return '';
+  if (val.length <= 8) return '*'.repeat(val.length);
+  return val.slice(0, 3) + '*'.repeat(val.length - 6) + val.slice(-3);
+}
+
 function onConfigFocus(input, key, sensitive) {
-  // 敏感字段聚焦时清空脱敏值，让用户重新输入
   if (sensitive && input.value.includes('*')) {
     input.value = '';
     input.type = 'text';
   }
 }
 
-async function saveConfig(key) {
+function saveConfig(key) {
   const input = document.getElementById('cfg-' + key);
   const value = input.value.trim();
   if (!value) {
     showToast('请输入值', 'error');
     return;
   }
-  // 如果是脱敏值没改，跳过
   if (value.includes('****')) {
     showToast('请输入新值', 'error');
     return;
   }
-
-  try {
-    const res = await fetch(API + '/api/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, value }),
-    });
-    if (!res.ok) throw new Error('保存失败');
-    showToast(`${key} 已保存 ✅`, 'success');
-    loadConfig();
-  } catch (e) {
-    showToast('保存失败: ' + e.message, 'error');
-  }
+  setConfigValue(key, value);
+  showToast(`${key} 已保存 ✅`, 'success');
+  loadConfig();
 }
 
-async function clearConfig(key) {
-  try {
-    const res = await fetch(API + '/api/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, value: '' }),
-    });
-    if (!res.ok) throw new Error('清除失败');
-    showToast(`${key} 已清除`, 'success');
-    loadConfig();
-  } catch (e) {
-    showToast('清除失败: ' + e.message, 'error');
-  }
+function clearConfig(key) {
+  setConfigValue(key, '');
+  showToast(`${key} 已清除`, 'success');
+  loadConfig();
 }
 
 async function testPush() {
@@ -1345,7 +1371,11 @@ async function testPush() {
   result.textContent = '';
 
   try {
-    const res = await fetch(API + '/api/push/test', { method: 'POST' });
+    const res = await fetch(API + '/api/push/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config: getPushConfig() }),
+    });
     const data = await res.json();
     const parts = [];
     if (data.push_results.bark === true) parts.push('Bark ✅');

@@ -18,21 +18,29 @@ from dotenv import load_dotenv
 logger = logging.getLogger(__name__)
 
 
-def _get_config():
-    """每次调用时重新读取 .env，确保配置实时生效。"""
+def _get_config(override: dict | None = None):
+    """获取推送配置。优先使用 override 传入的配置，其次读 .env。"""
     load_dotenv(override=True)
-    return {
+    base = {
         "bark_url": os.getenv("BARK_URL", ""),
         "serverchan_key": os.getenv("SERVERCHAN_KEY", ""),
         "wecom_webhook_url": os.getenv("WECOM_WEBHOOK_URL", ""),
     }
+    if override:
+        if override.get("BARK_URL"):
+            base["bark_url"] = override["BARK_URL"]
+        if override.get("SERVERCHAN_KEY"):
+            base["serverchan_key"] = override["SERVERCHAN_KEY"]
+        if override.get("WECOM_WEBHOOK_URL"):
+            base["wecom_webhook_url"] = override["WECOM_WEBHOOK_URL"]
+    return base
 
 
 # ---- Bark ----
 
-def push_to_bark(title: str, body: str, group: str = "基金管家") -> bool:
+def push_to_bark(title: str, body: str, group: str = "基金管家", config: dict | None = None) -> bool:
     """通过 Bark 推送消息到 iPhone。"""
-    cfg = _get_config()
+    cfg = _get_config(config)
     bark_url = cfg["bark_url"]
     if not bark_url:
         logger.warning("[推送] 未配置 BARK_URL，跳过 Bark 推送")
@@ -63,9 +71,9 @@ def push_to_bark(title: str, body: str, group: str = "基金管家") -> bool:
 
 # ---- Server酱 ----
 
-def push_to_serverchan(title: str, content: str = "") -> bool:
+def push_to_serverchan(title: str, content: str = "", config: dict | None = None) -> bool:
     """通过 Server酱 推送消息到微信。"""
-    cfg = _get_config()
+    cfg = _get_config(config)
     key = cfg["serverchan_key"]
     if not key:
         logger.warning("[推送] 未配置 SERVERCHAN_KEY，跳过 Server酱 推送")
@@ -88,9 +96,9 @@ def push_to_serverchan(title: str, content: str = "") -> bool:
 
 # ---- 企业微信 ----
 
-def push_to_wecom(content: str) -> bool:
+def push_to_wecom(content: str, config: dict | None = None) -> bool:
     """通过企业微信 Webhook 推送消息到群。"""
-    cfg = _get_config()
+    cfg = _get_config(config)
     webhook_url = cfg["wecom_webhook_url"]
     if not webhook_url:
         logger.warning("[推送] 未配置 WECOM_WEBHOOK_URL，跳过企业微信推送")
@@ -204,38 +212,38 @@ def format_briefing_for_wecom(briefing: dict) -> str:
 
 # ---- 统一推送 ----
 
-def push_briefing(briefing: dict) -> dict:
-    """推送简报到所有已配置的渠道。"""
-    cfg = _get_config()
+def push_briefing(briefing: dict, config: dict | None = None) -> dict:
+    """推送简报到所有已配置的渠道。config 可覆盖 .env 配置。"""
+    cfg = _get_config(config)
     title, content = format_briefing_for_push(briefing)
     results = {}
 
     # Bark
     if cfg["bark_url"]:
         bark_title, bark_body = format_briefing_for_bark(briefing)
-        results["bark"] = push_to_bark(bark_title, bark_body)
+        results["bark"] = push_to_bark(bark_title, bark_body, config=config)
     else:
         results["bark"] = None
 
     # Server酱
     if cfg["serverchan_key"]:
-        results["serverchan"] = push_to_serverchan(title, content)
+        results["serverchan"] = push_to_serverchan(title, content, config=config)
     else:
         results["serverchan"] = None
 
     # 企业微信
     if cfg["wecom_webhook_url"]:
         wecom_content = format_briefing_for_wecom(briefing)
-        results["wecom"] = push_to_wecom(wecom_content)
+        results["wecom"] = push_to_wecom(wecom_content, config=config)
     else:
         results["wecom"] = None
 
     return results
 
 
-def get_push_status() -> dict:
-    """获取推送渠道配置状态（实时读取 .env）。"""
-    cfg = _get_config()
+def get_push_status(config: dict | None = None) -> dict:
+    """获取推送渠道配置状态。"""
+    cfg = _get_config(config)
     return {
         "bark": {
             "configured": bool(cfg["bark_url"]),

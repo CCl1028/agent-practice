@@ -192,6 +192,7 @@ class TextInput(BaseModel):
 
 class HoldingsInput(BaseModel):
     holdings: list[dict] = []
+    config: dict = {}  # 前端传入的用户配置（推送渠道等）
 
 
 class PortfolioResponse(BaseModel):
@@ -466,15 +467,27 @@ async def get_estimation():
 
 # ---- 推送相关 ----
 
+class PushTestInput(BaseModel):
+    config: dict = {}  # 前端传入的推送配置
+
+
+@app.post("/api/push/status")
+async def push_status_post(input: PushTestInput = None):
+    """获取推送渠道配置状态（POST，接受前端传入配置）"""
+    config = input.config if input else {}
+    return get_push_status(config=config or None)
+
+
 @app.get("/api/push/status")
 async def push_status():
-    """获取推送渠道配置状态"""
+    """获取推送渠道配置状态（GET，兼容旧版，读服务器 .env）"""
     return get_push_status()
 
 
 @app.post("/api/push/test")
-async def test_push():
+async def test_push(input: PushTestInput = None):
     """测试推送（发送一条测试消息）"""
+    config = input.config if input else {}
     test_briefing = {
         "summary": "这是一条推送测试",
         "details": [
@@ -487,7 +500,7 @@ async def test_push():
         ],
         "market_note": "推送测试 — 如果你收到了这条消息，说明推送配置成功！",
     }
-    results = push_briefing(test_briefing)
+    results = push_briefing(test_briefing, config=config or None)
     return {"push_results": results}
 
 
@@ -495,9 +508,10 @@ async def test_push():
 async def generate_and_push(input: HoldingsInput = None):
     """生成简报并推送"""
     holdings = input.holdings if input and input.holdings else load_portfolio()
+    config = input.config if input and input.config else {}
     result = langgraph_app.invoke({"trigger": "daily_briefing", "holdings": holdings})
     briefing = result.get("briefing", {})
-    push_results = push_briefing(briefing)
+    push_results = push_briefing(briefing, config=config or None)
     return {
         "notification": format_push_notification(briefing),
         "card": format_briefing_card(briefing),
