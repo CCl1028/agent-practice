@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+import collections
 import logging
 import os
 import shutil
 import tempfile
+import traceback
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -24,11 +27,49 @@ from src.tools.nlp_input import parse_natural_language
 from src.tools.portfolio_tools import load_portfolio, save_portfolio
 from src.tools.push_tools import get_push_status, push_briefing
 
+# ---- 内存日志收集器 ----
+MAX_LOG_LINES = 500
+
+class _MemoryLogHandler(logging.Handler):
+    """将日志存入内存环形缓冲区，供前端查看。"""
+    def __init__(self, maxlen: int = MAX_LOG_LINES):
+        super().__init__()
+        self.buffer: collections.deque[dict] = collections.deque(maxlen=maxlen)
+
+    def emit(self, record: logging.LogRecord):
+        try:
+            entry = {
+                "ts": datetime.fromtimestamp(record.created).strftime("%Y-%m-%d %H:%M:%S"),
+                "level": record.levelname,
+                "msg": self.format(record),
+            }
+            if record.exc_info and record.exc_info[0]:
+                entry["msg"] += "\n" + "".join(traceback.format_exception(*record.exc_info))
+            self.buffer.append(entry)
+        except Exception:
+            pass
+
+    def get_logs(self, limit: int = 200, level: str | None = None) -> list[dict]:
+        logs = list(self.buffer)
+        if level:
+            level_upper = level.upper()
+            logs = [l for l in logs if l["level"] == level_upper]
+        return logs[-limit:]
+
+    def clear(self):
+        self.buffer.clear()
+
+memory_log_handler = _MemoryLogHandler(maxlen=MAX_LOG_LINES)
+memory_log_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s — %(message)s", datefmt="%H:%M:%S"))
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S",
 )
+# 把内存 handler 挂到 root logger，捕获所有模块日志
+logging.getLogger().addHandler(memory_log_handler)
+
 logger = logging.getLogger(__name__)
 
 # ---- 定时推送调度器 ----
@@ -261,6 +302,22 @@ async def delete_holding(fund_code: str):
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+# ---- 日志查看 ----
+
+@app.get("/api/logs")
+async def get_logs(limit: int = Query(200, ge=1, le=500), level: str = Query(None)):
+    """获取最近的应用日志"""
+    logs = memory_log_handler.get_logs(limit=limit, level=level)
+    return {"logs": logs, "total": len(memory_log_handler.buffer)}
+
+
+@app.delete("/api/logs")
+async def clear_logs():
+    """清空日志缓冲区"""
+    memory_log_handler.clear()
+    return {"ok": True}
 
 
 @app.get("/api/version")

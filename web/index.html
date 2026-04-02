@@ -743,6 +743,25 @@ body {
     <div class="push-result" id="push-result"></div>
 
     <hr class="divider">
+    <button class="push-test-btn" id="logs-toggle-btn" onclick="toggleLogs()">📋 查看错误日志</button>
+    <div id="logs-panel" style="display:none;margin-top:10px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <select id="log-level-filter" onchange="fetchLogs()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--text);">
+          <option value="">全部级别</option>
+          <option value="ERROR" selected>ERROR</option>
+          <option value="WARNING">WARNING</option>
+          <option value="INFO">INFO</option>
+        </select>
+        <button onclick="fetchLogs()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--text-secondary);cursor:pointer;">🔄 刷新</button>
+        <button onclick="clearLogs()" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--red);cursor:pointer;">🗑️ 清空</button>
+      </div>
+      <div id="logs-content" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;max-height:300px;overflow-y:auto;font-family:'SF Mono','Menlo',monospace;font-size:11px;line-height:1.6;color:var(--text);white-space:pre-wrap;word-break:break-all;">
+        加载中...
+      </div>
+      <div id="logs-count" style="font-size:11px;color:var(--text-secondary);margin-top:4px;text-align:right;"></div>
+    </div>
+
+    <hr class="divider">
     <div class="version-info" id="version-info" style="font-size:11px;color:var(--text-secondary);text-align:center;padding:4px 0 8px;">
       加载版本信息...
     </div>
@@ -1248,6 +1267,55 @@ async function testPush() {
   } finally {
     btn.disabled = false;
     btn.textContent = '🧪 发送测试推送';
+  }
+}
+
+// ---- 日志查看 ----
+let logsVisible = false;
+
+function toggleLogs() {
+  const panel = document.getElementById('logs-panel');
+  const btn = document.getElementById('logs-toggle-btn');
+  logsVisible = !logsVisible;
+  panel.style.display = logsVisible ? 'block' : 'none';
+  btn.textContent = logsVisible ? '📋 收起日志' : '📋 查看错误日志';
+  if (logsVisible) fetchLogs();
+}
+
+async function fetchLogs() {
+  const content = document.getElementById('logs-content');
+  const countEl = document.getElementById('logs-count');
+  const level = document.getElementById('log-level-filter').value;
+  content.textContent = '加载中...';
+  try {
+    const params = new URLSearchParams({ limit: '200' });
+    if (level) params.set('level', level);
+    const res = await fetch(API + '/api/logs?' + params.toString());
+    const data = await res.json();
+    if (data.logs.length === 0) {
+      content.innerHTML = '<span style="color:var(--text-secondary)">暂无日志</span>';
+    } else {
+      content.innerHTML = data.logs.map(l => {
+        const color = l.level === 'ERROR' ? 'var(--red)' : l.level === 'WARNING' ? 'var(--yellow)' : 'var(--text-secondary)';
+        return `<div style="margin-bottom:4px;"><span style="color:${color};font-weight:600;">[${l.level}]</span> <span style="color:var(--text-secondary)">${l.ts}</span>\n${l.msg}</div>`;
+      }).join('');
+      // 自动滚动到底部
+      content.scrollTop = content.scrollHeight;
+    }
+    countEl.textContent = `显示 ${data.logs.length} 条 / 缓冲区共 ${data.total} 条`;
+  } catch (e) {
+    content.textContent = '加载失败: ' + e.message;
+    countEl.textContent = '';
+  }
+}
+
+async function clearLogs() {
+  try {
+    await fetch(API + '/api/logs', { method: 'DELETE' });
+    showToast('日志已清空', 'success');
+    fetchLogs();
+  } catch (e) {
+    showToast('清空失败', 'error');
   }
 }
 
