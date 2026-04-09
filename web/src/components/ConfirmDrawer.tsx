@@ -41,9 +41,16 @@ export default function ConfirmDrawer({
     )
   }
 
+  // 检查是否所有项目都有基金代码
+  const hasEmptyFundCode = items.some((item) => !item.fund_code || item.fund_code.trim() === '')
+
   const handleSave = () => {
     if (items.length === 0) {
       handleClose()
+      return
+    }
+    // 校验基金代码必填
+    if (hasEmptyFundCode) {
       return
     }
     onSave(items)
@@ -122,21 +129,30 @@ export default function ConfirmDrawer({
                   </div>
                   <div className="confirm-fields">
                     {[
-                      { label: '基金名称', field: 'fund_name' as const, type: 'text' },
-                      { label: '基金代码', field: 'fund_code' as const, type: 'text' },
-                      { label: '持仓金额', field: 'cost' as const, type: 'number' },
-                      { label: '成本净值', field: 'cost_nav' as const, type: 'number' },
-                      { label: '收益率(%)', field: 'profit_ratio' as const, type: 'number' },
-                      { label: '持有份额', field: 'shares' as const, type: 'number' },
-                      { label: '收益金额', field: 'profit_amount' as const, type: 'number' },
-                      { label: '最新净值', field: 'current_nav' as const, type: 'number' },
-                    ].map(({ label, field, type }) => (
+                      { label: '基金名称', field: 'fund_name' as const, type: 'text', required: false },
+                      { label: '基金代码', field: 'fund_code' as const, type: 'text', required: true },
+                      { label: '持仓金额', field: 'cost' as const, type: 'number', required: false },
+                      { label: '成本净值', field: 'cost_nav' as const, type: 'number', required: false },
+                      { label: '收益率(%)', field: 'profit_ratio' as const, type: 'number', required: false },
+                      { label: '持有份额', field: 'shares' as const, type: 'number', required: false },
+                      { label: '收益金额', field: 'profit_amount' as const, type: 'number', required: false },
+                      { label: '最新净值', field: 'current_nav' as const, type: 'number', required: false },
+                    ].map(({ label, field, type, required }) => (
                       <div className="confirm-field" key={field}>
-                        <label>{label}</label>
+                        <label>
+                          {label}
+                          {required && <span style={{ color: '#ff4d4f', marginLeft: 2 }}>*</span>}
+                        </label>
                         <input
                           type={type}
                           step={type === 'number' ? '0.0001' : undefined}
                           value={h[field] ?? ''}
+                          placeholder={required ? '必填' : ''}
+                          style={
+                            required && (!h[field] || String(h[field]).trim() === '')
+                              ? { borderColor: '#ff4d4f' }
+                              : undefined
+                          }
                           onChange={(e) =>
                             handleFieldChange(
                               i,
@@ -154,13 +170,18 @@ export default function ConfirmDrawer({
               ))
             )}
           </div>
+          {hasEmptyFundCode && items.length > 0 && (
+            <div style={{ color: '#ff4d4f', fontSize: 12, marginBottom: 8, textAlign: 'center' }}>
+              请填写所有基金代码后再保存
+            </div>
+          )}
           <div className="confirm-actions">
             <button className="confirm-cancel-btn" onClick={handleClose}>
               取消
             </button>
             <button
               className="confirm-save-btn"
-              disabled={items.length === 0}
+              disabled={items.length === 0 || hasEmptyFundCode}
               onClick={handleSave}
             >
               确认保存

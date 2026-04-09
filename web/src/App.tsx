@@ -59,6 +59,7 @@ export default function App() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmHoldings, setConfirmHoldings] = useState<Holding[]>([])
   const [confirmSource, setConfirmSource] = useState<'screenshot' | 'text' | ''>('')
+  const [imageAnalyzing, setImageAnalyzing] = useState(false)
 
   const { toast, showToast } = useToast()
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -275,6 +276,7 @@ export default function App() {
 
   const handleSendFile = async (file: File) => {
     setInputDisabled(true)
+    setImageAnalyzing(true)
     try {
       const data = await api.parseScreenshot(file, getAIConfig())
       if (data.parsed?.length > 0) {
@@ -288,6 +290,7 @@ export default function App() {
       showToast('识别失败: ' + (e instanceof Error ? e.message : String(e)), 'error')
     } finally {
       setInputDisabled(false)
+      setImageAnalyzing(false)
     }
   }
 
@@ -563,6 +566,16 @@ export default function App() {
         }}
         onSave={handleConfirmSave}
       />
+
+      {/* Image Analyzing Loading */}
+      {imageAnalyzing && (
+        <div className="loading-overlay">
+          <div className="loading-content">
+            <div className="loading-spinner" />
+            <div className="loading-text">正在分析图片...</div>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       <Toast
