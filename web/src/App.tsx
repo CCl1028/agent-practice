@@ -12,7 +12,6 @@ import * as api from './api'
 import {
   getLocalPortfolio,
   saveLocalPortfolio,
-  getLocalConfig,
   getPushConfig,
   getAIConfig,
   getTransactions,
@@ -202,78 +201,6 @@ export default function App() {
   }
 
   // ---- Input handlers ----
-  const handleSendText = async (text: string) => {
-    setInputDisabled(true)
-    try {
-      const config = getLocalConfig()
-      const data = await api.parseText(text, config)
-      if (data.parsed?.length > 0) {
-        let tradeDone = false
-        const newHoldings: Holding[] = []
-
-        for (const h of data.parsed) {
-          if (h.intent === 'buy' || h.intent === 'sell') {
-            const existing = getLocalPortfolio()
-            const fund = existing.find(
-              (f) => f.fund_code === h.fund_code || f.fund_name === h.fund_name,
-            )
-            if (fund) {
-              let nav = fund.current_nav || 0
-              if (!nav) {
-                try {
-                  const rr = await api.refreshPortfolioNav([
-                    { fund_code: fund.fund_code, fund_name: fund.fund_name },
-                  ])
-                  if (rr.holdings?.[0]) nav = rr.holdings[0].current_nav || 1
-                } catch {
-                  nav = 1
-                }
-              }
-              const amount = h.amount || h.cost || 0
-              if (amount > 0) {
-                const tx = {
-                  id: generateId(),
-                  fund_code: fund.fund_code,
-                  type: h.intent as 'buy' | 'sell',
-                  amount,
-                  nav: Math.round(nav * 10000) / 10000,
-                  shares: Math.round((amount / nav) * 100) / 100,
-                  source: 'manual' as const,
-                  created_at: new Date().toISOString(),
-                  note: '自然语言录入',
-                }
-                addTransaction(tx)
-                recalcHolding(fund.fund_code)
-                tradeDone = true
-              }
-            } else {
-              showToast(`未找到持仓: ${h.fund_name || h.fund_code}，请先添加`, 'error')
-            }
-          } else {
-            newHoldings.push(h)
-          }
-        }
-
-        if (tradeDone) {
-          showToast('交易操作已完成', 'success')
-          loadPortfolio(true)
-        }
-
-        if (newHoldings.length > 0) {
-          setConfirmHoldings(newHoldings)
-          setConfirmSource('text')
-          setConfirmOpen(true)
-        }
-      } else {
-        showToast('未识别到基金信息，换个描述试试', 'error')
-      }
-    } catch (e: unknown) {
-      showToast('识别失败: ' + (e instanceof Error ? e.message : String(e)), 'error')
-    } finally {
-      setInputDisabled(false)
-    }
-  }
-
   const handleSendFile = async (file: File) => {
     setInputDisabled(true)
     setImageAnalyzing(true)
@@ -291,6 +218,34 @@ export default function App() {
     } finally {
       setInputDisabled(false)
       setImageAnalyzing(false)
+    }
+  }
+
+  // 手动添加持仓
+  const handleAddHoldings = (newHoldings: Holding[]) => {
+    if (newHoldings.length === 0) return
+    
+    const existing = getLocalPortfolio()
+    const existingMap: Record<string, Holding> = {}
+    for (const f of existing) {
+      const key = f.fund_code || f.fund_name || ''
+      if (key) existingMap[key] = f
+    }
+    for (const h of newHoldings) {
+      const key = h.fund_code || h.fund_name || ''
+      if (key) existingMap[key] = h
+    }
+    const merged = Object.values(existingMap)
+    saveLocalPortfolio(merged)
+
+    showToast(`已添加 ${newHoldings.length} 只基金`, 'success')
+    loadPortfolio(true)
+    
+    // 刷新新基金的估值
+    const newCodes = newHoldings.map((h) => h.fund_code).filter(Boolean)
+    if (newCodes.length > 0) {
+      const newItems = newCodes.map((c) => ({ fund_code: c, fund_name: '' }))
+      loadEstimation(newItems)
     }
   }
 
@@ -530,8 +485,8 @@ export default function App() {
       {/* Bottom Input */}
       <BottomInputBar
         disabled={inputDisabled}
-        onSendText={handleSendText}
         onSendFile={handleSendFile}
+        onAddHoldings={handleAddHoldings}
       />
 
       {/* Drawers */}

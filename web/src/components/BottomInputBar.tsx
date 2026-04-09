@@ -1,120 +1,229 @@
-import { useRef, useState, useCallback } from 'react'
-import { Camera, Paperclip, Send } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Camera, Plus, Trash2, X } from 'lucide-react'
+import type { Holding } from '../types'
+
+interface ManualHolding {
+  fund_code: string
+  fund_name: string
+  cost: string
+  shares: string
+}
+
+const emptyHolding = (): ManualHolding => ({
+  fund_code: '',
+  fund_name: '',
+  cost: '',
+  shares: '',
+})
 
 interface BottomInputBarProps {
   disabled: boolean
-  onSendText: (text: string) => Promise<void>
   onSendFile: (file: File) => Promise<void>
+  onAddHoldings: (holdings: Holding[]) => void
 }
 
 export default function BottomInputBar({
   disabled,
-  onSendText,
   onSendFile,
+  onAddHoldings,
 }: BottomInputBarProps) {
-  const [text, setText] = useState('')
+  const [mode, setMode] = useState<'idle' | 'form'>('idle')
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [sending, setSending] = useState(false)
-  const textRef = useRef<HTMLTextAreaElement>(null)
+  const [holdings, setHoldings] = useState<ManualHolding[]>([emptyHolding()])
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const canSend = !sending && !disabled && (text.trim() || pendingFile)
+  // 检查表单是否有效（至少有一个有效的基金代码）
+  const hasValidHolding = holdings.some((h) => h.fund_code.trim() !== '')
+  // 检查是否所有填写了内容的行都有基金代码
+  const hasIncompleteRow = holdings.some(
+    (h) =>
+      (h.fund_name.trim() || h.cost.trim() || h.shares.trim()) &&
+      !h.fund_code.trim()
+  )
 
-  const autoGrow = useCallback(() => {
-    const el = textRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = Math.min(el.scrollHeight, 120) + 'px'
-  }, [])
-
-  const handleSend = async () => {
-    if (!canSend) return
-    setSending(true)
-    try {
-      if (pendingFile) {
-        await onSendFile(pendingFile)
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setPendingFile(file)
+      setSending(true)
+      try {
+        await onSendFile(file)
+      } finally {
+        setSending(false)
         setPendingFile(null)
         if (fileRef.current) fileRef.current.value = ''
-      } else if (text.trim()) {
-        await onSendText(text.trim())
       }
-      setText('')
-      if (textRef.current) {
-        textRef.current.style.height = 'auto'
-      }
-    } finally {
-      setSending(false)
     }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) setPendingFile(file)
+  const handleAddRow = () => {
+    setHoldings((prev) => [...prev, emptyHolding()])
   }
 
-  const clearFile = () => {
-    setPendingFile(null)
-    if (fileRef.current) fileRef.current.value = ''
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
+  const handleRemoveRow = (index: number) => {
+    if (holdings.length <= 1) {
+      // 如果只剩一行，清空它而不是删除
+      setHoldings([emptyHolding()])
+    } else {
+      setHoldings((prev) => prev.filter((_, i) => i !== index))
     }
   }
 
+  const handleFieldChange = (
+    index: number,
+    field: keyof ManualHolding,
+    value: string
+  ) => {
+    setHoldings((prev) =>
+      prev.map((h, i) => (i === index ? { ...h, [field]: value } : h))
+    )
+  }
+
+  const handleSubmit = () => {
+    if (!hasValidHolding || hasIncompleteRow) return
+
+    const validHoldings: Holding[] = holdings
+      .filter((h) => h.fund_code.trim())
+      .map((h) => ({
+        fund_code: h.fund_code.trim(),
+        fund_name: h.fund_name.trim() || h.fund_code.trim(),
+        cost: h.cost ? parseFloat(h.cost) || 0 : undefined,
+        shares: h.shares ? parseFloat(h.shares) || 0 : undefined,
+      }))
+
+    if (validHoldings.length > 0) {
+      onAddHoldings(validHoldings)
+      setHoldings([emptyHolding()])
+      setMode('idle')
+    }
+  }
+
+  const handleCancel = () => {
+    setHoldings([emptyHolding()])
+    setMode('idle')
+  }
+
+  const openForm = () => {
+    setMode('form')
+  }
+
+  // 表单模式
+  if (mode === 'form') {
+    return (
+      <div className="bottom-input-bar form-mode">
+        <div className="form-header">
+          <span className="form-title">添加持仓基金</span>
+          <button className="form-close-btn" onClick={handleCancel}>
+            <X size={18} />
+          </button>
+        </div>
+        <div className="form-body">
+          {holdings.map((h, index) => (
+            <div className="form-row" key={index}>
+              <div className="form-row-fields">
+                <input
+                  type="text"
+                  placeholder="基金代码 *"
+                  value={h.fund_code}
+                  onChange={(e) =>
+                    handleFieldChange(index, 'fund_code', e.target.value)
+                  }
+                  className={`form-input code-input${
+                    !h.fund_code.trim() &&
+                    (h.fund_name.trim() || h.cost.trim() || h.shares.trim())
+                      ? ' error'
+                      : ''
+                  }`}
+                />
+                <input
+                  type="text"
+                  placeholder="基金名称"
+                  value={h.fund_name}
+                  onChange={(e) =>
+                    handleFieldChange(index, 'fund_name', e.target.value)
+                  }
+                  className="form-input name-input"
+                />
+                <input
+                  type="number"
+                  placeholder="持仓金额"
+                  value={h.cost}
+                  onChange={(e) =>
+                    handleFieldChange(index, 'cost', e.target.value)
+                  }
+                  className="form-input cost-input"
+                />
+                <input
+                  type="number"
+                  placeholder="持有份额"
+                  value={h.shares}
+                  onChange={(e) =>
+                    handleFieldChange(index, 'shares', e.target.value)
+                  }
+                  className="form-input shares-input"
+                />
+              </div>
+              <button
+                className="form-row-remove"
+                onClick={() => handleRemoveRow(index)}
+                title="删除此行"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))}
+          <button className="form-add-row" onClick={handleAddRow}>
+            <Plus size={14} /> 添加更多
+          </button>
+        </div>
+        {hasIncompleteRow && (
+          <div className="form-error">请为所有行填写基金代码</div>
+        )}
+        <div className="form-actions">
+          <button className="form-cancel-btn" onClick={handleCancel}>
+            取消
+          </button>
+          <button
+            className="form-submit-btn"
+            disabled={!hasValidHolding || hasIncompleteRow}
+            onClick={handleSubmit}
+          >
+            确认添加
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // 默认模式：两个按钮
   return (
-    <div className="bottom-input-bar">
-      <div className="input-row">
+    <div className="bottom-input-bar idle-mode">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
+      <div className="input-buttons">
         <button
-          className={`icon-btn upload-btn${pendingFile ? ' has-file' : ''}`}
+          className="input-action-btn upload-btn"
           onClick={() => fileRef.current?.click()}
           disabled={sending || disabled}
-          title="上传截图"
-          style={sending || disabled ? { opacity: 0.5, pointerEvents: 'none' } : {}}
         >
-          <Camera size={18} />
+          <Camera size={20} />
+          <span>{pendingFile ? '分析中...' : '上传截图'}</span>
         </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={handleFileChange}
-        />
-        <textarea
-          ref={textRef}
-          className="text-input"
-          rows={1}
-          placeholder="描述持仓或上传截图"
-          value={text}
-          disabled={sending || disabled}
-          style={sending || disabled ? { opacity: 0.6 } : {}}
-          onChange={(e) => {
-            setText(e.target.value)
-            autoGrow()
-          }}
-          onKeyDown={handleKeyDown}
-        />
         <button
-          className="icon-btn send-btn"
-          onClick={handleSend}
-          disabled={!canSend}
-          title="发送"
+          className="input-action-btn form-btn"
+          onClick={openForm}
+          disabled={sending || disabled}
         >
-          <Send size={18} />
+          <Plus size={20} />
+          <span>手动添加</span>
         </button>
       </div>
-      {pendingFile && (
-        <div className="file-hint">
-          <Paperclip size={12} style={{ verticalAlign: '-1px' }} />{' '}
-          {pendingFile.name}{' '}
-          <span className="clear-file" onClick={clearFile}>
-            ✕
-          </span>
-        </div>
-      )}
     </div>
   )
 }
