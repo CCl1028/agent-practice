@@ -259,6 +259,10 @@ export default function ProfilePage({ showToast }: ProfilePageProps) {
 
   return (
     <div className="page-content profile-page">
+      <div className="simple-page-header">
+        <h1>个人中心</h1>
+      </div>
+
       {/* User Info */}
       <div className="profile-header">
         <div className="avatar">

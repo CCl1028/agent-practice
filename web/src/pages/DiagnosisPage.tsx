@@ -3,6 +3,10 @@ import { Stethoscope, Construction, Bell } from 'lucide-react'
 export default function DiagnosisPage() {
   return (
     <div className="page-content diagnosis-page">
+      <div className="simple-page-header">
+        <h1>基金诊断</h1>
+      </div>
+
       <div className="coming-soon">
         <div className="coming-soon-icon">
           <Construction size={48} />

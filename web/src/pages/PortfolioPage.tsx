@@ -73,6 +73,9 @@ export default function PortfolioPage({
   if (holdings.length === 0) {
     return (
       <div className="page-content">
+        <div className="simple-page-header">
+          <h1>我的持仓</h1>
+        </div>
         <div className="empty-state">
           <div className="empty-state-icon">📊</div>
           <div className="empty-state-text">
@@ -87,6 +90,10 @@ export default function PortfolioPage({
 
   return (
     <div className="page-content">
+      <div className="simple-page-header">
+        <h1>我的持仓</h1>
+      </div>
+
       {/* Portfolio Summary */}
       <div className="portfolio-summary">
         <div className="summary-item">
