@@ -7,6 +7,8 @@ interface ManualHolding {
   fund_name: string
   cost: string
   shares: string
+  profit: string // 持有收益
+  profitRate: string // 持有收益率
 }
 
 const emptyHolding = (): ManualHolding => ({
@@ -14,6 +16,8 @@ const emptyHolding = (): ManualHolding => ({
   fund_name: '',
   cost: '',
   shares: '',
+  profit: '',
+  profitRate: '',
 })
 
 interface BottomInputBarProps {
@@ -38,7 +42,7 @@ export default function BottomInputBar({
   // 检查是否所有填写了内容的行都有基金代码
   const hasIncompleteRow = holdings.some(
     (h) =>
-      (h.fund_name.trim() || h.cost.trim() || h.shares.trim()) &&
+      (h.fund_name.trim() || h.cost.trim() || h.shares.trim() || h.profit.trim() || h.profitRate.trim()) &&
       !h.fund_code.trim()
   )
 
@@ -90,6 +94,8 @@ export default function BottomInputBar({
         fund_name: h.fund_name.trim() || h.fund_code.trim(),
         cost: h.cost ? parseFloat(h.cost) || 0 : undefined,
         shares: h.shares ? parseFloat(h.shares) || 0 : undefined,
+        profit_amount: h.profit ? parseFloat(h.profit) : undefined,
+        profit_ratio: h.profitRate ? parseFloat(h.profitRate) / 100 : undefined, // 转换为小数
       }))
 
     if (validHoldings.length > 0) {
@@ -111,88 +117,117 @@ export default function BottomInputBar({
   // 表单模式
   if (mode === 'form') {
     return (
-      <div className="bottom-input-bar form-mode">
-        <div className="form-header">
-          <span className="form-title">添加持仓基金</span>
-          <button className="form-close-btn" onClick={handleCancel}>
-            <X size={18} />
-          </button>
-        </div>
-        <div className="form-body">
-          {holdings.map((h, index) => (
-            <div className="form-row" key={index}>
-              <div className="form-row-fields">
-                <input
-                  type="text"
-                  placeholder="基金代码 *"
-                  value={h.fund_code}
-                  onChange={(e) =>
-                    handleFieldChange(index, 'fund_code', e.target.value)
-                  }
-                  className={`form-input code-input${
-                    !h.fund_code.trim() &&
-                    (h.fund_name.trim() || h.cost.trim() || h.shares.trim())
-                      ? ' error'
-                      : ''
-                  }`}
-                />
-                <input
-                  type="text"
-                  placeholder="基金名称"
-                  value={h.fund_name}
-                  onChange={(e) =>
-                    handleFieldChange(index, 'fund_name', e.target.value)
-                  }
-                  className="form-input name-input"
-                />
-                <input
-                  type="number"
-                  placeholder="持仓金额"
-                  value={h.cost}
-                  onChange={(e) =>
-                    handleFieldChange(index, 'cost', e.target.value)
-                  }
-                  className="form-input cost-input"
-                />
-                <input
-                  type="number"
-                  placeholder="持有份额"
-                  value={h.shares}
-                  onChange={(e) =>
-                    handleFieldChange(index, 'shares', e.target.value)
-                  }
-                  className="form-input shares-input"
-                />
-              </div>
-              <button
-                className="form-row-remove"
-                onClick={() => handleRemoveRow(index)}
-                title="删除此行"
-              >
-                <Trash2 size={16} />
+      <>
+        <div className="form-drawer-overlay" onClick={handleCancel} />
+        <div className="form-drawer">
+          <div className="drawer-handle">
+            <div className="drawer-handle-bar" />
+          </div>
+          <div className="drawer-header">
+            <h3>添加持仓基金</h3>
+            <button className="drawer-close" onClick={handleCancel}>
+              <X size={20} />
+            </button>
+          </div>
+          <div className="drawer-body">
+            <div className="form-hint">
+              <span className="required-mark">*</span> 基金代码为必填项，其他信息选填
+            </div>
+            <div className="form-body">
+              {holdings.map((h, index) => (
+                <div className="form-row" key={index}>
+                  <div className="form-row-fields">
+                    <input
+                      type="text"
+                      placeholder="基金代码"
+                      value={h.fund_code}
+                      onChange={(e) =>
+                        handleFieldChange(index, 'fund_code', e.target.value)
+                      }
+                      className={`form-input code-input required-field${
+                        !h.fund_code.trim() &&
+                        (h.fund_name.trim() || h.cost.trim() || h.shares.trim() || h.profit.trim() || h.profitRate.trim())
+                          ? ' error'
+                          : ''
+                      }`}
+                    />
+                    <input
+                      type="text"
+                      placeholder="基金名称"
+                      value={h.fund_name}
+                      onChange={(e) =>
+                        handleFieldChange(index, 'fund_name', e.target.value)
+                      }
+                      className="form-input name-input"
+                    />
+                    <input
+                      type="number"
+                      placeholder="持仓金额"
+                      value={h.cost}
+                      onChange={(e) =>
+                        handleFieldChange(index, 'cost', e.target.value)
+                      }
+                      className="form-input cost-input"
+                    />
+                    <input
+                      type="number"
+                      placeholder="持有份额"
+                      value={h.shares}
+                      onChange={(e) =>
+                        handleFieldChange(index, 'shares', e.target.value)
+                      }
+                      className="form-input shares-input"
+                    />
+                    <input
+                      type="number"
+                      placeholder="持有收益(元)"
+                      value={h.profit}
+                      onChange={(e) =>
+                        handleFieldChange(index, 'profit', e.target.value)
+                      }
+                      className="form-input profit-input"
+                    />
+                    <input
+                      type="number"
+                      placeholder="收益率(%)"
+                      value={h.profitRate}
+                      onChange={(e) =>
+                        handleFieldChange(index, 'profitRate', e.target.value)
+                      }
+                      className="form-input profit-rate-input"
+                    />
+                  </div>
+                  <button
+                    className="form-row-remove"
+                    onClick={() => handleRemoveRow(index)}
+                    title="删除此行"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+              <button className="form-add-row" onClick={handleAddRow}>
+                <Plus size={14} /> 添加更多
               </button>
             </div>
-          ))}
-          <button className="form-add-row" onClick={handleAddRow}>
-            <Plus size={14} /> 添加更多
-          </button>
+            {hasIncompleteRow && (
+              <div className="form-error">请为所有行填写基金代码</div>
+            )}
+            <div className="form-actions">
+              <button className="form-cancel-btn" onClick={handleCancel}>
+                取消
+              </button>
+              <button
+                className="form-submit-btn"
+                disabled={!hasValidHolding || hasIncompleteRow}
+                onClick={handleSubmit}
+              >
+                确认添加
+              </button>
+            </div>
+          </div>
         </div>
-        {hasIncompleteRow && (
-          <div className="form-error">请为所有行填写基金代码</div>
-        )}
-        <div className="form-actions">
-          <button className="form-cancel-btn" onClick={handleCancel}>
-            取消
-          </button>
-          <button
-            className="form-submit-btn"
-            disabled={!hasValidHolding || hasIncompleteRow}
-            onClick={handleSubmit}
-          >
-            确认添加
-          </button>
-        </div>
-      </div>
+      </>
     )
   }
 
