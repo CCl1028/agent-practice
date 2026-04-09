@@ -59,6 +59,36 @@ export function getAIConfig(): Record<string, string> {
   return ai
 }
 
+export function saveAIConfig(aiConfig: { apiKey: string; baseUrl: string }): void {
+  const cfg = getLocalConfig()
+  if (aiConfig.apiKey) {
+    cfg.OPENAI_API_KEY = aiConfig.apiKey
+  } else {
+    delete cfg.OPENAI_API_KEY
+  }
+  if (aiConfig.baseUrl) {
+    cfg.OPENAI_BASE_URL = aiConfig.baseUrl
+  } else {
+    delete cfg.OPENAI_BASE_URL
+  }
+  saveLocalConfig(cfg)
+}
+
+export function savePushConfig(pushConfig: { serverChanKey: string; barkKey: string }): void {
+  const cfg = getLocalConfig()
+  if (pushConfig.serverChanKey) {
+    cfg.SERVERCHAN_KEY = pushConfig.serverChanKey
+  } else {
+    delete cfg.SERVERCHAN_KEY
+  }
+  if (pushConfig.barkKey) {
+    cfg.BARK_URL = pushConfig.barkKey
+  } else {
+    delete cfg.BARK_URL
+  }
+  saveLocalConfig(cfg)
+}
+
 // ---- Portfolio ----
 
 export function getLocalPortfolio(): Holding[] {

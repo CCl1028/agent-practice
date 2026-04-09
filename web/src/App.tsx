@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type {
   Holding,
   Briefing,
@@ -24,19 +24,22 @@ import { generateId, formatPushResults } from './utils'
 import { useToast } from './hooks/useToast'
 
 import Header from './components/Header'
-import BriefingArea, { GenerateButton } from './components/BriefingArea'
-import SortBar from './components/SortBar'
-import FundCard from './components/FundCard'
+import TabBar, { type TabKey } from './components/TabBar'
 import BottomInputBar from './components/BottomInputBar'
 import SettingsDrawer from './components/SettingsDrawer'
 import TradeDrawer from './components/TradeDrawer'
 import InvestDrawer from './components/InvestDrawer'
 import ConfirmDrawer from './components/ConfirmDrawer'
-import InvestList from './components/InvestList'
 import Toast from './components/Toast'
+
+import PortfolioPage from './pages/PortfolioPage'
+import BriefingPage from './pages/BriefingPage'
+import DiagnosisPage from './pages/DiagnosisPage'
+import ProfilePage from './pages/ProfilePage'
 
 export default function App() {
   // ---- State ----
+  const [activeTab, setActiveTab] = useState<TabKey>('portfolio')
   const [holdings, setHoldings] = useState<Holding[]>([])
   const [briefing, setBriefing] = useState<Briefing | null>(null)
   const [briefingLoading, setBriefingLoading] = useState(false)
@@ -61,7 +64,6 @@ export default function App() {
   const [imageAnalyzing, setImageAnalyzing] = useState(false)
 
   const { toast, showToast } = useToast()
-  const scrollRef = useRef<HTMLDivElement>(null)
 
   // ---- Load data on mount ----
   useEffect(() => {
@@ -132,39 +134,6 @@ export default function App() {
       setSortDir('desc')
     }
   }
-
-  const sortedHoldings = (() => {
-    if (!holdings.length) return holdings
-    if (sortKey === 'time') {
-      return sortDir === 'asc' ? [...holdings] : [...holdings].reverse()
-    }
-    const sorted = [...holdings]
-    sorted.sort((a, b) => {
-      let va = 0,
-        vb = 0
-      if (sortKey === 'cost') {
-        va = a.total_cost || a.cost || 0
-        vb = b.total_cost || b.cost || 0
-      } else if (sortKey === 'profit_ratio') {
-        va = a.profit_ratio || 0
-        vb = b.profit_ratio || 0
-      } else if (sortKey === 'profit') {
-        const costA = a.total_cost || a.cost || 0
-        const mvA = a.market_value || costA
-        va = mvA - costA
-        const costB = b.total_cost || b.cost || 0
-        const mvB = b.market_value || costB
-        vb = mvB - costB
-      } else if (sortKey === 'today') {
-        const eA = estimationCache[a.fund_code]
-        const eB = estimationCache[b.fund_code]
-        va = eA?.est_change != null ? eA.est_change : -9999
-        vb = eB?.est_change != null ? eB.est_change : -9999
-      }
-      return sortDir === 'desc' ? vb - va : va - vb
-    })
-    return sorted
-  })()
 
   // ---- Briefing ----
   const handleGenerateBriefing = async () => {
@@ -414,80 +383,80 @@ export default function App() {
     loadPortfolio(true)
   }
 
-  // ---- All transactions for fund cards ----
+  // ---- All transactions ----
   const allTransactions = getTransactions()
 
-  return (
-    <>
-      <div className="scroll-wrapper" ref={scrollRef}>
-        <div className="container">
-          <Header onOpenSettings={() => setSettingsOpen(true)} />
-
-          {/* Briefing */}
-          <div>
-            <BriefingArea
-              briefing={briefing}
-              loading={briefingLoading}
-              error={briefingError}
-            />
-          </div>
-
-          {/* Generate Button */}
-          <GenerateButton
+  // ---- Render Page Content ----
+  const renderPageContent = () => {
+    switch (activeTab) {
+      case 'portfolio':
+        return (
+          <PortfolioPage
+            holdings={holdings}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            estimationCache={estimationCache}
+            investPlans={investPlans}
+            transactions={allTransactions}
+            onSort={handleSort}
+            onBuy={(code) => openTrade(code, 'buy')}
+            onSell={(code) => openTrade(code, 'sell')}
+            onInvest={openInvest}
+            onDelete={handleDelete}
+            onPauseInvest={handlePauseInvest}
+            onResumeInvest={handleResumeInvest}
+            onStopInvest={handleStopInvest}
+          />
+        )
+      case 'briefing':
+        return (
+          <BriefingPage
+            briefing={briefing}
             loading={briefingLoading}
+            error={briefingError}
             pushEnabled={pushEnabled}
+            hasHoldings={holdings.length > 0}
             onTogglePush={() => setPushEnabled(!pushEnabled)}
             onGenerate={handleGenerateBriefing}
           />
-
-          {/* Portfolio */}
-          {holdings.length > 0 && (
-            <>
-              <div className="section-title">我的持仓</div>
-              {holdings.length > 1 && (
-                <SortBar
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onSort={handleSort}
-                />
-              )}
-              {sortedHoldings.map((h) => (
-                <FundCard
-                  key={h.fund_code}
-                  holding={h}
-                  estimation={estimationCache[h.fund_code]}
-                  transactions={allTransactions.filter(
-                    (t) => t.fund_code === h.fund_code,
-                  )}
-                  investPlan={investPlans.find(
-                    (p) =>
-                      p.fund_code === h.fund_code && p.status === 'active',
-                  )}
-                  onBuy={(code) => openTrade(code, 'buy')}
-                  onSell={(code) => openTrade(code, 'sell')}
-                  onInvest={openInvest}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </>
-          )}
-
-          {/* Invest Plans */}
-          <InvestList
-            plans={investPlans}
-            onPause={handlePauseInvest}
-            onResume={handleResumeInvest}
-            onStop={handleStopInvest}
+        )
+      case 'diagnosis':
+        return <DiagnosisPage />
+      case 'profile':
+        return (
+          <ProfilePage
+            showToast={showToast}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
+        )
+      default:
+        return null
+    }
+  }
+
+  return (
+    <>
+      <div className="app-container">
+        {/* Header */}
+        <Header onOpenSettings={() => setSettingsOpen(true)} />
+
+        {/* Page Content */}
+        <div className="page-wrapper">
+          {renderPageContent()}
         </div>
       </div>
 
-      {/* Bottom Input */}
-      <BottomInputBar
-        disabled={inputDisabled}
-        onSendFile={handleSendFile}
-        onAddHoldings={handleAddHoldings}
-      />
+      {/* Bottom Input - only show on portfolio page */}
+      {activeTab === 'portfolio' && (
+        <BottomInputBar
+          disabled={inputDisabled}
+          onSendFile={handleSendFile}
+          onAddHoldings={handleAddHoldings}
+        />
+      )}
+
+      {/* Tab Bar */}
+      <TabBar active={activeTab} onChange={setActiveTab} />
 
       {/* Drawers */}
       <SettingsDrawer
