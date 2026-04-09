@@ -673,9 +673,16 @@ async def update_config(item: ConfigUpdate):
 
 # ---- 静态文件 & 前端 ----
 
-static_dir = Path(__file__).parent / "web"
+# Prefer React build output (web/dist), fallback to legacy (web/)
+_dist_dir = Path(__file__).parent / "web" / "dist"
+_legacy_dir = Path(__file__).parent / "web"
+static_dir = _dist_dir if _dist_dir.exists() else _legacy_dir
+
 if static_dir.exists():
-    app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
+    # Mount assets directory (React build puts assets in dist/assets)
+    _assets_dir = static_dir / "assets"
+    if _assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):

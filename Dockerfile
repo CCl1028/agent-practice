@@ -1,3 +1,15 @@
+# ---- Stage 1: Build frontend ----
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /web
+COPY web/package.json web/package-lock.json* ./
+RUN npm install
+COPY web/ .
+# Rename vite entry html for build
+RUN cp index.vite.html index.html
+RUN npm run build
+
+# ---- Stage 2: Python app ----
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -8,6 +20,9 @@ RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua
 
 # 复制项目代码
 COPY . .
+
+# 复制前端构建产物到 web/dist
+COPY --from=frontend-builder /web/dist /app/web/dist
 
 # 版本信息（构建时注入，放在 COPY 之后避免被覆盖）
 ARG BUILD_TIME=unknown
