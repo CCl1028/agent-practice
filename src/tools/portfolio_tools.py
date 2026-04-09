@@ -1,4 +1,10 @@
-"""持仓管理工具 — 数据存取、盈亏计算"""
+"""持仓管理工具 — 数据存取、盈亏计算、技术指标
+
+v2: 参考 daily_stock_analysis 增强：
+- 使用多源数据获取器（自动故障切换 + 熔断）
+- 计算均线（MA5/MA10/MA20）、均线排列状态
+- 计算乖离率、波动率
+"""
 
 from __future__ import annotations
 
@@ -8,7 +14,6 @@ from datetime import datetime
 from pathlib import Path
 
 from src.state import FundHolding
-from src.tools.market_tools import get_fund_estimation, get_fund_nav
 
 logger = logging.getLogger(__name__)
 
@@ -34,20 +39,35 @@ def save_portfolio(portfolio: list[FundHolding]) -> None:
 
 
 def compute_metrics(portfolio: list[FundHolding]) -> list[FundHolding]:
-    """为每只基金刷新最新净值、盘中估值、计算盈亏。"""
+    """为每只基金刷新最新净值、盘中估值、计算盈亏和技术指标。
+
+    v2 新增计算：
+    - MA5 / MA10 / MA20 均线
+    - 均线排列状态（多头/空头/震荡）
+    - 乖离率（现价偏离 MA5 的百分比）
+    - 5日波动率
+    """
+    from src.tools.data_provider import get_fund_nav_multi_source, get_fund_estimation_multi_source
+
     updated = []
     for fund in portfolio:
-        nav_data = get_fund_nav(fund["fund_code"])
+        nav_data = get_fund_nav_multi_source(fund["fund_code"])
         fund = {**fund}  # shallow copy
         fund["current_nav"] = nav_data["current_nav"]
         fund["trend_5d"] = nav_data["trend_5d"]
-        if fund["cost_nav"] > 0:
+
+        # 盈亏计算
+        if fund.get("cost_nav", 0) > 0:
             fund["profit_ratio"] = round(
                 (fund["current_nav"] - fund["cost_nav"]) / fund["cost_nav"] * 100, 2
             )
 
-        # 盘中估值
-        est = get_fund_estimation(fund["fund_code"])
+        # --- v2 新增：技术指标计算 ---
+        nav_history = nav_data.get("nav_history", [])
+        fund = _compute_technical_indicators(fund, nav_history)
+
+        # 盘中估值（使用多源获取）
+        est = get_fund_estimation_multi_source(fund["fund_code"])
         if est:
             fund["est_change"] = est["est_change"]
             fund["est_nav"] = est["est_nav"]
@@ -59,6 +79,58 @@ def compute_metrics(portfolio: list[FundHolding]) -> list[FundHolding]:
 
         updated.append(fund)
     return updated
+
+
+def _compute_technical_indicators(fund: dict, nav_history: list[float]) -> dict:
+    """计算技术指标：均线、乖离率、波动率。"""
+    current_nav = fund.get("current_nav", 0)
+
+    # 默认值
+    fund.setdefault("ma5", 0)
+    fund.setdefault("ma10", 0)
+    fund.setdefault("ma20", 0)
+    fund.setdefault("ma_status", "数据不足")
+    fund.setdefault("deviation_rate", 0)
+    fund.setdefault("volatility_5d", 0)
+
+    # 需要至少 5 个历史数据才能算均线
+    if len(nav_history) < 5:
+        return fund
+
+    # MA5
+    ma5 = round(sum(nav_history[-5:]) / 5, 4)
+    fund["ma5"] = ma5
+
+    # MA10
+    if len(nav_history) >= 10:
+        fund["ma10"] = round(sum(nav_history[-10:]) / 10, 4)
+    else:
+        fund["ma10"] = ma5
+
+    # MA20
+    if len(nav_history) >= 20:
+        fund["ma20"] = round(sum(nav_history[-20:]) / 20, 4)
+    else:
+        fund["ma20"] = fund["ma10"]
+
+    # 均线排列状态
+    if fund["ma5"] > fund["ma10"] > fund["ma20"]:
+        fund["ma_status"] = "多头排列"
+    elif fund["ma5"] < fund["ma10"] < fund["ma20"]:
+        fund["ma_status"] = "空头排列"
+    else:
+        fund["ma_status"] = "震荡"
+
+    # 乖离率 = (现价 - MA5) / MA5 * 100
+    if ma5 > 0 and current_nav > 0:
+        fund["deviation_rate"] = round((current_nav - ma5) / ma5 * 100, 2)
+
+    # 5日波动率（近5日涨跌幅的极差）
+    trend = fund.get("trend_5d", [])
+    if len(trend) >= 2:
+        fund["volatility_5d"] = round(max(trend) - min(trend), 2)
+
+    return fund
 
 
 def _mock_portfolio() -> list[FundHolding]:

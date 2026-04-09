@@ -1,8 +1,14 @@
-"""LangGraph State 定义 — 基金助手核心数据结构"""
+"""LangGraph State 定义 — 基金助手核心数据结构
+
+v2: 参考 daily_stock_analysis 扩展分析维度
+- FundHolding 新增技术指标（均线/乖离率/波动率）
+- FundAdvice 新增评分/风险提示/持有建议
+- MarketData 新增基金专属新闻
+"""
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import Any, Literal, TypedDict
 
 
 class FundHolding(TypedDict):
@@ -16,6 +22,19 @@ class FundHolding(TypedDict):
     hold_days: int         # 持有天数
     trend_5d: list[float]  # 近5日涨跌幅 %
 
+    # --- v2 新增：技术指标 ---
+    ma5: float             # 5日均线净值
+    ma10: float            # 10日均线净值
+    ma20: float            # 20日均线净值
+    ma_status: str         # "多头排列" / "空头排列" / "震荡"
+    volatility_5d: float   # 5日波动率 (最大值 - 最小值)
+    deviation_rate: float  # 乖离率: (现价 - MA5) / MA5 * 100
+
+    # --- v2 新增：估值数据 ---
+    est_change: float | None   # 盘中估值涨跌幅 %
+    est_nav: float | None      # 估算净值
+    est_time: str | None       # 估值时间
+
 
 class SectorData(TypedDict):
     """板块涨跌"""
@@ -28,14 +47,17 @@ class MarketData(TypedDict):
     sectors: list[SectorData]
     market_sentiment: str
     hot_news: list[str]
+    fund_news: dict[str, list[dict]]  # v2 新增: {fund_code: [news_items]}
 
 
 class FundAdvice(TypedDict):
     """单只基金的建议"""
     fund_name: str
-    action: Literal["加仓", "减仓", "观望"]
+    action: Literal["加仓", "减仓", "观望", "持有"]  # v2 新增"持有"
     reason: str
     confidence: Literal["高", "中", "低"]
+    score: int         # v2 新增: 0-100 置信度评分
+    risk_note: str     # v2 新增: 风险提示（可为空）
 
 
 class Briefing(TypedDict):
@@ -43,6 +65,7 @@ class Briefing(TypedDict):
     summary: str               # 一句话结论 ≤15字
     details: list[FundAdvice]  # 每只基金的建议
     market_note: str           # 市场简评
+    risk_alerts: list[str]     # v2 新增: 全局风险提示
 
 
 class AgentState(TypedDict, total=False):

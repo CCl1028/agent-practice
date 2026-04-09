@@ -21,3 +21,9 @@ VISION_BASE_URL = os.getenv("VISION_BASE_URL", OPENAI_BASE_URL)
 SERVERCHAN_KEY = os.getenv("SERVERCHAN_KEY", "")
 WECOM_WEBHOOK_URL = os.getenv("WECOM_WEBHOOK_URL", "")
 BARK_URL = os.getenv("BARK_URL", "")  # 例如 https://api.day.app/你的key
+
+# --- v2 新增：新闻搜索配置（4 引擎，配置任一即可） ---
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")     # 推荐，免费 1000 次/月
+BOCHA_API_KEY = os.getenv("BOCHA_API_KEY", "")        # 中文搜索优化
+BRAVE_API_KEY = os.getenv("BRAVE_API_KEY", "")        # 隐私优先，海外优化
+SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY", "")     # Google 搜索兜底
