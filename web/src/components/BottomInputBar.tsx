@@ -110,8 +110,20 @@ export default function BottomInputBar({
     setMode('idle')
   }
 
+  const [fabOpen, setFabOpen] = useState(false)
+
   const openForm = () => {
+    setFabOpen(false)
     setMode('form')
+  }
+
+  const handleUploadClick = () => {
+    setFabOpen(false)
+    fileRef.current?.click()
+  }
+
+  const toggleFab = () => {
+    setFabOpen((prev) => !prev)
   }
 
   // 表单模式
@@ -231,9 +243,9 @@ export default function BottomInputBar({
     )
   }
 
-  // 默认模式：两个按钮
+  // 默认模式：悬浮按钮
   return (
-    <div className="bottom-input-bar idle-mode">
+    <>
       <input
         ref={fileRef}
         type="file"
@@ -241,24 +253,40 @@ export default function BottomInputBar({
         style={{ display: 'none' }}
         onChange={handleFileChange}
       />
-      <div className="input-buttons">
+      
+      {/* FAB 遮罩层 */}
+      {fabOpen && (
+        <div className="fab-overlay" onClick={() => setFabOpen(false)} />
+      )}
+      
+      {/* FAB 展开菜单 */}
+      <div className={`fab-menu ${fabOpen ? 'open' : ''}`}>
         <button
-          className="input-action-btn upload-btn"
-          onClick={() => fileRef.current?.click()}
+          className="fab-menu-item"
+          onClick={handleUploadClick}
           disabled={sending || disabled}
         >
-          <Camera size={20} />
+          <Camera size={18} />
           <span>{pendingFile ? '分析中...' : '上传截图'}</span>
         </button>
         <button
-          className="input-action-btn form-btn"
+          className="fab-menu-item"
           onClick={openForm}
           disabled={sending || disabled}
         >
-          <Plus size={20} />
+          <Plus size={18} />
           <span>手动添加</span>
         </button>
       </div>
-    </div>
+      
+      {/* 悬浮按钮 */}
+      <button
+        className={`fab-button ${fabOpen ? 'active' : ''}`}
+        onClick={toggleFab}
+        disabled={sending || disabled}
+      >
+        <Plus size={24} className="fab-icon" />
+      </button>
+    </>
   )
 }

@@ -26,7 +26,6 @@ import { useToast } from './hooks/useToast'
 import Header from './components/Header'
 import TabBar, { type TabKey } from './components/TabBar'
 import BottomInputBar from './components/BottomInputBar'
-import SettingsDrawer from './components/SettingsDrawer'
 import TradeDrawer from './components/TradeDrawer'
 import InvestDrawer from './components/InvestDrawer'
 import ConfirmDrawer from './components/ConfirmDrawer'
@@ -52,7 +51,6 @@ export default function App() {
   const [investPlans, setInvestPlans] = useState<InvestPlan[]>([])
 
   // Drawers
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const [tradeOpen, setTradeOpen] = useState(false)
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy')
   const [tradeHolding, setTradeHolding] = useState<Holding | null>(null)
@@ -426,7 +424,6 @@ export default function App() {
         return (
           <ProfilePage
             showToast={showToast}
-            onOpenSettings={() => setSettingsOpen(true)}
           />
         )
       default:
@@ -438,7 +435,7 @@ export default function App() {
     <>
       <div className="app-container">
         {/* Header */}
-        <Header onOpenSettings={() => setSettingsOpen(true)} />
+        <Header activeTab={activeTab} />
 
         {/* Page Content */}
         <div className="page-wrapper">
@@ -459,12 +456,6 @@ export default function App() {
       <TabBar active={activeTab} onChange={setActiveTab} />
 
       {/* Drawers */}
-      <SettingsDrawer
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        showToast={showToast}
-      />
-
       <TradeDrawer
         open={tradeOpen}
         type={tradeType}
