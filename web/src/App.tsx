@@ -23,7 +23,7 @@ import {
 import { generateId, formatPushResults } from './utils'
 import { useToast } from './hooks/useToast'
 
-import Header from './components/Header'
+// import Header from './components/Header' // 暂时禁用
 import TabBar, { type TabKey } from './components/TabBar'
 import BottomInputBar from './components/BottomInputBar'
 import TradeDrawer from './components/TradeDrawer'
@@ -434,8 +434,8 @@ export default function App() {
   return (
     <>
       <div className="app-container">
-        {/* Header */}
-        <Header />
+        {/* Header - 暂时禁用，等后续迭代 */}
+        {/* <Header /> */}
 
         {/* Page Content */}
         <div className="page-wrapper">

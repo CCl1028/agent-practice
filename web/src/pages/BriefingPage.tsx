@@ -60,45 +60,9 @@ export default function BriefingPage({
 }: BriefingPageProps) {
   return (
     <div className="page-content briefing-page">
-      {/* Header */}
-      <div className="briefing-page-header">
-        <h2>
-          <Sparkles size={20} style={{ verticalAlign: '-3px', marginRight: 6 }} />
-          今日投资简报
-        </h2>
-        <p>AI 智能分析您的持仓，提供个性化操作建议</p>
-      </div>
-
-      {/* Generate Button Area */}
-      <div className="briefing-generate-area">
-        <button
-          className="briefing-generate-btn"
-          disabled={loading || !hasHoldings}
-          onClick={onGenerate}
-        >
-          {loading ? (
-            <>
-              <RefreshCw size={20} className="spinning" />
-              {pushEnabled ? '生成并推送中...' : '分析中...'}
-            </>
-          ) : (
-            <>
-              <Sparkles size={20} />
-              {briefing ? '重新生成简报' : '生成今日简报'}
-            </>
-          )}
-        </button>
-        <div className="briefing-options">
-          <label className="push-option">
-            <input
-              type="checkbox"
-              className="toggle-switch"
-              checked={pushEnabled}
-              onChange={onTogglePush}
-            />
-            <span>同时推送通知</span>
-          </label>
-        </div>
+      {/* Simple Header */}
+      <div className="simple-page-header">
+        <h1>今日简报</h1>
       </div>
 
       {/* Content Area */}
@@ -133,7 +97,7 @@ export default function BriefingPage({
             </div>
             <div className="empty-hint">
               {hasHoldings
-                ? '点击上方按钮，AI 将根据市场动态和您的持仓情况，生成个性化投资建议'
+                ? '点击下方按钮，AI 将根据市场动态和您的持仓情况，生成个性化投资建议'
                 : '在「持仓」页面添加基金后，即可生成投资简报'}
             </div>
           </div>
@@ -177,6 +141,38 @@ export default function BriefingPage({
             )}
           </div>
         )}
+      </div>
+
+      {/* Bottom Generate Button Area */}
+      <div className="briefing-bottom-bar">
+        <div className="briefing-options">
+          <label className="push-option">
+            <input
+              type="checkbox"
+              className="toggle-switch"
+              checked={pushEnabled}
+              onChange={onTogglePush}
+            />
+            <span>同时推送通知</span>
+          </label>
+        </div>
+        <button
+          className="briefing-generate-btn"
+          disabled={loading || !hasHoldings}
+          onClick={onGenerate}
+        >
+          {loading ? (
+            <>
+              <RefreshCw size={20} className="spinning" />
+              {pushEnabled ? '生成并推送中...' : '分析中...'}
+            </>
+          ) : (
+            <>
+              <Sparkles size={20} />
+              {briefing ? '重新生成简报' : '生成今日简报'}
+            </>
+          )}
+        </button>
       </div>
     </div>
   )

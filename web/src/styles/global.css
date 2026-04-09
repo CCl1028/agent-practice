@@ -1927,6 +1927,7 @@ body {
   padding: 6px 0;
   padding-bottom: max(6px, env(safe-area-inset-bottom));
   z-index: 900;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .tab-item {
@@ -1989,30 +1990,41 @@ body {
   padding-top: 8px;
 }
 
-.briefing-page-header {
-  text-align: center;
-  margin-bottom: 20px;
+/* Simple Page Header - 简约页面标题 */
+.simple-page-header {
+  padding: 12px 16px;
+  margin-bottom: 8px;
 }
 
-.briefing-page-header h2 {
-  font-size: 20px;
-  font-weight: 700;
+.simple-page-header h1 {
+  font-size: 18px;
+  font-weight: 600;
   color: var(--text);
-  margin-bottom: 6px;
+  margin: 0;
 }
 
-.briefing-page-header p {
-  font-size: 13px;
-  color: var(--text-secondary);
+/* Briefing page - 底部固定按钮栏 */
+.briefing-bottom-bar {
+  position: fixed;
+  bottom: 56px; /* Above tab bar */
+  left: 0;
+  right: 0;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  z-index: 800;
 }
 
-.briefing-generate-area {
-  margin-bottom: 24px;
+.briefing-bottom-bar .briefing-options {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+  margin-top: 0;
 }
 
-.briefing-generate-btn {
+.briefing-bottom-bar .briefing-generate-btn {
   width: 100%;
-  padding: 16px 24px;
+  padding: 14px 24px;
   background: linear-gradient(
     135deg,
     var(--accent) 0%,
@@ -2022,9 +2034,9 @@ body {
   background-size: 200% 200%;
   color: white;
   border: none;
-  border-radius: 16px;
-  font-size: 16px;
-  font-weight: 700;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
   box-shadow: 0 4px 16px rgba(184, 78, 74, 0.3);
@@ -2034,21 +2046,15 @@ body {
   gap: 8px;
 }
 
-.briefing-generate-btn:hover:not(:disabled) {
+.briefing-bottom-bar .briefing-generate-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 8px 28px rgba(184, 78, 74, 0.45);
 }
 
-.briefing-generate-btn:disabled {
+.briefing-bottom-bar .briefing-generate-btn:disabled {
   background: linear-gradient(135deg, #e8d8d5, #d5c5c2);
   box-shadow: none;
   cursor: not-allowed;
-}
-
-.briefing-options {
-  display: flex;
-  justify-content: center;
-  margin-top: 12px;
 }
 
 .push-option {
@@ -2060,8 +2066,10 @@ body {
   cursor: pointer;
 }
 
-.briefing-content-area {
+/* Briefing page content area - 需要留出底部按钮的空间 */
+.briefing-page .briefing-content-area {
   min-height: 200px;
+  padding-bottom: 120px; /* Space for bottom bar */
 }
 
 /* Briefing Loading */
