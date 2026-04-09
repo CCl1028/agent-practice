@@ -1,41 +1,31 @@
-import { TrendingUp, FileText, Activity, User } from 'lucide-react'
-import type { TabKey } from './TabBar'
+import { useState, useEffect } from 'react'
+import { Signal, Wifi, BatteryFull } from 'lucide-react'
 
-interface HeaderProps {
-  activeTab: TabKey
-}
+export default function Header() {
+  const [time, setTime] = useState('')
 
-const PAGE_CONFIG: Record<TabKey, { title: string; icon: React.ReactNode; showBrand?: boolean }> = {
-  portfolio: {
-    title: 'FundPal',
-    icon: <TrendingUp size={22} style={{ verticalAlign: '-3px', color: 'var(--accent)' }} />,
-    showBrand: true,
-  },
-  briefing: {
-    title: '投资简报',
-    icon: <FileText size={20} style={{ verticalAlign: '-3px', color: 'var(--accent)' }} />,
-  },
-  diagnosis: {
-    title: '基金诊断',
-    icon: <Activity size={20} style={{ verticalAlign: '-3px', color: 'var(--accent)' }} />,
-  },
-  profile: {
-    title: '我的',
-    icon: <User size={20} style={{ verticalAlign: '-3px', color: 'var(--accent)' }} />,
-  },
-}
-
-export default function Header({ activeTab }: HeaderProps) {
-  const config = PAGE_CONFIG[activeTab]
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date()
+      const hours = now.getHours().toString().padStart(2, '0')
+      const minutes = now.getMinutes().toString().padStart(2, '0')
+      setTime(`${hours}:${minutes}`)
+    }
+    updateTime()
+    const timer = setInterval(updateTime, 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   return (
-    <div className="header">
-      <div className="header-center">
-        <h1>
-          {config.icon}{' '}
-          {config.title}
-        </h1>
-        {config.showBrand && <p>智能基金投顾助手</p>}
+    <div className="status-bar">
+      <div className="status-left">
+        <span className="status-time">{time}</span>
+      </div>
+      <div className="status-notch" />
+      <div className="status-right">
+        <Signal size={14} />
+        <Wifi size={14} />
+        <BatteryFull size={16} />
       </div>
     </div>
   )

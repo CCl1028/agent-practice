@@ -122,31 +122,33 @@ export function GenerateButton({
   onGenerate,
 }: GenerateButtonProps) {
   return (
-    <div className="generate-area">
-      <button
-        className="generate-btn"
-        disabled={loading}
-        onClick={onGenerate}
-      >
-        <span className="btn-icon">
-          <Sparkles size={20} />
-        </span>
-        {loading
-          ? pushEnabled
-            ? '生成并推送中...'
-            : '分析中...（约10秒）'
-          : '生成今日简报'}
-      </button>
-      <div className="push-toggle">
-        <label>
-          <input
-            type="checkbox"
-            className="toggle-switch"
-            checked={pushEnabled}
-            onChange={onTogglePush}
-          />
-          <span>推送</span>
-        </label>
+    <div className="generate-area-bottom">
+      <div className="generate-row">
+        <button
+          className="generate-btn"
+          disabled={loading}
+          onClick={onGenerate}
+        >
+          <span className="btn-icon">
+            <Sparkles size={20} />
+          </span>
+          {loading
+            ? pushEnabled
+              ? '生成并推送中...'
+              : '分析中...（约10秒）'
+            : '生成今日简报'}
+        </button>
+        <div className="push-toggle-inline">
+          <label>
+            <input
+              type="checkbox"
+              className="toggle-switch"
+              checked={pushEnabled}
+              onChange={onTogglePush}
+            />
+            <span>推送</span>
+          </label>
+        </div>
       </div>
     </div>
   )

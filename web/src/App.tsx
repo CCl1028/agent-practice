@@ -435,7 +435,7 @@ export default function App() {
     <>
       <div className="app-container">
         {/* Header */}
-        <Header activeTab={activeTab} />
+        <Header />
 
         {/* Page Content */}
         <div className="page-wrapper">
