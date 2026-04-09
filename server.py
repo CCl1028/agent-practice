@@ -15,9 +15,11 @@ from pathlib import Path
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
+from typing import Optional
+
 from fastapi import FastAPI, File, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -411,9 +413,14 @@ async def refresh_portfolio(input: HoldingsInput = None):
                 item["profit_ratio"] = round(
                     (current_nav - cost_nav) / cost_nav * 100, 2
                 )
-                if cost > 0:
-                    shares = cost / cost_nav  # 持有份额
+                # 优先使用已有 shares，否则用 cost / cost_nav 反算
+                shares = h.get("shares", 0)
+                if not shares and cost > 0:
+                    shares = cost / cost_nav
+                if shares > 0:
+                    item["shares"] = round(shares, 2)
                     item["market_value"] = round(shares * current_nav, 2)
+                    item["profit_amount"] = round(shares * current_nav - shares * cost_nav, 2)
                 else:
                     item["market_value"] = 0
             elif cost > 0 and current_nav > 0:
@@ -677,3 +684,111 @@ if static_dir.exists():
         if file_path.exists() and file_path.is_file():
             return FileResponse(file_path)
         return FileResponse(static_dir / "index.html")
+
+
+
+# ---- 基金诊断和分析 ----
+
+class FundDiagnosisResponse(BaseModel):
+    rating: str
+    pros: list
+    risks: list
+    buy_recommendation: str
+    buy_reason: str
+    summary: str
+    profile: Optional[dict] = None
+
+
+class FundAnalysisRequest(BaseModel):
+    fund_code: str = ""
+    fund_name: str = ""
+
+
+class FundExplanationResponse(BaseModel):
+    direction: str
+    change_ratio: float
+    reasons: list
+    outlook: str
+    summary: str
+    perf_data: Optional[dict] = None
+
+
+@app.post("/api/fund-diagnosis", response_model=FundDiagnosisResponse)
+async def fund_diagnosis(request: FundAnalysisRequest):
+    """基金诊断 — 分析基金是否值得买"""
+    try:
+        if not request.fund_code and not request.fund_name:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "fund_code 或 fund_name 必填"}
+            )
+
+        result = langgraph_app.invoke({
+            "trigger": "fund_diagnosis",
+            "query_fund_code": request.fund_code,
+            "query_fund_name": request.fund_name,
+        })
+
+        diagnosis = result.get("diagnosis")
+        error = result.get("error")
+
+        if error or not diagnosis:
+            logger.error("[基金诊断] 分析失败: %s", error or "未知错误")
+            return JSONResponse(
+                status_code=500,
+                content={"error": error or "诊断失败"}
+            )
+
+        return FundDiagnosisResponse(
+            rating=diagnosis.get("rating", ""),
+            pros=diagnosis.get("pros", []),
+            risks=diagnosis.get("risks", []),
+            buy_recommendation=diagnosis.get("buy_recommendation", ""),
+            buy_reason=diagnosis.get("buy_reason", ""),
+            summary=diagnosis.get("summary", ""),
+            profile=diagnosis.get("profile", {}),
+        )
+
+    except Exception as e:
+        logger.error("[基金诊断] 处理失败: %s", e, exc_info=True)
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@app.post("/api/fund-explanation", response_model=FundExplanationResponse)
+async def fund_explanation(request: FundAnalysisRequest):
+    """基金分析 — 分析基金涨跌原因"""
+    try:
+        if not request.fund_code and not request.fund_name:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "fund_code 或 fund_name 必填"}
+            )
+
+        result = langgraph_app.invoke({
+            "trigger": "fall_analysis",
+            "query_fund_code": request.fund_code,
+            "query_fund_name": request.fund_name,
+        })
+
+        fall_analysis = result.get("fall_analysis")
+        error = result.get("error")
+
+        if error or not fall_analysis:
+            logger.error("[基金分析] 分析失败: %s", error or "未知错误")
+            return JSONResponse(
+                status_code=500,
+                content={"error": error or "分析失败"}
+            )
+
+        return FundExplanationResponse(
+            direction=fall_analysis.get("direction", ""),
+            change_ratio=fall_analysis.get("change_ratio", 0),
+            reasons=fall_analysis.get("reasons", []),
+            outlook=fall_analysis.get("outlook", ""),
+            summary=fall_analysis.get("summary", ""),
+            perf_data=fall_analysis.get("perf_data", {}),
+        )
+
+    except Exception as e:
+        logger.error("[基金分析] 处理失败: %s", e, exc_info=True)
+        return JSONResponse(status_code=500, content={"error": str(e)})

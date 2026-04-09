@@ -1,4 +1,7 @@
-"""输出格式化 — 三层递进展示"""
+"""输出格式化 — 三层递进展示
+
+v2: 适配新字段（评分/风险提示/持有操作/risk_alerts）
+"""
 
 from __future__ import annotations
 
@@ -9,6 +12,7 @@ ACTION_EMOJI = {
     "加仓": "🟢",
     "减仓": "🔴",
     "观望": "⏸️",
+    "持有": "🔵",
 }
 
 
@@ -16,9 +20,15 @@ def format_push_notification(briefing: Briefing) -> str:
     """第一层：推送通知 — 1秒看完"""
     summary = briefing.get("summary", "暂无建议")
     has_action = any(
-        d["action"] != "观望" for d in briefing.get("details", [])
+        d["action"] not in ("观望", "持有") for d in briefing.get("details", [])
     )
-    emoji = "⚡" if has_action else "✅"
+    has_risk = bool(briefing.get("risk_alerts"))
+    if has_risk:
+        emoji = "⚠️"
+    elif has_action:
+        emoji = "⚡"
+    else:
+        emoji = "✅"
     return f"📊 今日持仓：{summary} {emoji}"
 
 
@@ -28,10 +38,19 @@ def format_briefing_card(briefing: Briefing) -> str:
 
     for d in briefing.get("details", []):
         emoji = ACTION_EMOJI.get(d["action"], "⏸️")
-        # 找到 profit_ratio 需要从外部传入，这里先只显示 action
-        lines.append(f"│  {d['fund_name']}  👉 {d['action']} {emoji}")
+        score = d.get("score", 0)
+        score_str = f" ({score}分)" if score else ""
+        lines.append(f"│  {d['fund_name']}  👉 {d['action']} {emoji}{score_str}")
 
     lines.append("│")
+
+    # 风险提示
+    risk_alerts = briefing.get("risk_alerts", [])
+    if risk_alerts:
+        lines.append("│  ⚠️ 风险提示:")
+        for alert in risk_alerts[:3]:
+            lines.append(f"│    · {alert}")
+        lines.append("│")
 
     market_note = briefing.get("market_note", "")
     if market_note:
@@ -53,14 +72,26 @@ def format_full_report(briefing: Briefing) -> str:
     lines.append(f"📌 总结：{briefing.get('summary', '')}")
     lines.append("")
 
+    # 全局风险提示
+    risk_alerts = briefing.get("risk_alerts", [])
+    if risk_alerts:
+        lines.append("🚨 风险提示：")
+        for alert in risk_alerts:
+            lines.append(f"   · {alert}")
+        lines.append("")
+
     # 每只基金详情
     lines.append("📊 持仓建议：")
     lines.append("-" * 40)
     for d in briefing.get("details", []):
         emoji = ACTION_EMOJI.get(d["action"], "⏸️")
+        score = d.get("score", 0)
         lines.append(f"\n{emoji} {d['fund_name']}")
-        lines.append(f"   操作：{d['action']}（置信度：{d.get('confidence', '中')}）")
+        lines.append(f"   操作：{d['action']}（置信度：{d.get('confidence', '中')} | 评分：{score}）")
         lines.append(f"   理由：{d.get('reason', '暂无')}")
+        risk_note = d.get("risk_note", "")
+        if risk_note:
+            lines.append(f"   ⚠️ {risk_note}")
 
     lines.append("")
     lines.append("-" * 40)

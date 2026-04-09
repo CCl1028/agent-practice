@@ -21,23 +21,28 @@ logger = logging.getLogger(__name__)
 PARSE_PROMPT = """\
 你是一个基金持仓数据解析专家。用户会发送一张基金App的截图，你需要从中识别出持仓信息。
 
-请从截图中提取所有能找到的基金持仓，每只基金提取以下字段：
+首先判断截图类型：
+- "detail": 单只基金的持仓详情页（通常有净值走势图、详细数据）
+- "list": 持仓列表页（多只基金一览，每只显示简要信息）
+
+然后从截图中提取所有能找到的基金持仓，每只基金提取以下字段：
 - fund_code: 基金代码（6位数字）
 - fund_name: 基金名称
-- cost: 持有金额（元），找不到就填 0
-- cost_nav: 成本净值，找不到就填 0
+- cost: 持有金额/市值（元），找不到就填 0
+- cost_nav: 成本净值/持仓成本价，找不到就填 0
 - current_nav: 最新净值，找不到就填 0
 - profit_ratio: 持有收益率（%），找不到就填 0
-- hold_days: 持有天数，找不到就填 0
+- profit_amount: 持有收益金额（元），找不到就填 0
+- shares: 持有份额，找不到就填 0
 
 注意：
 - 有些截图可能只有部分信息，尽量提取能找到的
-- 收益率可能显示为 "+5.23%" 或 "-3.12%"，转为数字
-- 如果找到买入时间，可以估算持有天数
+- 收益率可能显示为 "+5.23%" 或 "-3.12%"，转为数字（不带%号）
+- 持有份额可能显示为 "1234.56份"，提取数字部分
 - 如果实在无法识别，返回空数组
 
 严格按以下 JSON 格式输出，不要输出其他内容：
-[{"fund_code": "005827", "fund_name": "易方达蓝筹精选", "cost": 20000, "cost_nav": 2.15, "current_nav": 2.03, "profit_ratio": -5.6, "hold_days": 280}]
+{"screenshot_type": "detail", "holdings": [{"fund_code": "005827", "fund_name": "易方达蓝筹精选", "cost": 20000, "cost_nav": 2.15, "current_nav": 2.03, "profit_ratio": -5.6, "profit_amount": -1120, "shares": 9302.33}]}
 """
 
 PARSE_TEXT_PROMPT = """\
@@ -46,20 +51,21 @@ PARSE_TEXT_PROMPT = """\
 请从文字中提取所有能找到的基金持仓，每只基金提取以下字段：
 - fund_code: 基金代码（6位数字）
 - fund_name: 基金名称
-- cost: 持有金额（元），找不到就填 0
-- cost_nav: 成本净值，找不到就填 0
+- cost: 持有金额/市值（元），找不到就填 0
+- cost_nav: 成本净值/持仓成本价，找不到就填 0
 - current_nav: 最新净值，找不到就填 0
 - profit_ratio: 持有收益率（%），找不到就填 0
-- hold_days: 持有天数，找不到就填 0
+- profit_amount: 持有收益金额（元），找不到就填 0
+- shares: 持有份额，找不到就填 0
 
 注意：
 - 有些截图可能只有部分信息，尽量提取能找到的
-- 收益率可能显示为 "+5.23%" 或 "-3.12%"，转为数字
-- 如果找到买入时间，可以估算持有天数
+- 收益率可能显示为 "+5.23%" 或 "-3.12%"，转为数字（不带%号）
+- 持有份额可能显示为 "1234.56份"，提取数字部分
 - 如果实在无法识别，返回空数组
 
 严格按以下 JSON 格式输出，不要输出其他内容：
-[{"fund_code": "005827", "fund_name": "易方达蓝筹精选", "cost": 20000, "cost_nav": 2.15, "current_nav": 2.03, "profit_ratio": -5.6, "hold_days": 280}]
+[{"fund_code": "005827", "fund_name": "易方达蓝筹精选", "cost": 20000, "cost_nav": 2.15, "current_nav": 2.03, "profit_ratio": -5.6, "profit_amount": -1120, "shares": 9302.33}]
 """
 
 
@@ -104,6 +110,11 @@ def ocr_image_with_vision(image_path: str) -> list[dict]:
 
     try:
         holdings = json.loads(text)
+        # 兼容新格式 {"screenshot_type": "...", "holdings": [...]}
+        if isinstance(holdings, dict):
+            screenshot_type = holdings.get("screenshot_type", "unknown")
+            logger.info("[Vision OCR] 截图类型: %s", screenshot_type)
+            holdings = holdings.get("holdings", [])
         if isinstance(holdings, list):
             return holdings
     except json.JSONDecodeError as e:
@@ -172,10 +183,16 @@ def parse_ocr_text(ocr_text: str) -> list[dict]:
 
 
 def _enrich_holdings(holdings: list[dict]) -> list[dict]:
-    """补全字段并用真实 API 校正基金代码和名称。
+    """补全字段、反算成本净值、校正基金代码和名称。
 
     LLM 识别的基金代码可能不准确（尤其当截图中不显示代码时），
     通过 verify_and_fix_fund 进行双向校验和修正。
+
+    成本净值反算策略（按优先级）：
+    1. 如果 cost_nav 已有值 → 直接使用
+    2. 如果有 shares 和 cost → cost_nav = (cost - profit_amount) / shares
+    3. 如果有 current_nav 和 profit_ratio → cost_nav = current_nav / (1 + profit_ratio/100)
+    4. 如果有 cost 和 profit_amount → cost_nav 通过投入本金反算
     """
     from src.tools.market_tools import verify_and_fix_fund
 
@@ -186,8 +203,52 @@ def _enrich_holdings(holdings: list[dict]) -> list[dict]:
         h.setdefault("cost_nav", 0)
         h.setdefault("current_nav", 0)
         h.setdefault("profit_ratio", 0)
+        h.setdefault("profit_amount", 0)
+        h.setdefault("shares", 0)
         h.setdefault("hold_days", 0)
         h.setdefault("trend_5d", [])
+
+        # ---- P0: 成本净值反算 ----
+        cost_nav = h["cost_nav"]
+        current_nav = h["current_nav"]
+        profit_ratio = h["profit_ratio"]
+        profit_amount = h["profit_amount"]
+        shares = h["shares"]
+        cost = h["cost"]
+
+        if cost_nav <= 0:
+            # 策略2: 有份额和持仓金额 → 反算成本净值
+            if shares > 0 and cost > 0:
+                invested = cost - profit_amount  # 投入本金
+                cost_nav = round(invested / shares, 4)
+                logger.info(
+                    "[反算] %s: cost_nav = (%.2f - %.2f) / %.2f = %.4f",
+                    h["fund_name"], cost, profit_amount, shares, cost_nav,
+                )
+                h["cost_nav"] = cost_nav
+
+            # 策略3: 有当前净值和收益率 → 反算
+            elif current_nav > 0 and profit_ratio != 0:
+                cost_nav = round(current_nav / (1 + profit_ratio / 100), 4)
+                logger.info(
+                    "[反算] %s: cost_nav = %.4f / (1 + %.2f%%) = %.4f",
+                    h["fund_name"], current_nav, profit_ratio, cost_nav,
+                )
+                h["cost_nav"] = cost_nav
+
+            # 策略4: 有持仓金额和收益金额 → 反算投入本金，再结合份额
+            elif cost > 0 and profit_amount != 0 and shares > 0:
+                invested = cost - profit_amount
+                cost_nav = round(invested / shares, 4)
+                h["cost_nav"] = cost_nav
+
+        # ---- 补算 shares（如果缺失但有 cost 和 cost_nav）----
+        if h["shares"] <= 0 and h["cost"] > 0 and h["cost_nav"] > 0:
+            h["shares"] = round(h["cost"] / h["cost_nav"], 2)
+            logger.info(
+                "[补算] %s: shares = %.2f / %.4f = %.2f",
+                h["fund_name"], h["cost"], h["cost_nav"], h["shares"],
+            )
 
         # 双向校验：代码↔名称，修正 LLM 可能猜错的代码
         old_code, old_name = h["fund_code"], h["fund_name"]

@@ -26,7 +26,8 @@ EXTRACT_PROMPT = """\
 - cost: 持有金额（元），如果用户说"2万"就是20000
 - cost_nav: 成本净值，如果用户没说，填0
 - profit_ratio: 收益率（%），如果用户说"亏了5个点"就是-5，找不到就填0
-- hold_days: 持有天数，如果用户说"去年6月买的"，请根据当前日期估算天数
+- profit_amount: 收益金额（元），如果用户说"赚了500"就是500，"亏了200"就是-200，找不到就填0
+- shares: 持有份额，找不到就填0
 - amount: 交易金额（元），仅当 intent 为 buy 或 sell 时需要
 
 判断 intent 的规则：
@@ -41,7 +42,7 @@ EXTRACT_PROMPT = """\
 - 当前日期是 {today}
 
 严格按 JSON 数组格式输出，不要输出其他内容：
-[{{"intent": "buy", "fund_code": "005827", "fund_name": "易方达蓝筹精选", "amount": 5000, "cost": 20000, "cost_nav": 0, "profit_ratio": -5, "hold_days": 280}}]
+[{{"intent": "buy", "fund_code": "005827", "fund_name": "易方达蓝筹精选", "amount": 5000, "cost": 20000, "cost_nav": 0, "profit_ratio": -5, "profit_amount": -1000, "shares": 0}}]
 """
 
 
@@ -100,9 +101,25 @@ def parse_natural_language(user_text: str, config: dict = None) -> list[dict]:
                 h.setdefault("cost_nav", 0)
                 h.setdefault("current_nav", 0)
                 h.setdefault("profit_ratio", 0)
+                h.setdefault("profit_amount", 0)
+                h.setdefault("shares", 0)
                 h.setdefault("hold_days", 0)
                 h.setdefault("trend_5d", [])
                 h.setdefault("amount", 0)
+
+                # 成本净值反算（与 ocr_tools 同策略）
+                if h["cost_nav"] <= 0:
+                    if h["shares"] > 0 and h["cost"] > 0:
+                        invested = h["cost"] - h["profit_amount"]
+                        h["cost_nav"] = round(invested / h["shares"], 4)
+                    elif h["current_nav"] > 0 and h["profit_ratio"] != 0:
+                        h["cost_nav"] = round(
+                            h["current_nav"] / (1 + h["profit_ratio"] / 100), 4
+                        )
+
+                # 补算 shares
+                if h["shares"] <= 0 and h["cost"] > 0 and h["cost_nav"] > 0:
+                    h["shares"] = round(h["cost"] / h["cost_nav"], 2)
 
                 # 双向校验：代码↔名称，修正 LLM 可能猜错的代码
                 old_code, old_name = h["fund_code"], h["fund_name"]
