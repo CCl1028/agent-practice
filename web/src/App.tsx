@@ -14,6 +14,7 @@ import {
   saveLocalPortfolio,
   getLocalConfig,
   getPushConfig,
+  getAIConfig,
   getTransactions,
   addTransaction,
   getInvestPlans,
@@ -275,7 +276,7 @@ export default function App() {
   const handleSendFile = async (file: File) => {
     setInputDisabled(true)
     try {
-      const data = await api.parseScreenshot(file)
+      const data = await api.parseScreenshot(file, getAIConfig())
       if (data.parsed?.length > 0) {
         setConfirmHoldings(data.parsed)
         setConfirmSource('screenshot')

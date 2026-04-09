@@ -80,27 +80,73 @@ def _image_to_base64_url(image_path: str) -> str:
     return f"data:{mime_type};base64,{b64}"
 
 
-def ocr_image_with_vision(image_path: str) -> list[dict]:
-    """用多模态 LLM 直接从图片中识别并提取持仓数据。"""
-    logger.info("[Vision OCR] 使用多模态模型: %s", VISION_MODEL)
+def ocr_image_with_vision(image_path: str, config: dict = None) -> list[dict]:
+    """用多模态 LLM 直接从图片中识别并提取持仓数据。
+    
+    Args:
+        image_path: 图片文件路径
+        config: 可选配置（当前不使用，视觉模型固定使用服务端配置）
+    """
+    # 视觉模型固定使用服务端环境变量配置（硅基流动），不使用前端传入的配置
+    api_key = VISION_API_KEY
+    base_url = VISION_BASE_URL
+    model = VISION_MODEL
+    
+    # 检查 API Key 是否配置
+    if not api_key:
+        raise ValueError(
+            "未配置视觉模型 API Key。请在设置中填写 API Key，或配置 VISION_API_KEY 环境变量。\n"
+            "提示：需要支持图片输入的多模态模型（如 GPT-4o、GLM-4V、Qwen-VL）"
+        )
+    
+    # 检查是否使用了不支持图片的模型
+    non_vision_models = ["deepseek-chat", "deepseek-coder", "gpt-3.5-turbo", "gpt-4-turbo"]
+    if model.lower() in [m.lower() for m in non_vision_models]:
+        logger.warning(
+            "[Vision OCR] 警告：%s 模型不支持图片输入！建议使用 gpt-4o、glm-4v 或 qwen-vl 等多模态模型",
+            model
+        )
+    
+    logger.info("[Vision OCR] 使用多模态模型: %s (base_url: %s)", model, base_url)
 
     image_url = _image_to_base64_url(image_path)
 
     llm = ChatOpenAI(
-        model=VISION_MODEL,
-        api_key=VISION_API_KEY,
-        base_url=VISION_BASE_URL,
+        model=model,
+        api_key=api_key,
+        base_url=base_url,
         temperature=0,
         max_tokens=2000,
+        timeout=60,  # 增加超时时间，图片处理需要更长时间
     )
 
-    response = llm.invoke([
-        SystemMessage(content=PARSE_PROMPT),
-        HumanMessage(content=[
-            {"type": "text", "text": "请识别这张基金App截图中的持仓信息："},
-            {"type": "image_url", "image_url": {"url": image_url, "detail": "high"}},
-        ]),
-    ])
+    try:
+        response = llm.invoke([
+            SystemMessage(content=PARSE_PROMPT),
+            HumanMessage(content=[
+                {"type": "text", "text": "请识别这张基金App截图中的持仓信息："},
+                {"type": "image_url", "image_url": {"url": image_url, "detail": "high"}},
+            ]),
+        ])
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "invalid api key" in error_msg or "authentication" in error_msg:
+            raise ValueError(f"API Key 无效或已过期，请检查配置: {e}")
+        elif "rate limit" in error_msg:
+            raise ValueError(f"API 请求频率超限，请稍后重试: {e}")
+        elif "model" in error_msg and ("not found" in error_msg or "does not exist" in error_msg):
+            raise ValueError(
+                f"模型 {model} 不存在或不支持。\n"
+                f"当前 base_url: {base_url}\n"
+                f"请检查模型配置是否正确: {e}"
+            )
+        elif "image" in error_msg or "vision" in error_msg or "multimodal" in error_msg:
+            raise ValueError(
+                f"模型 {model} 可能不支持图片输入。\n"
+                f"请使用支持图片的多模态模型（如 gpt-4o、glm-4v、Qwen-VL）: {e}"
+            )
+        else:
+            raise ValueError(f"视觉模型调用失败: {e}")
 
     text = response.content.strip()
     logger.info("[Vision OCR] LLM 返回:\n%s", text)
@@ -118,7 +164,7 @@ def ocr_image_with_vision(image_path: str) -> list[dict]:
         if isinstance(holdings, list):
             return holdings
     except json.JSONDecodeError as e:
-        logger.error("[Vision OCR] JSON 解析失败: %s", e)
+        logger.error("[Vision OCR] JSON 解析失败: %s\n原始返回: %s", e, text[:500])
 
     return []
 
@@ -265,11 +311,15 @@ def _enrich_holdings(holdings: list[dict]) -> list[dict]:
     return holdings
 
 
-def process_screenshot(image_path: str) -> list[dict]:
+def process_screenshot(image_path: str, config: dict = None) -> list[dict]:
     """完整流程：截图 → 识别 → 结构化持仓。
 
     优先使用多模态 LLM 直接识别图片；
     如果 VISION_MODEL 不可用，则回退到 PaddleOCR + LLM 解析。
+    
+    Args:
+        image_path: 图片文件路径
+        config: 可选配置，支持传入 OPENAI_API_KEY 和 OPENAI_BASE_URL
     """
     path = Path(image_path)
     if not path.exists():
@@ -279,13 +329,21 @@ def process_screenshot(image_path: str) -> list[dict]:
     logger.info("[Screenshot] 开始处理截图: %s", image_path)
 
     # 方案 1: 多模态 LLM 直接识别（推荐）
+    vision_error = None
     try:
-        holdings = ocr_image_with_vision(image_path)
+        holdings = ocr_image_with_vision(image_path, config=config)
         if holdings:
             logger.info("[Screenshot] 多模态识别成功，识别到 %d 只基金", len(holdings))
             return _enrich_holdings(holdings)
+        else:
+            logger.warning("[Screenshot] 多模态模型返回空结果，可能无法识别截图内容")
+    except ValueError as e:
+        # 配置错误，直接抛出让用户知道
+        vision_error = str(e)
+        logger.error("[Screenshot] 视觉模型配置错误: %s", e)
     except Exception as e:
-        logger.warning("[Screenshot] 多模态识别失败，回退到 OCR 方案: %s", e)
+        vision_error = str(e)
+        logger.warning("[Screenshot] 多模态识别失败，尝试回退到 OCR 方案: %s", e)
 
     # 方案 2: PaddleOCR + LLM 解析（回退）
     ocr_text = ocr_image(image_path)
@@ -295,5 +353,10 @@ def process_screenshot(image_path: str) -> list[dict]:
         if holdings:
             return _enrich_holdings(holdings)
 
-    logger.warning("[Screenshot] 未能从截图中识别到基金持仓信息")
+    # 所有方案都失败，给出详细提示
+    error_msg = "[Screenshot] 未能从截图中识别到基金持仓信息"
+    if vision_error:
+        error_msg += f"\n视觉模型错误: {vision_error}"
+        error_msg += "\n建议检查: 1) API Key 是否正确配置 2) 使用支持图片的多模态模型"
+    logger.warning(error_msg)
     return []

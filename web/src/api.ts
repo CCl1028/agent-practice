@@ -73,9 +73,13 @@ export async function parseText(
 
 export async function parseScreenshot(
   file: File,
+  config?: Record<string, string>,
 ): Promise<{ parsed: Holding[] }> {
   const form = new FormData()
   form.append('file', file)
+  if (config && Object.keys(config).length > 0) {
+    form.append('config', JSON.stringify(config))
+  }
   const res = await fetch(API + '/api/portfolio/parse-screenshot', {
     method: 'POST',
     body: form,
@@ -88,7 +92,13 @@ export async function parseScreenshot(
     } else if (res.status === 502 || errText.includes('Bad Gateway')) {
       msg = '服务暂时不可用，请稍后重试'
     } else if (errText && !errText.startsWith('<')) {
-      msg = errText
+      // 尝试解析 JSON 错误信息
+      try {
+        const errJson = JSON.parse(errText)
+        if (errJson.error) msg = errJson.error
+      } catch {
+        msg = errText
+      }
     }
     throw new Error(msg)
   }

@@ -51,6 +51,14 @@ export function getPushConfig(): Record<string, string> {
   return push
 }
 
+export function getAIConfig(): Record<string, string> {
+  const cfg = getLocalConfig()
+  const ai: Record<string, string> = {}
+  if (cfg.OPENAI_API_KEY) ai.OPENAI_API_KEY = cfg.OPENAI_API_KEY
+  if (cfg.OPENAI_BASE_URL) ai.OPENAI_BASE_URL = cfg.OPENAI_BASE_URL
+  return ai
+}
+
 // ---- Portfolio ----
 
 export function getLocalPortfolio(): Holding[] {

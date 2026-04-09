@@ -15,10 +15,10 @@ const CONFIG_FIELDS: ConfigGroup[] = [
     ],
   },
   {
-    group: 'AI 模型',
+    group: 'AI 模型（文本解析/简报生成）',
     items: [
-      { key: 'OPENAI_API_KEY', label: 'API Key', placeholder: 'sk-xxx', hint: '不填则用规则引擎', sensitive: true },
-      { key: 'OPENAI_BASE_URL', label: '接口地址', placeholder: 'https://api.deepseek.com', hint: '默认 DeepSeek', sensitive: false },
+      { key: 'OPENAI_API_KEY', label: 'API Key', placeholder: 'sk-xxx', hint: '截图识别已内置，无需配置', sensitive: true },
+      { key: 'OPENAI_BASE_URL', label: '接口地址', placeholder: 'https://api.deepseek.com/v1', hint: '默认 DeepSeek', sensitive: false },
     ],
   },
 ]

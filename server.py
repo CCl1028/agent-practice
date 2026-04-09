@@ -315,10 +315,22 @@ async def add_from_screenshot(file: UploadFile = File(...)):
 
 
 @app.post("/api/portfolio/parse-screenshot", response_model=ParseResult)
-async def parse_screenshot(file: UploadFile = File(...)):
+async def parse_screenshot(
+    file: UploadFile = File(...),
+    config: str = None,  # JSON string of config (FormData doesn't support nested objects)
+):
     """截图识别持仓（只解析不保存）"""
     try:
         from src.tools.ocr_tools import process_screenshot
+
+        # 解析配置
+        cfg = {}
+        if config:
+            try:
+                import json as json_mod
+                cfg = json_mod.loads(config)
+            except Exception:
+                pass
 
         suffix = Path(file.filename or "img.jpg").suffix
         contents = await file.read()
@@ -326,7 +338,7 @@ async def parse_screenshot(file: UploadFile = File(...)):
             tmp.write(contents)
             tmp_path = tmp.name
 
-        new_holdings = process_screenshot(tmp_path)
+        new_holdings = process_screenshot(tmp_path, config=cfg)
         Path(tmp_path).unlink(missing_ok=True)
 
         return ParseResult(parsed=new_holdings or [])
