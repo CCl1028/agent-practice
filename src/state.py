@@ -68,10 +68,37 @@ class Briefing(TypedDict):
     risk_alerts: list[str]     # v2 新增: 全局风险提示
 
 
+# --- v3 新增: 基金诊断分析 ---
+
+class FundDiagnosis(TypedDict):
+    """基金诊断分析结果"""
+    fund_code: str
+    fund_name: str
+    rating: str        # "优秀" / "良好" / "中等" / "偏弱"
+    pros: list[str]    # 优点列表
+    risks: list[str]   # 风险列表
+    buy_recommendation: str  # "可以" / "谨慎" / "不建议"
+    buy_reason: str    # 购买理由
+    summary: str       # 一句话总结
+    profile: dict      # 基金基本信息
+
+
+class FallAnalysis(TypedDict):
+    """涨跌原因分析结果"""
+    fund_code: str
+    fund_name: str
+    direction: str     # "上涨" / "下跌" / "平盘"
+    change_ratio: float  # 涨跌幅百分比
+    reasons: list[str]  # 原因列表（带权重）
+    outlook: str       # 后市展望
+    summary: str       # 一句话总结
+    perf_data: dict    # 今日表现数据
+
+
 class AgentState(TypedDict, total=False):
     """LangGraph 全局 State"""
     # 触发上下文
-    trigger: Literal["daily_briefing", "user_query", "new_portfolio"]
+    trigger: Literal["daily_briefing", "user_query", "new_portfolio", "fund_diagnosis", "fall_analysis"]
     user_query: str
 
     # 前端传入的持仓数据（可选，若有则优先使用）
@@ -85,6 +112,15 @@ class AgentState(TypedDict, total=False):
 
     # 最终输出 (Briefing Agent 填充)
     briefing: Briefing
+
+    # --- v3 新增: 基金分析查询字段 ---
+    # 查询的基金代码和名称
+    query_fund_code: str
+    query_fund_name: str
+
+    # 诊断分析结果 (Analysis Agent 填充)
+    diagnosis: FundDiagnosis
+    fall_analysis: FallAnalysis
 
     # 错误信息
     error: str

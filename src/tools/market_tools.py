@@ -504,3 +504,241 @@ def _mock_sector_performance() -> list[dict]:
         {"name": "房地产", "change": -0.9},
         {"name": "银行", "change": 0.2},
     ]
+
+
+# ---- 新增: 基金诊断数据获取 ----
+
+def get_fund_profile(fund_code_or_name: str) -> dict | None:
+    """获取基金基本信息用于诊断分析。
+    
+    Returns:
+        {
+            "code": "005827",
+            "name": "易方达蓝筹精选",
+            "perf_1y": 15.5,          # 近1年收益百分比
+            "perf_3y": 25.0,          # 近3年收益百分比
+            "max_drawdown": -15.2,    # 最大回撤百分比
+            "volatility": 8.5,        # 波动率百分比
+            "size_billion": 120.5,    # 基金规模，单位亿元
+            "sectors": ["消费", "制造业", "电子"],  # 重仓行业Top 3
+            "manager": "李斌",
+            "manager_perf": "良好",
+        }
+    """
+    # 尝试如果输入是名称，则转换为代码
+    fund_code = fund_code_or_name
+    if not fund_code or len(fund_code) != 6:
+        fund_code = get_fund_code_by_name(fund_code_or_name)
+    
+    if not fund_code or len(fund_code) != 6:
+        logger.warning("[基金诊断] 无法解析基金代码: %s", fund_code_or_name)
+        return None
+    
+    try:
+        import akshare as ak
+        
+        # 获取基金基本信息
+        df = ak.fund_open_fund_info_em(symbol=fund_code, indicator="基本信息")
+        if df is None or df.empty:
+            raise ValueError("API returned empty data")
+        
+        row = df.iloc[0]
+        fund_name = get_fund_name_by_code(fund_code) or row.get("基金名称", "")
+        
+        # 解析数据
+        perf_1y = _parse_percentage(row.get("近1年", "0%"))
+        perf_3y = _parse_percentage(row.get("近3年", "0%"))
+        max_dd = _parse_percentage(row.get("最大回撤", "0%"))
+        
+        # 获取规模（单位：亿元）
+        size_str = str(row.get("基金规模", "0")).strip()
+        try:
+            size_billion = float(size_str) if size_str and size_str != "0" else 50.0
+        except:
+            size_billion = 50.0
+        
+        # 获取波动率
+        volatility = _parse_percentage(row.get("波动率", "10%")) or 10.0
+        
+        # Mock 重仓行业（实际可从 AKShare 的持仓接口获取）
+        sectors = _get_mock_sectors(fund_code)
+        
+        # Mock 基金经理信息
+        manager = row.get("基金经理", "未知")
+        
+        result = {
+            "code": fund_code,
+            "name": fund_name,
+            "perf_1y": perf_1y or 0,
+            "perf_3y": perf_3y or 0,
+            "max_drawdown": max_dd or -15.0,
+            "volatility": abs(volatility),  # 波动率取正
+            "size_billion": size_billion,
+            "sectors": sectors,
+            "manager": manager,
+            "manager_perf": "良好" if perf_1y and perf_1y > 10 else ("一般" if perf_1y and perf_1y > 0 else "较弱"),
+        }
+        
+        logger.info("[基金诊断] 获取 %s(%s) 信息成功", fund_name, fund_code)
+        return result
+        
+    except Exception as e:
+        logger.warning("[基金诊断] 获取基金 %s 信息失败: %s，使用 mock", fund_code, e)
+        return _mock_fund_profile(fund_code)
+
+
+def get_fund_perf_analysis(fund_code_or_name: str) -> dict | None:
+    """获取基金今日涨跌分析数据。
+    
+    Returns:
+        {
+            "code": "005827",
+            "name": "易方达蓝筹精选",
+            "today_change": 1.23,      # 今日涨跌百分比
+            "sectors": ["消费", "制造业"],  # 重仓行业
+            "sector_change": 0.85,      # 重仓行业平均涨跌
+            "market_change": 0.52,      # 大盘涨跌
+            "market_sentiment": "偏乐观",  # 市场情绪
+        }
+    """
+    # 同上，解析基金代码
+    fund_code = fund_code_or_name
+    if not fund_code or len(fund_code) != 6:
+        fund_code = get_fund_code_by_name(fund_code_or_name)
+    
+    if not fund_code or len(fund_code) != 6:
+        logger.warning("[涨跌分析] 无法解析基金代码: %s", fund_code_or_name)
+        return _mock_perf_analysis(fund_code_or_name)  # 使用 mock 数据
+    
+    try:
+        # 获取今日估值
+        nav_data = get_fund_nav(fund_code)
+        today_change = nav_data.get("trend_5d", [0])[-1] if nav_data.get("trend_5d") else 0
+        
+        # 获取板块信息
+        sectors = _get_mock_sectors(fund_code)
+        sector_perf = get_sector_performance()
+        sector_change = sum(s["change"] for s in sector_perf if s["name"] in sectors) / len(sectors) if sectors else 0
+        
+        # 大盘表现
+        market_perf = get_sector_performance()
+        market_change = market_perf[0]["change"] if market_perf else 0
+        
+        # 市场情绪
+        market_sentiment = _judge_sentiment(market_perf)
+        
+        result = {
+            "code": fund_code,
+            "name": get_fund_name_by_code(fund_code) or "未知基金",
+            "today_change": today_change,
+            "sectors": sectors,
+            "sector_change": round(sector_change, 2),
+            "market_change": market_change,
+            "market_sentiment": market_sentiment,
+        }
+        
+        logger.info("[涨跌分析] %s 今日涨跌 %+.2f%%", result["name"], today_change)
+        return result
+        
+    except Exception as e:
+        logger.warning("[涨跌分析] 获取基金 %s 今日数据失败: %s", fund_code, e)
+        return _mock_perf_analysis(fund_code)
+
+
+# ---- 辅助函数 ----
+
+def _parse_percentage(s: str | float) -> float | None:
+    """将字符串百分比转换为浮点数。
+    
+    Examples:
+        "15.5%" → 15.5
+        "15.50" → 15.50
+        15.5 → 15.5
+    """
+    if isinstance(s, (int, float)):
+        return float(s)
+    
+    if not isinstance(s, str):
+        return None
+    
+    s = s.strip()
+    if not s:
+        return None
+    
+    try:
+        s = s.replace("%", "").strip()
+        return float(s)
+    except:
+        return None
+
+
+def _judge_sentiment(sectors: list[dict]) -> str:
+    """根据板块涨跌判断市场情绪。"""
+    if not sectors:
+        return "中性"
+    avg = sum(s["change"] for s in sectors) / len(sectors)
+    if avg > 0.5:
+        return "偏乐观"
+    elif avg < -0.5:
+        return "偏谨慎"
+    return "中性震荡"
+
+
+def _get_mock_sectors(fund_code: str) -> list[str]:
+    """Mock 获取基金的重仓行业。"""
+    mock_sectors = {
+        "005827": ["消费", "制造业", "医药"],
+        "161725": ["电子", "计算机", "通讯"],
+        "110011": ["银行", "地产", "汽车"],
+    }
+    return mock_sectors.get(fund_code, ["消费", "科技", "医药"])
+
+
+def _mock_fund_profile(fund_code: str) -> dict:
+    """Mock 基金诊断数据"""
+    return {
+        "code": fund_code,
+        "name": get_fund_name_by_code(fund_code) or "示例基金",
+        "perf_1y": 15.2,
+        "perf_3y": 25.5,
+        "max_drawdown": -12.3,
+        "volatility": 9.5,
+        "size_billion": 85.5,
+        "sectors": ["消费", "制造业", "医药"],
+        "manager": "示例经理",
+        "manager_perf": "良好",
+    }
+
+
+def _mock_perf_analysis(fund_code: str) -> dict:
+    """Mock 涨跌分析数据"""
+    return {
+        "code": fund_code,
+        "name": get_fund_name_by_code(fund_code) or "示例基金",
+        "today_change": 1.23,
+        "sectors": ["消费", "制造业"],
+        "sector_change": 0.85,
+        "market_change": 0.52,
+        "market_sentiment": "偏乐观",
+    }
+
+
+def get_fund_news(fund_name: str, fund_code: str = "") -> list[dict]:
+    """获取基金相关新闻（集成多个搜索引擎）。
+    
+    Args:
+        fund_name: 基金名称
+        fund_code: 基金代码（可选）
+    
+    Returns:
+        新闻列表，每项包含 title, snippet, url, source
+    """
+    from src.tools.news_tools import search_fund_news
+    try:
+        news = search_fund_news(fund_name, fund_code)
+        logger.info("[基金新闻] 获取 %s(%s) 共 %d 条新闻", fund_name, fund_code, len(news))
+        return news
+    except Exception as e:
+        logger.warning("[基金新闻] 获取失败: %s", e)
+        # 降级：返回空列表或 mock 数据
+        return []
