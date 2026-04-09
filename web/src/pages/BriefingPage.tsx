@@ -65,6 +65,7 @@ export default function BriefingPage({
         <h1>今日简报</h1>
       </div>
 
+      <div className="page-content-body">
       {/* Content Area */}
       <div className="briefing-content-area">
         {loading && (
@@ -141,6 +142,7 @@ export default function BriefingPage({
             )}
           </div>
         )}
+      </div>
       </div>
 
       {/* Bottom Generate Button Area */}

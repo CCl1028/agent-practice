@@ -263,6 +263,7 @@ export default function ProfilePage({ showToast }: ProfilePageProps) {
         <h1>个人中心</h1>
       </div>
 
+      <div className="page-content-body">
       {/* User Info */}
       <div className="profile-header">
         <div className="avatar">
@@ -407,6 +408,7 @@ export default function ProfilePage({ showToast }: ProfilePageProps) {
       <div className="version-info">
         <p>FundPal {versionText}</p>
         <p className="copyright">智能基金投顾助手</p>
+      </div>
       </div>
     </div>
   )

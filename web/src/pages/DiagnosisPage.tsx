@@ -7,6 +7,7 @@ export default function DiagnosisPage() {
         <h1>基金诊断</h1>
       </div>
 
+      <div className="page-content-body">
       <div className="coming-soon">
         <div className="coming-soon-icon">
           <Construction size={48} />
@@ -48,6 +49,7 @@ export default function DiagnosisPage() {
           <Bell size={16} />
           功能开发中，敬请期待
         </button>
+      </div>
       </div>
     </div>
   )

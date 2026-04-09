@@ -76,12 +76,14 @@ export default function PortfolioPage({
         <div className="simple-page-header">
           <h1>我的持仓</h1>
         </div>
-        <div className="empty-state">
-          <div className="empty-state-icon">📊</div>
-          <div className="empty-state-text">
-            暂无持仓
-            <br />
-            点击下方添加基金
+        <div className="page-content-body">
+          <div className="empty-state">
+            <div className="empty-state-icon">📊</div>
+            <div className="empty-state-text">
+              暂无持仓
+              <br />
+              点击下方添加基金
+            </div>
           </div>
         </div>
       </div>
@@ -94,6 +96,7 @@ export default function PortfolioPage({
         <h1>我的持仓</h1>
       </div>
 
+      <div className="page-content-body">
       {/* Portfolio Summary */}
       <div className="portfolio-summary">
         <div className="summary-item">
@@ -143,6 +146,7 @@ export default function PortfolioPage({
         onResume={onResumeInvest}
         onStop={onStopInvest}
       />
+      </div>
     </div>
   )
 }
