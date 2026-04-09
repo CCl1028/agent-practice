@@ -61,6 +61,15 @@ def compute_metrics(portfolio: list[FundHolding]) -> list[FundHolding]:
             fund["profit_ratio"] = round(
                 (fund["current_nav"] - fund["cost_nav"]) / fund["cost_nav"] * 100, 2
             )
+            # 补算 shares 和 profit_amount
+            shares = fund.get("shares", 0)
+            if not shares and fund.get("cost", 0) > 0:
+                shares = round(fund["cost"] / fund["cost_nav"], 2)
+                fund["shares"] = shares
+            if shares > 0:
+                fund["profit_amount"] = round(
+                    shares * (fund["current_nav"] - fund["cost_nav"]), 2
+                )
 
         # --- v2 新增：技术指标计算 ---
         nav_history = nav_data.get("nav_history", [])
@@ -143,6 +152,8 @@ def _mock_portfolio() -> list[FundHolding]:
             "cost_nav": 2.15,
             "current_nav": 0,   # 待刷新
             "profit_ratio": 0,  # 待计算
+            "profit_amount": 0,
+            "shares": 9302.33,
             "hold_days": 280,
             "trend_5d": [],
         },
@@ -153,6 +164,8 @@ def _mock_portfolio() -> list[FundHolding]:
             "cost_nav": 1.60,
             "current_nav": 0,
             "profit_ratio": 0,
+            "profit_amount": 0,
+            "shares": 9375.0,
             "hold_days": 180,
             "trend_5d": [],
         },
@@ -163,6 +176,8 @@ def _mock_portfolio() -> list[FundHolding]:
             "cost_nav": 4.80,
             "current_nav": 0,
             "profit_ratio": 0,
+            "profit_amount": 0,
+            "shares": 2083.33,
             "hold_days": 365,
             "trend_5d": [],
         },

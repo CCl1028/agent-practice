@@ -413,9 +413,14 @@ async def refresh_portfolio(input: HoldingsInput = None):
                 item["profit_ratio"] = round(
                     (current_nav - cost_nav) / cost_nav * 100, 2
                 )
-                if cost > 0:
-                    shares = cost / cost_nav  # 持有份额
+                # 优先使用已有 shares，否则用 cost / cost_nav 反算
+                shares = h.get("shares", 0)
+                if not shares and cost > 0:
+                    shares = cost / cost_nav
+                if shares > 0:
+                    item["shares"] = round(shares, 2)
                     item["market_value"] = round(shares * current_nav, 2)
+                    item["profit_amount"] = round(shares * current_nav - shares * cost_nav, 2)
                 else:
                     item["market_value"] = 0
             elif cost > 0 and current_nav > 0:

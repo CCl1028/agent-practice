@@ -1068,6 +1068,134 @@ body {
 .status-dot.active { background: var(--green); }
 .status-dot.paused { background: var(--text-secondary); }
 
+/* 识别确认弹窗 */
+.confirm-drawer { z-index: 903; }
+.confirm-drawer-overlay { z-index: 902; }
+.confirm-list { max-height: 50vh; overflow-y: auto; }
+.confirm-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+  position: relative;
+}
+.confirm-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.confirm-item-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+.confirm-item-code {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+.confirm-item-remove {
+  background: none;
+  border: none;
+  color: var(--red);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.confirm-item-remove:hover { background: var(--red-bg); }
+.confirm-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.confirm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.confirm-field label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.confirm-field input {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  width: 100%;
+}
+.confirm-field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.confirm-field input.edited {
+  border-color: var(--accent);
+  background: rgba(184,78,74,0.04);
+}
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+.confirm-actions button {
+  flex: 1;
+  padding: 13px;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.confirm-save-btn {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 4px 16px rgba(184,78,74,0.3);
+}
+.confirm-save-btn:hover { opacity: 0.9; }
+.confirm-save-btn:disabled {
+  background: #e8d8d5;
+  color: #a89090;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.confirm-cancel-btn {
+  background: var(--bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border) !important;
+}
+.confirm-cancel-btn:hover { border-color: var(--accent) !important; color: var(--accent); }
+.confirm-empty {
+  text-align: center;
+  padding: 30px 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.confirm-screenshot-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  background: rgba(184,78,74,0.08);
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
 /* 响应式 */
 @media (min-width: 768px) {
   .container { max-width: 520px; }
@@ -1288,6 +1416,24 @@ body {
         </div>
       </div>
       <button class="trade-submit invest-btn" id="invest-submit" onclick="submitInvestPlan()" disabled>确认创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- 识别确认弹窗 -->
+<div class="drawer-overlay confirm-drawer-overlay" id="confirm-overlay" onclick="closeConfirmDrawer()"></div>
+<div class="drawer confirm-drawer" id="confirm-drawer">
+  <div class="drawer-handle"><div class="drawer-handle-bar"></div></div>
+  <div class="drawer-header">
+    <h3 id="confirm-drawer-title"><i data-lucide="check-circle" style="width:18px;height:18px;vertical-align:-3px;color:var(--accent);"></i> 确认识别结果</h3>
+    <button class="drawer-close" onclick="closeConfirmDrawer()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div id="confirm-screenshot-type"></div>
+    <div class="confirm-list" id="confirm-list"></div>
+    <div class="confirm-actions">
+      <button class="confirm-cancel-btn" onclick="closeConfirmDrawer()">取消</button>
+      <button class="confirm-save-btn" id="confirm-save-btn" onclick="confirmSaveHoldings()">确认保存</button>
     </div>
   </div>
 </div>
@@ -1827,7 +1973,7 @@ async function addFromText() {
     const data = await res.json();
     if (data.parsed && data.parsed.length > 0) {
       let tradeDone = false;
-      let addedCount = 0;
+      let newHoldings = [];
 
       for (const h of data.parsed) {
         if (h.intent === 'buy' || h.intent === 'sell') {
@@ -1869,32 +2015,26 @@ async function addFromText() {
             showToast(`未找到持仓: ${h.fund_name || h.fund_code}，请先添加`, 'error');
           }
         } else {
-          // 新增持仓
-          const existing = getLocalPortfolio();
-          const existingMap = {};
-          for (const f of existing) {
-            const key = f.fund_code || f.fund_name || '';
-            if (key) existingMap[key] = f;
-          }
-          const key = h.fund_code || h.fund_name || '';
-          if (key) existingMap[key] = h;
-          const merged = Object.values(existingMap);
-          saveLocalPortfolio(merged);
-          addedCount++;
+          // 新增持仓 → 收集到列表，走确认流程
+          newHoldings.push(h);
         }
       }
 
       if (tradeDone) {
         showToast('交易操作已完成', 'success');
-      } else if (addedCount > 0) {
-        showToast(`成功添加 ${addedCount} 只基金`, 'success');
+        loadPortfolio(true);
+      }
+
+      if (newHoldings.length > 0) {
+        // P4: 打开确认弹窗
+        openConfirmDrawer(newHoldings, 'text');
       }
 
       input.value = '';
       autoGrow(input);
-      const newCodes = data.parsed.filter(h => h.intent === 'add_holding' || !h.intent).map(h => h.fund_code).filter(Boolean);
-      loadPortfolio(true);
-      if (newCodes.length > 0) loadEstimationForNew(newCodes);
+      if (tradeDone && newHoldings.length === 0) {
+        // 只有交易没有新增，不需要确认弹窗
+      }
     } else {
       showToast('未识别到基金信息，换个描述试试', 'error');
     }
@@ -1934,27 +2074,11 @@ async function addFromScreenshot() {
     }
     const data = await res.json();
     if (data.parsed && data.parsed.length > 0) {
-      // 保存到本地 localStorage
-      const existing = getLocalPortfolio();
-      const existingMap = {};
-      for (const f of existing) {
-        const key = f.fund_code || f.fund_name || '';
-        if (key) existingMap[key] = f;
-      }
-      for (const h of data.parsed) {
-        const key = h.fund_code || h.fund_name || '';
-        if (key) existingMap[key] = h;
-      }
-      const merged = Object.values(existingMap);
-      saveLocalPortfolio(merged);
-
-      showToast(`成功添加 ${data.parsed.length} 只基金`, 'success');
+      // P4: 打开确认弹窗，让用户审核/修改
+      openConfirmDrawer(data.parsed, 'screenshot');
       document.getElementById('text-input').value = '';
       autoGrow(document.getElementById('text-input'));
       clearFile(true);
-      const newCodes = data.parsed.map(h => h.fund_code).filter(Boolean);
-      loadPortfolio(true); // 跳过全量估值
-      loadEstimationForNew(newCodes); // 只拉新基金估值
     } else {
       showToast('未识别到基金信息，换张截图试试', 'error');
     }
@@ -2898,6 +3022,161 @@ function skipPendingInvests() {
 function togglePendingDetail() {
   const el = document.getElementById('pending-invest-detail');
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ---- P4: 识别确认弹窗 ----
+let confirmPendingHoldings = [];  // 待确认的持仓数据
+let confirmSource = '';            // 来源: 'screenshot' | 'text'
+
+function openConfirmDrawer(holdings, source) {
+  confirmPendingHoldings = holdings.map(h => ({...h}));  // deep copy
+  confirmSource = source || '';
+
+  const titleEl = document.getElementById('confirm-drawer-title');
+  const typeLabel = source === 'screenshot' ? '截图识别' : '文本识别';
+  titleEl.innerHTML = `<i data-lucide="check-circle" style="width:18px;height:18px;vertical-align:-3px;color:var(--accent);"></i> ${typeLabel}结果（${holdings.length}只）`;
+
+  // 显示截图类型（如果有）
+  const typeEl = document.getElementById('confirm-screenshot-type');
+  if (holdings.length > 0 && holdings[0].screenshot_type) {
+    const st = holdings[0].screenshot_type;
+    const label = st === 'detail' ? '详情页截图' : st === 'list' ? '列表页截图' : '截图';
+    typeEl.innerHTML = `<span class="confirm-screenshot-type"><i data-lucide="image" style="width:12px;height:12px;"></i> ${label}</span>`;
+  } else {
+    typeEl.innerHTML = '';
+  }
+
+  renderConfirmList();
+
+  document.getElementById('confirm-overlay').classList.add('open');
+  document.getElementById('confirm-drawer').classList.add('open');
+  lucide.createIcons({nodes: [document.getElementById('confirm-drawer')]});
+}
+
+function closeConfirmDrawer() {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  document.getElementById('confirm-drawer').classList.remove('open');
+  confirmPendingHoldings = [];
+}
+
+function renderConfirmList() {
+  const listEl = document.getElementById('confirm-list');
+  const saveBtn = document.getElementById('confirm-save-btn');
+
+  if (confirmPendingHoldings.length === 0) {
+    listEl.innerHTML = '<div class="confirm-empty">没有待确认的基金</div>';
+    saveBtn.disabled = true;
+    return;
+  }
+
+  saveBtn.disabled = false;
+  listEl.innerHTML = confirmPendingHoldings.map((h, i) => {
+    const name = h.fund_name || '未知基金';
+    const code = h.fund_code || '';
+    const cost = h.cost || 0;
+    const costNav = h.cost_nav || 0;
+    const profitRatio = h.profit_ratio || 0;
+    const shares = h.shares || 0;
+    const profitAmount = h.profit_amount || 0;
+    const currentNav = h.current_nav || 0;
+
+    return `<div class="confirm-item" id="confirm-item-${i}">
+      <div class="confirm-item-header">
+        <span class="confirm-item-title">${name}</span>
+        <span class="confirm-item-code">${code}</span>
+        <button class="confirm-item-remove" onclick="removeConfirmItem(${i})" title="删除">✕</button>
+      </div>
+      <div class="confirm-fields">
+        <div class="confirm-field">
+          <label>基金名称</label>
+          <input value="${escapeAttr(name)}" oninput="updateConfirmField(${i}, 'fund_name', this.value)" data-original="${escapeAttr(name)}">
+        </div>
+        <div class="confirm-field">
+          <label>基金代码</label>
+          <input value="${escapeAttr(code)}" oninput="updateConfirmField(${i}, 'fund_code', this.value)" data-original="${escapeAttr(code)}">
+        </div>
+        <div class="confirm-field">
+          <label>持仓金额</label>
+          <input type="number" value="${cost}" oninput="updateConfirmField(${i}, 'cost', parseFloat(this.value)||0)" data-original="${cost}">
+        </div>
+        <div class="confirm-field">
+          <label>成本净值</label>
+          <input type="number" step="0.0001" value="${costNav}" oninput="updateConfirmField(${i}, 'cost_nav', parseFloat(this.value)||0)" data-original="${costNav}">
+        </div>
+        <div class="confirm-field">
+          <label>收益率(%)</label>
+          <input type="number" step="0.01" value="${profitRatio}" oninput="updateConfirmField(${i}, 'profit_ratio', parseFloat(this.value)||0)" data-original="${profitRatio}">
+        </div>
+        <div class="confirm-field">
+          <label>持有份额</label>
+          <input type="number" step="0.01" value="${shares}" oninput="updateConfirmField(${i}, 'shares', parseFloat(this.value)||0)" data-original="${shares}">
+        </div>
+        <div class="confirm-field">
+          <label>收益金额</label>
+          <input type="number" step="0.01" value="${profitAmount}" oninput="updateConfirmField(${i}, 'profit_amount', parseFloat(this.value)||0)" data-original="${profitAmount}">
+        </div>
+        <div class="confirm-field">
+          <label>最新净值</label>
+          <input type="number" step="0.0001" value="${currentNav}" oninput="updateConfirmField(${i}, 'current_nav', parseFloat(this.value)||0)" data-original="${currentNav}">
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escapeAttr(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function updateConfirmField(index, field, value) {
+  if (index >= 0 && index < confirmPendingHoldings.length) {
+    confirmPendingHoldings[index][field] = value;
+    // 高亮已修改的输入框
+    const item = document.getElementById('confirm-item-' + index);
+    if (item) {
+      const inputs = item.querySelectorAll('input');
+      inputs.forEach(inp => {
+        const orig = inp.dataset.original || '';
+        const cur = inp.value;
+        inp.classList.toggle('edited', cur !== orig);
+      });
+    }
+  }
+}
+
+function removeConfirmItem(index) {
+  confirmPendingHoldings.splice(index, 1);
+  renderConfirmList();
+}
+
+function confirmSaveHoldings() {
+  if (confirmPendingHoldings.length === 0) {
+    closeConfirmDrawer();
+    return;
+  }
+
+  // 保存到本地 localStorage
+  const existing = getLocalPortfolio();
+  const existingMap = {};
+  for (const f of existing) {
+    const key = f.fund_code || f.fund_name || '';
+    if (key) existingMap[key] = f;
+  }
+  for (const h of confirmPendingHoldings) {
+    const key = h.fund_code || h.fund_name || '';
+    if (key) existingMap[key] = h;
+  }
+  const merged = Object.values(existingMap);
+  saveLocalPortfolio(merged);
+
+  const count = confirmPendingHoldings.length;
+  const newCodes = confirmPendingHoldings.map(h => h.fund_code).filter(Boolean);
+
+  closeConfirmDrawer();
+  showToast(`已保存 ${count} 只基金`, 'success');
+  loadPortfolio(true);
+  if (newCodes.length > 0) loadEstimationForNew(newCodes);
 }
 
 // ---- Init ----

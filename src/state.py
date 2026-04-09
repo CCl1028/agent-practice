@@ -19,6 +19,8 @@ class FundHolding(TypedDict):
     cost_nav: float        # 成本净值
     current_nav: float     # 当前净值
     profit_ratio: float    # 盈亏比例 %
+    profit_amount: float   # 持有收益金额（元）
+    shares: float          # 持有份额
     hold_days: int         # 持有天数
     trend_5d: list[float]  # 近5日涨跌幅 %
 
