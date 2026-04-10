@@ -27,14 +27,9 @@
 
 html,
 body {
-  overflow: hidden;
+  overflow-y: auto;
   width: 100%;
-  height: 100%;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  min-height: 100%;
 }
 
 body {
@@ -46,30 +41,103 @@ body {
 
 #root {
   width: 100%;
-  height: 100%;
+  min-height: 100%;
 }
 
-/* ---- App Container ---- */
-.app-container {
-  position: fixed;
+/* ---- Web Header ---- */
+.web-header {
+  position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  z-index: 900;
+  background: rgba(250, 245, 243, 0.92);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-.page-wrapper {
-  flex: 1;
-  overflow-y: auto;
+.header-inner {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  gap: 20px;
+}
+
+.header-logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+  letter-spacing: -0.5px;
+}
+
+.header-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 200px; /* Space for tab bar + generate area + input bar */
+  scrollbar-width: none;
+}
+
+.header-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.header-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 8px;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.header-tab:hover {
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.header-tab.active {
+  color: var(--accent);
+  font-weight: 600;
+  background: rgba(184, 78, 74, 0.08);
+}
+
+.header-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.header-tab svg {
+  flex-shrink: 0;
+}
+
+/* ---- Page Layout ---- */
+.page-wrapper {
+  max-width: 640px;
+  margin: 0 auto;
+  padding-bottom: 80px; /* Space for FAB */
+  min-height: calc(100vh - 52px); /* Subtract header height */
 }
 
 .page-content {
-  max-width: 480px;
   margin: 0 auto;
   padding: 0 0 20px;
 }
@@ -80,18 +148,13 @@ body {
 
 /* Legacy scroll wrapper for backwards compat */
 .scroll-wrapper {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-bottom: 100px;
 }
 
 .container {
-  max-width: 480px;
+  max-width: 640px;
   margin: 0 auto;
   padding: 0 16px;
 }
@@ -529,7 +592,7 @@ body {
 /* ---- FAB (Floating Action Button) ---- */
 .fab-button {
   position: fixed;
-  bottom: 76px; /* Above tab bar with some margin */
+  bottom: 24px;
   right: 20px;
   width: 56px;
   height: 56px;
@@ -580,7 +643,7 @@ body {
 /* FAB 展开菜单 */
 .fab-menu {
   position: fixed;
-  bottom: 144px;
+  bottom: 92px;
   right: 20px;
   display: flex;
   flex-direction: column;
@@ -631,7 +694,7 @@ body {
 /* ---- Bottom Input Bar (legacy, for form drawer only) ---- */
 .bottom-input-bar {
   position: fixed;
-  bottom: 56px; /* Above tab bar */
+  bottom: 0;
   left: 0;
   right: 0;
   background: var(--card);
@@ -644,7 +707,7 @@ body {
 .bottom-input-bar.idle-mode .input-buttons {
   display: flex;
   gap: 12px;
-  max-width: 480px;
+  max-width: 640px;
   margin: 0 auto;
 }
 
@@ -932,8 +995,8 @@ body {
 
 /* 底部固定的生成区域 */
 .generate-area-bottom {
-  position: fixed;
-  bottom: 56px; /* Tab bar 高度 */
+  position: sticky;
+  bottom: 0;
   left: 0;
   right: 0;
   background: var(--card);
@@ -947,7 +1010,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  max-width: 480px;
+  max-width: 640px;
   margin: 0 auto;
 }
 
@@ -1918,47 +1981,9 @@ body {
   border-color: var(--accent);
 }
 
-/* ---- Tab Bar ---- */
+/* ---- Tab Bar (legacy, replaced by web-header) ---- */
 .tab-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--card);
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: space-around;
-  padding: 6px 0;
-  padding-bottom: max(6px, env(safe-area-inset-bottom));
-  z-index: 900;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.tab-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 6px 0;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 11px;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.tab-item:hover {
-  color: var(--text);
-}
-
-.tab-item.active {
-  color: var(--accent);
-}
-
-.tab-item.active svg {
-  transform: scale(1.1);
+  display: none;
 }
 
 /* ---- Portfolio Summary ---- */
@@ -1993,30 +2018,15 @@ body {
 .briefing-page {
 }
 
-/* Simple Page Header - 简约页面标题（固定不滚动） */
+/* Simple Page Header - no longer used, title is in web-header */
 .simple-page-header {
-  position: sticky;
-  top: 0;
-  background: var(--bg);
-  padding: 16px 16px 12px;
-  z-index: 100;
-  border-bottom: 1px solid var(--border);
-  margin-left: 0;
-  margin-right: 0;
-}
-
-.simple-page-header h1 {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text);
-  margin: 0;
-  line-height: 1.4;
+  display: none;
 }
 
 /* Briefing page - 底部固定按钮栏 */
 .briefing-bottom-bar {
-  position: fixed;
-  bottom: 56px; /* Above tab bar */
+  position: sticky;
+  bottom: 0;
   left: 0;
   right: 0;
   background: var(--card);
@@ -2076,10 +2086,10 @@ body {
   cursor: pointer;
 }
 
-/* Briefing page content area - 需要留出底部按钮的空间 */
+/* Briefing page content area */
 .briefing-page .briefing-content-area {
   min-height: 200px;
-  padding-bottom: 120px; /* Space for bottom bar */
+  padding-bottom: 20px;
 }
 
 /* Briefing Loading */
@@ -2784,7 +2794,15 @@ body {
 /* ---- Responsive ---- */
 @media (min-width: 768px) {
   .container,
-  .page-content {
-    max-width: 520px;
+  .page-wrapper {
+    max-width: 720px;
+  }
+
+  .header-inner {
+    max-width: 720px;
+  }
+
+  .page-content-body {
+    padding: 20px 24px 0;
   }
 }

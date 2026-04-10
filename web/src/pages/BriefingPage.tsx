@@ -60,11 +60,6 @@ export default function BriefingPage({
 }: BriefingPageProps) {
   return (
     <div className="page-content briefing-page">
-      {/* Simple Header */}
-      <div className="simple-page-header">
-        <h1>今日简报</h1>
-      </div>
-
       <div className="page-content-body">
       {/* Content Area */}
       <div className="briefing-content-area">

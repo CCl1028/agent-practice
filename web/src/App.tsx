@@ -23,8 +23,7 @@ import {
 import { generateId, formatPushResults } from './utils'
 import { useToast } from './hooks/useToast'
 
-// import Header from './components/Header' // 暂时禁用
-import TabBar, { type TabKey } from './components/TabBar'
+import Header, { type TabKey } from './components/Header'
 import BottomInputBar from './components/BottomInputBar'
 import TradeDrawer from './components/TradeDrawer'
 import InvestDrawer from './components/InvestDrawer'
@@ -433,15 +432,13 @@ export default function App() {
 
   return (
     <>
-      <div className="app-container">
-        {/* Header - 暂时禁用，等后续迭代 */}
-        {/* <Header /> */}
+      {/* Sticky Header with Tabs */}
+      <Header activeTab={activeTab} onTabChange={setActiveTab} />
 
-        {/* Page Content */}
-        <div className="page-wrapper">
-          {renderPageContent()}
-        </div>
-      </div>
+      {/* Page Content - natural document flow */}
+      <main className="page-wrapper">
+        {renderPageContent()}
+      </main>
 
       {/* Bottom Input - only show on portfolio page */}
       {activeTab === 'portfolio' && (
@@ -451,9 +448,6 @@ export default function App() {
           onAddHoldings={handleAddHoldings}
         />
       )}
-
-      {/* Tab Bar */}
-      <TabBar active={activeTab} onChange={setActiveTab} />
 
       {/* Drawers */}
       <TradeDrawer
