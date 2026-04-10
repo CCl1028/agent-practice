@@ -22,7 +22,7 @@ const emptyHolding = (): ManualHolding => ({
 
 interface BottomInputBarProps {
   disabled: boolean
-  onSendFile: (file: File) => Promise<void>
+  onSendFile: (files: File[]) => Promise<void>
   onAddHoldings: (holdings: Holding[]) => void
 }
 
@@ -47,17 +47,20 @@ export default function BottomInputBar({
   )
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setPendingFile(file)
-      setSending(true)
-      try {
-        await onSendFile(file)
-      } finally {
-        setSending(false)
-        setPendingFile(null)
-        if (fileRef.current) fileRef.current.value = ''
-      }
+    const fileList = e.target.files
+    if (!fileList || fileList.length === 0) return
+
+    // Limit to 9 files max
+    const files = Array.from(fileList).slice(0, 9)
+
+    setSending(true)
+    setPendingFile(files[0]) // Show first file as indicator
+    try {
+      await onSendFile(files)
+    } finally {
+      setSending(false)
+      setPendingFile(null)
+      if (fileRef.current) fileRef.current.value = ''
     }
   }
 
@@ -250,6 +253,7 @@ export default function BottomInputBar({
         ref={fileRef}
         type="file"
         accept="image/*"
+        multiple
         style={{ display: 'none' }}
         onChange={handleFileChange}
       />

@@ -59,6 +59,7 @@ export default function App() {
   const [confirmHoldings, setConfirmHoldings] = useState<Holding[]>([])
   const [confirmSource, setConfirmSource] = useState<'screenshot' | 'text' | ''>('')
   const [imageAnalyzing, setImageAnalyzing] = useState(false)
+  const [imageProgress, setImageProgress] = useState({ current: 0, total: 0 })
 
   const { toast, showToast } = useToast()
 
@@ -167,15 +168,45 @@ export default function App() {
   }
 
   // ---- Input handlers ----
-  const handleSendFile = async (file: File) => {
+  const handleSendFile = async (files: File[]) => {
     setInputDisabled(true)
     setImageAnalyzing(true)
+    setImageProgress({ current: 0, total: files.length })
+
+    const allParsed: Holding[] = []
+    let hasError = false
+
     try {
-      const data = await api.parseScreenshot(file, getAIConfig())
-      if (data.parsed?.length > 0) {
-        setConfirmHoldings(data.parsed)
+      for (let i = 0; i < files.length; i++) {
+        setImageProgress({ current: i + 1, total: files.length })
+        try {
+          const data = await api.parseScreenshot(files[i], getAIConfig())
+          if (data.parsed?.length > 0) {
+            allParsed.push(...data.parsed)
+          }
+        } catch (e: unknown) {
+          // Log individual file error but continue processing
+          console.error(`File ${i + 1} failed:`, e)
+          hasError = true
+        }
+      }
+
+      if (allParsed.length > 0) {
+        // Deduplicate by fund_code
+        const seen = new Set<string>()
+        const deduped: Holding[] = []
+        for (const h of allParsed) {
+          const key = h.fund_code || h.fund_name || ''
+          if (key && !seen.has(key)) {
+            seen.add(key)
+            deduped.push(h)
+          }
+        }
+        setConfirmHoldings(deduped)
         setConfirmSource('screenshot')
         setConfirmOpen(true)
+      } else if (hasError) {
+        showToast('识别失败，请检查网络后重试', 'error')
       } else {
         showToast('未识别到基金信息，换张截图试试', 'error')
       }
@@ -184,6 +215,7 @@ export default function App() {
     } finally {
       setInputDisabled(false)
       setImageAnalyzing(false)
+      setImageProgress({ current: 0, total: 0 })
     }
   }
 
@@ -481,7 +513,19 @@ export default function App() {
         <div className="loading-overlay">
           <div className="loading-content">
             <div className="loading-spinner" />
-            <div className="loading-text">正在分析图片...</div>
+            <div className="loading-text">
+              {imageProgress.total > 1
+                ? `正在分析图片 (${imageProgress.current}/${imageProgress.total})...`
+                : '正在分析图片...'}
+            </div>
+            {imageProgress.total > 1 && (
+              <div className="loading-progress-bar">
+                <div
+                  className="loading-progress-fill"
+                  style={{ width: `${(imageProgress.current / imageProgress.total) * 100}%` }}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
