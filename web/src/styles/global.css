@@ -60,16 +60,16 @@ body {
   margin: 0 auto;
   display: flex;
   align-items: center;
-  padding: 10px 16px;
-  gap: 20px;
+  padding: 10px 12px;
+  gap: 12px;
 }
 
 .header-logo {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--accent);
   flex-shrink: 0;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
 }
 
 .header-tabs {
@@ -88,8 +88,8 @@ body {
 .header-tab {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 8px 14px;
+  gap: 4px;
+  padding: 7px 10px;
   border: none;
   background: none;
   color: var(--text-secondary);
@@ -2025,14 +2025,17 @@ body {
 
 /* Briefing page - 底部固定按钮栏 */
 .briefing-bottom-bar {
-  position: sticky;
+  position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--card);
-  border-top: 1px solid var(--border);
+  background: transparent;
+  border-top: none;
   padding: 12px 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
   z-index: 800;
+  max-width: 640px;
+  margin: 0 auto;
 }
 
 .briefing-bottom-bar .briefing-options {
@@ -2089,7 +2092,7 @@ body {
 /* Briefing page content area */
 .briefing-page .briefing-content-area {
   min-height: 200px;
-  padding-bottom: 20px;
+  padding-bottom: 120px; /* Space for fixed bottom bar */
 }
 
 /* Briefing Loading */
