@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CheckCircle, Image } from 'lucide-react'
 import type { Holding } from '../types'
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 
 interface ConfirmDrawerProps {
   open: boolean
@@ -17,6 +18,7 @@ export default function ConfirmDrawer({
   onClose,
   onSave,
 }: ConfirmDrawerProps) {
+  useBodyScrollLock(open)
   const [items, setItems] = useState<Holding[]>([])
 
   // Sync when opened with new data

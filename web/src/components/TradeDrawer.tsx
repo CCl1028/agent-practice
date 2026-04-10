@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { Holding } from '../types'
 import { refreshPortfolioNav } from '../api'
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 
 interface TradeDrawerProps {
   open: boolean
@@ -19,6 +20,7 @@ export default function TradeDrawer({
   onClose,
   onSubmit,
 }: TradeDrawerProps) {
+  useBodyScrollLock(open)
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState('')

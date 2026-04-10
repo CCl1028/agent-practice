@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Camera, Plus, Trash2, X } from 'lucide-react'
 import type { Holding } from '../types'
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 
 interface ManualHolding {
   fund_code: string
@@ -36,6 +37,8 @@ export default function BottomInputBar({
   const [sending, setSending] = useState(false)
   const [holdings, setHoldings] = useState<ManualHolding[]>([emptyHolding()])
   const fileRef = useRef<HTMLInputElement>(null)
+
+  useBodyScrollLock(mode === 'form')
 
   // 检查表单是否有效（至少有一个有效的基金代码）
   const hasValidHolding = holdings.some((h) => h.fund_code.trim() !== '')

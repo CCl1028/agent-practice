@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { Holding, InvestFrequency } from '../types'
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 
 interface InvestDrawerProps {
   open: boolean
@@ -29,6 +30,7 @@ export default function InvestDrawer({
   onClose,
   onSubmit,
 }: InvestDrawerProps) {
+  useBodyScrollLock(open)
   const [amount, setAmount] = useState('')
   const [frequency, setFrequency] = useState<InvestFrequency>('weekly')
   const [day, setDay] = useState(3)
