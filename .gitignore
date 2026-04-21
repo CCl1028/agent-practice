@@ -1,8 +1,45 @@
+# ---- Python ----
 __pycache__/
 *.pyc
-.env
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
 
-# Frontend
+# ---- Environment ----
+.env
+.env.*
+!.env.example
+
+# ---- Testing & Coverage ----
+.pytest_cache/
+htmlcov/
+coverage.xml
+.coverage
+.coverage.*
+
+# ---- Type Checking ----
+.mypy_cache/
+
+# ---- Linting ----
+.ruff_cache/
+
+# ---- IDE ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---- Frontend ----
 web/node_modules/
 web/dist/
 web/.vite/
+
+# ---- Docker ----
+certbot/
+
+# ---- OS ----
+.DS_Store
+Thumbs.db

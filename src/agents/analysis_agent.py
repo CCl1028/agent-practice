@@ -13,15 +13,15 @@ from __future__ import annotations
 
 import logging
 
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from src.config import OPENAI_API_KEY, OPENAI_BASE_URL, TEXT_MODEL
 from src.state import AgentState
 from src.tools.market_tools import (
+    get_fund_news,
     get_fund_perf_analysis,
     get_fund_profile,
-    get_fund_news,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 # ============================================
 # JSON 解析辅助 — T-010: 增强 LLM JSON 输出解析鲁棒性
 # ============================================
+
 
 def _clean_json_text(text: str) -> str:
     """清理 LLM 输出的 JSON 文本中的常见问题。
@@ -40,14 +41,15 @@ def _clean_json_text(text: str) -> str:
     - 去除 BOM 和特殊不可见字符
     """
     import re
+
     # 去除 BOM
     text = text.lstrip("\ufeff")
     # 去除单行注释（// ...）— 但保留 URL 中的 //
-    text = re.sub(r'(?<!:)//.*?(?=\n|$)', '', text)
+    text = re.sub(r"(?<!:)//.*?(?=\n|$)", "", text)
     # 去除多行注释（/* ... */）
-    text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
     # 去除对象/数组尾逗号（如 {"a": 1,} 或 [1, 2,]）
-    text = re.sub(r',\s*([\]}])', r'\1', text)
+    text = re.sub(r",\s*([\]}])", r"\1", text)
     return text.strip()
 
 
@@ -120,6 +122,7 @@ FALL_REASON_PROMPT = """\
 # ============================================
 # 规则引擎 — 基金诊断打分
 # ============================================
+
 
 def _rate_fund(profile: dict) -> tuple[str, list[str], list[str], str]:
     """基于基金数据进行诊断打分。
@@ -215,6 +218,7 @@ def _rate_fund(profile: dict) -> tuple[str, list[str], list[str], str]:
 # LangGraph 节点
 # ============================================
 
+
 def fund_diagnosis_node(state: AgentState) -> dict:
     """LangGraph 节点：基金买前诊断。"""
     logger.info("[Analysis Agent] 开始基金诊断分析...")
@@ -259,22 +263,25 @@ def fund_diagnosis_node(state: AgentState) -> dict:
             # 构建提示信息
             data_text = f"""
 基金信息：
-- 代码: {profile.get('code', fund_code)}
-- 名称: {profile.get('name', fund_name)}
-- 近1年收益: {profile.get('perf_1y', 0):.2f}%
-- 最大回撤: {profile.get('max_drawdown', 0):.2f}%
-- 基金规模: {profile.get('size_billion', 0):.1f}亿元
-- 波动率: {profile.get('volatility', 0):.2f}%
-- 重仓行业: {', '.join(profile.get('sectors', []))}
-- 基金经理: {profile.get('manager', '未知')}
+- 代码: {profile.get("code", fund_code)}
+- 名称: {profile.get("name", fund_name)}
+- 近1年收益: {profile.get("perf_1y", 0):.2f}%
+- 最大回撤: {profile.get("max_drawdown", 0):.2f}%
+- 基金规模: {profile.get("size_billion", 0):.1f}亿元
+- 波动率: {profile.get("volatility", 0):.2f}%
+- 重仓行业: {", ".join(profile.get("sectors", []))}
+- 基金经理: {profile.get("manager", "未知")}
             """
 
-            response = llm.invoke([
-                SystemMessage(content=FUND_DIAGNOSIS_PROMPT),
-                HumanMessage(content=f"请诊断以下基金是否值得买：\n{data_text}"),
-            ])
+            response = llm.invoke(
+                [
+                    SystemMessage(content=FUND_DIAGNOSIS_PROMPT),
+                    HumanMessage(content=f"请诊断以下基金是否值得买：\n{data_text}"),
+                ]
+            )
 
             import json
+
             text = response.content.strip()
             if text.startswith("```"):
                 text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
@@ -303,7 +310,9 @@ def fund_diagnosis_node(state: AgentState) -> dict:
                 "rating": rating,
                 "pros": pros,
                 "risks": risks,
-                "buy_recommendation": "可以" if rating in ["优秀", "良好"] else ("谨慎" if rating == "中等" else "不建议"),
+                "buy_recommendation": "可以"
+                if rating in ["优秀", "良好"]
+                else ("谨慎" if rating == "中等" else "不建议"),
                 "buy_reason": buy_reason,
                 "summary": f"综合评价：{rating}。{buy_reason}",
                 "profile": profile,
@@ -348,11 +357,11 @@ def fall_reason_node(state: AgentState) -> dict:
 基金今日表现：
 - 代码: {fund_code}
 - 名称: {fund_name}
-- 今日涨跌: {perf_data.get('today_change', 0):+.2f}%
-- 重仓行业: {', '.join(perf_data.get('sectors', []))}
-- 行业涨跌: {perf_data.get('sector_change', '+0.00%')}%
-- 大盘表现: {perf_data.get('market_change', '+0.00%')}%
-- 市场情绪: {perf_data.get('market_sentiment', '中性')}
+- 今日涨跌: {perf_data.get("today_change", 0):+.2f}%
+- 重仓行业: {", ".join(perf_data.get("sectors", []))}
+- 行业涨跌: {perf_data.get("sector_change", "+0.00%")}%
+- 大盘表现: {perf_data.get("market_change", "+0.00%")}%
+- 市场情绪: {perf_data.get("market_sentiment", "中性")}
 
 相关新闻：
 {chr(10).join([f"- {n.get('title', '')}" for n in (news or [])[:5]])}
@@ -372,12 +381,15 @@ def fall_reason_node(state: AgentState) -> dict:
                 max_retries=2,
             )
 
-            response = llm.invoke([
-                SystemMessage(content=FALL_REASON_PROMPT),
-                HumanMessage(content=f"请分析以下基金的涨跌原因：\n{data_text}"),
-            ])
+            response = llm.invoke(
+                [
+                    SystemMessage(content=FALL_REASON_PROMPT),
+                    HumanMessage(content=f"请分析以下基金的涨跌原因：\n{data_text}"),
+                ]
+            )
 
             import json
+
             text = response.content.strip()
             if text.startswith("```"):
                 text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
@@ -389,7 +401,7 @@ def fall_reason_node(state: AgentState) -> dict:
                 "fund_code": fund_code,
                 "fund_name": fund_name,
                 "direction": analysis_data.get("direction", "未知"),
-                "change_ratio": analysis_data.get("change_ratio", perf_data.get('today_change', 0)),
+                "change_ratio": analysis_data.get("change_ratio", perf_data.get("today_change", 0)),
                 "reasons": analysis_data.get("reasons", []),
                 "outlook": analysis_data.get("outlook", ""),
                 "summary": analysis_data.get("summary", ""),
@@ -399,7 +411,7 @@ def fall_reason_node(state: AgentState) -> dict:
 
         except Exception as e:
             logger.warning("[Analysis Agent] LLM 调用失败: %s，使用规则结果", e)
-            today_change = perf_data.get('today_change', 0)
+            today_change = perf_data.get("today_change", 0)
             direction = "上涨" if today_change > 0 else ("下跌" if today_change < 0 else "平盘")
             reasons = [
                 f"所属{perf_data.get('sectors', ['行业'])[0]}板块{perf_data.get('sector_change', '+0.00%')}%变化",

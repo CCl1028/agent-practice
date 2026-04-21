@@ -110,6 +110,7 @@ def format_news_for_prompt(news_items: list[dict]) -> str:
 
 # ---- 内部实现 ----
 
+
 def _search_with_cache(query: str, max_results: int = 3) -> list[dict]:
     """带缓存的搜索入口（T-006: 线程安全）。"""
     cache_key = f"{query}:{max_results}"
@@ -182,11 +183,14 @@ def _search(query: str, max_results: int = 3) -> list[dict]:
             logger.warning("[SerpAPI] 搜索失败: %s", e)
 
     # 全部未配置或全部失败
-    logger.debug("[新闻搜索] 无可用搜索引擎，请配置至少一个: TAVILY_API_KEY / BOCHA_API_KEY / BRAVE_API_KEY / SERPAPI_API_KEY")
+    logger.debug(
+        "[新闻搜索] 无可用搜索引擎，请配置至少一个: TAVILY_API_KEY / BOCHA_API_KEY / BRAVE_API_KEY / SERPAPI_API_KEY"
+    )
     return []
 
 
 # ---- 各搜索引擎实现 ----
+
 
 def _search_tavily(query: str, api_key: str, max_results: int) -> list[dict]:
     """Tavily 搜索 — https://tavily.com/ 免费 1000 次/月。"""
@@ -220,12 +224,14 @@ def _search_bocha(query: str, api_key: str, max_results: int) -> list[dict]:
 
     results = []
     for item in data.get("web_results", data.get("results", []))[:max_results]:
-        results.append({
-            "title": item.get("title", ""),
-            "snippet": (item.get("summary", "") or item.get("description", "") or "")[:200],
-            "url": item.get("url", ""),
-            "source": "bocha",
-        })
+        results.append(
+            {
+                "title": item.get("title", ""),
+                "snippet": (item.get("summary", "") or item.get("description", "") or "")[:200],
+                "url": item.get("url", ""),
+                "source": "bocha",
+            }
+        )
     return results
 
 
@@ -244,12 +250,14 @@ def _search_brave(query: str, api_key: str, max_results: int) -> list[dict]:
 
     results = []
     for item in data.get("web", {}).get("results", [])[:max_results]:
-        results.append({
-            "title": item.get("title", ""),
-            "snippet": (item.get("description", "") or "")[:200],
-            "url": item.get("url", ""),
-            "source": "brave",
-        })
+        results.append(
+            {
+                "title": item.get("title", ""),
+                "snippet": (item.get("description", "") or "")[:200],
+                "url": item.get("url", ""),
+                "source": "brave",
+            }
+        )
     return results
 
 

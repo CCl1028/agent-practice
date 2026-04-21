@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 # 熔断器（T-004: 添加线程安全锁）
 # ============================================
 
+
 class CircuitBreaker:
     """数据源熔断器 — 管理各数据源的熔断/冷却状态（线程安全）
 
@@ -65,7 +66,9 @@ class CircuitBreaker:
             if state["failures"] >= self.failure_threshold:
                 logger.warning(
                     "[熔断器] %s 连续失败 %d 次，进入熔断（冷却 %.0fs）",
-                    source, state["failures"], self.cooldown_seconds,
+                    source,
+                    state["failures"],
+                    self.cooldown_seconds,
                 )
 
     def get_status(self) -> dict[str, str]:
@@ -91,6 +94,7 @@ _estimation_breaker = CircuitBreaker(failure_threshold=3, cooldown_seconds=300)
 # ============================================
 # 数据源抽象基类
 # ============================================
+
 
 class BaseFundFetcher(ABC):
     """基金数据源抽象基类。"""
@@ -120,6 +124,7 @@ class BaseFundFetcher(ABC):
 # ============================================
 # AKShare 数据源
 # ============================================
+
 
 class AKShareFetcher(BaseFundFetcher):
     """AKShare 数据源 — 东方财富。"""
@@ -152,6 +157,7 @@ class AKShareFetcher(BaseFundFetcher):
 
     def get_fund_estimation(self, fund_code: str) -> dict | None:
         import akshare as ak
+
         from src.tools.market_tools import is_trading_hours
 
         if is_trading_hours():
@@ -172,6 +178,7 @@ class AKShareFetcher(BaseFundFetcher):
 # ============================================
 # Efinance 数据源（备用）
 # ============================================
+
 
 class EfinanceFetcher(BaseFundFetcher):
     """Efinance 数据源 — 东方财富（第二渠道）。"""
@@ -227,6 +234,7 @@ class EfinanceFetcher(BaseFundFetcher):
 # 统一管理器
 # ============================================
 
+
 def _init_fetchers() -> list[BaseFundFetcher]:
     """初始化并按优先级排序的数据源列表。"""
     fetchers: list[BaseFundFetcher] = [AKShareFetcher()]
@@ -234,6 +242,7 @@ def _init_fetchers() -> list[BaseFundFetcher]:
     # 尝试加载 efinance
     try:
         import efinance  # noqa: F401
+
         fetchers.append(EfinanceFetcher())
     except ImportError:
         logger.debug("[数据源] efinance 未安装，跳过")
@@ -276,6 +285,7 @@ def get_fund_nav_multi_source(fund_code: str) -> dict:
 
     logger.error("[数据源] 所有数据源获取 %s 净值失败，使用 mock", fund_code)
     from src.tools.market_tools import _mock_fund_nav
+
     return _mock_fund_nav(fund_code)
 
 
@@ -299,6 +309,7 @@ def get_fund_estimation_multi_source(fund_code: str) -> dict | None:
 
     # 所有数据源都失败，回退到收盘净值计算
     from src.tools.market_tools import _get_last_close_change
+
     return _get_last_close_change(fund_code)
 
 

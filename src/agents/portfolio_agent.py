@@ -49,8 +49,11 @@ def portfolio_node(state: AgentState) -> dict:
         for f in portfolio:
             logger.info(
                 "  %s (%s): 成本 %.2f → 现价 %.2f, 盈亏 %.2f%%",
-                f["fund_name"], f["fund_code"],
-                f["cost_nav"], f["current_nav"], f["profit_ratio"],
+                f["fund_name"],
+                f["fund_code"],
+                f["cost_nav"],
+                f["current_nav"],
+                f["profit_ratio"],
             )
 
         return {"portfolio": portfolio}

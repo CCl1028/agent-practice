@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from src.config import OPENAI_API_KEY, OPENAI_BASE_URL, TEXT_MODEL
@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # JSON 解析辅助 — T-010: 增强 LLM JSON 输出解析鲁棒性
 # ============================================
 
+
 def _clean_json_text(text: str) -> str:
     """清理 LLM 输出的 JSON 文本中的常见问题。
 
@@ -33,15 +34,17 @@ def _clean_json_text(text: str) -> str:
     - 去除 BOM 和特殊不可见字符
     """
     import re
+
     # 去除 BOM
     text = text.lstrip("\ufeff")
     # 去除单行注释（// ...）— 但保留 URL 中的 //
-    text = re.sub(r'(?<!:)//.*?(?=\n|$)', '', text)
+    text = re.sub(r"(?<!:)//.*?(?=\n|$)", "", text)
     # 去除多行注释（/* ... */）
-    text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
     # 去除对象/数组尾逗号（如 {"a": 1,} 或 [1, 2,]）
-    text = re.sub(r',\s*([\]}])', r'\1', text)
+    text = re.sub(r",\s*([\]}])", r"\1", text)
     return text.strip()
+
 
 # ============================================
 # System Prompt — v2 升级版
@@ -84,6 +87,7 @@ SYSTEM_PROMPT = """\
 # ============================================
 # 增强规则引擎 — v2
 # ============================================
+
 
 def _rule_engine(fund: FundHolding) -> tuple[str, str, int, str]:
     """增强规则引擎：6 维决策。
@@ -199,6 +203,7 @@ def _rule_engine(fund: FundHolding) -> tuple[str, str, int, str]:
 # 构建 LLM Prompt 数据
 # ============================================
 
+
 def _build_data_text(state: AgentState) -> str:
     """将 state 数据整理成文本，供 LLM 使用。v2 新增技术指标和新闻。"""
     lines = ["## 持仓数据\n"]
@@ -227,9 +232,7 @@ def _build_data_text(state: AgentState) -> str:
             f"波动率:{f.get('volatility_5d', 0):.2f}%"
         )
 
-        lines.append(
-            f"  近5日趋势: {f.get('trend_5d', [])}{est_info}"
-        )
+        lines.append(f"  近5日趋势: {f.get('trend_5d', [])}{est_info}")
         lines.append(f"  规则初判: {action}({score}分) — {reason}")
         if risk:
             lines.append(f"  ⚠️ 风险: {risk}")
@@ -239,9 +242,7 @@ def _build_data_text(state: AgentState) -> str:
         if news_items:
             lines.append("  📰 相关新闻:")
             for item in news_items[:4]:
-                dim_emoji = {"latest": "📰", "risk": "🚨", "performance": "📊"}.get(
-                    item.get("dimension", ""), "📰"
-                )
+                dim_emoji = {"latest": "📰", "risk": "🚨", "performance": "📊"}.get(item.get("dimension", ""), "📰")
                 lines.append(f"    {dim_emoji} {item.get('title', '')}")
                 snippet = item.get("snippet", "")
                 if snippet:
@@ -263,6 +264,7 @@ def _build_data_text(state: AgentState) -> str:
 # ============================================
 # LangGraph 节点
 # ============================================
+
 
 def briefing_node(state: AgentState) -> dict:
     """LangGraph 节点：生成每日简报。"""
@@ -286,14 +288,16 @@ def briefing_node(state: AgentState) -> dict:
     for f in portfolio:
         action, reason, score, risk_note = _rule_engine(f)
         confidence = "高" if score >= 70 else ("中" if score >= 50 else "低")
-        details.append({
-            "fund_name": f["fund_name"],
-            "action": action,
-            "reason": reason,
-            "confidence": confidence,
-            "score": score,
-            "risk_note": risk_note,
-        })
+        details.append(
+            {
+                "fund_name": f["fund_name"],
+                "action": action,
+                "reason": reason,
+                "confidence": confidence,
+                "score": score,
+                "risk_note": risk_note,
+            }
+        )
         if risk_note:
             global_risks.append(f"{f['fund_name']}: {risk_note}")
 
@@ -312,14 +316,15 @@ def briefing_node(state: AgentState) -> dict:
         )
 
         data_text = _build_data_text(state)
-        response = llm.invoke([
-            SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=(
-                f"以下是今日数据，请生成操作建议。\n\n{data_text}"
-            )),
-        ])
+        response = llm.invoke(
+            [
+                SystemMessage(content=SYSTEM_PROMPT),
+                HumanMessage(content=(f"以下是今日数据，请生成操作建议。\n\n{data_text}")),
+            ]
+        )
 
         import json
+
         text = response.content.strip()
         if text.startswith("```"):
             text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
@@ -331,14 +336,16 @@ def briefing_node(state: AgentState) -> dict:
         llm_details = briefing_data.get("details", [])
         parsed_details = []
         for d in llm_details:
-            parsed_details.append({
-                "fund_name": d.get("fund_name", ""),
-                "action": d.get("action", "观望"),
-                "reason": d.get("reason", ""),
-                "confidence": d.get("confidence", "中"),
-                "score": d.get("score", 50),
-                "risk_note": d.get("risk_note", ""),
-            })
+            parsed_details.append(
+                {
+                    "fund_name": d.get("fund_name", ""),
+                    "action": d.get("action", "观望"),
+                    "reason": d.get("reason", ""),
+                    "confidence": d.get("confidence", "中"),
+                    "score": d.get("score", 50),
+                    "risk_note": d.get("risk_note", ""),
+                }
+            )
 
         briefing: Briefing = {
             "summary": briefing_data.get("summary", "今日建议已生成"),

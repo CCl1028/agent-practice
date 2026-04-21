@@ -5,7 +5,6 @@ from __future__ import annotations
 import collections
 import logging
 import os
-import shutil
 import tempfile
 import traceback
 from contextlib import asynccontextmanager
@@ -15,8 +14,6 @@ from pathlib import Path
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
-from typing import Optional
-
 from fastapi import FastAPI, File, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -32,8 +29,10 @@ from src.tools.push_tools import get_push_status, push_briefing
 # ---- 内存日志收集器 ----
 MAX_LOG_LINES = 500
 
+
 class _MemoryLogHandler(logging.Handler):
     """将日志存入内存环形缓冲区，供前端查看。"""
+
     def __init__(self, maxlen: int = MAX_LOG_LINES):
         super().__init__()
         self.buffer: collections.deque[dict] = collections.deque(maxlen=maxlen)
@@ -55,14 +54,17 @@ class _MemoryLogHandler(logging.Handler):
         logs = list(self.buffer)
         if level:
             level_upper = level.upper()
-            logs = [l for l in logs if l["level"] == level_upper]
+            logs = [entry for entry in logs if entry["level"] == level_upper]
         return logs[-limit:]
 
     def clear(self):
         self.buffer.clear()
 
+
 memory_log_handler = _MemoryLogHandler(maxlen=MAX_LOG_LINES)
-memory_log_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s — %(message)s", datefmt="%H:%M:%S"))
+memory_log_handler.setFormatter(
+    logging.Formatter("%(asctime)s [%(levelname)s] %(name)s — %(message)s", datefmt="%H:%M:%S")
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -103,6 +105,7 @@ def _scheduled_push():
 def _scheduled_estimation_refresh():
     """定时任务：每 10 分钟刷新持仓估值缓存。"""
     from src.tools.market_tools import refresh_estimation_cache
+
     try:
         holdings = load_portfolio()
         codes = [h.get("fund_code", "") for h in holdings if h.get("fund_code")]
@@ -150,6 +153,7 @@ async def lifespan(app_instance):
 
     # T-003: 启动时配置验证
     from src.config import validate_config
+
     validate_config()
 
     push_time = _get_push_time()
@@ -157,6 +161,7 @@ async def lifespan(app_instance):
 
     # 每 10 分钟刷新估值缓存
     from apscheduler.triggers.interval import IntervalTrigger
+
     scheduler.add_job(
         _scheduled_estimation_refresh,
         trigger=IntervalTrigger(minutes=10),
@@ -169,6 +174,7 @@ async def lifespan(app_instance):
 
     # 启动时立即预热一次估值缓存
     import threading
+
     threading.Thread(target=_scheduled_estimation_refresh, daemon=True).start()
 
     yield
@@ -196,6 +202,7 @@ app.add_middleware(
 
 
 # ---- Models ----
+
 
 class BriefingResponse(BaseModel):
     notification: str
@@ -230,10 +237,12 @@ class ParseResult(BaseModel):
 
 # ---- API Routes ----
 
+
 @app.post("/api/briefing", response_model=BriefingResponse)
-async def generate_briefing(input: HoldingsInput = None):
+async def generate_briefing(input: HoldingsInput | None = None):
     """生成每日简报（支持接收前端传来的持仓）"""
     import asyncio
+
     holdings = input.holdings if input and input.holdings else load_portfolio()
     # T-008: 使用 asyncio.to_thread 避免阻塞事件循环
     # T-009: 添加全局超时控制（120 秒）
@@ -242,7 +251,7 @@ async def generate_briefing(input: HoldingsInput = None):
             asyncio.to_thread(langgraph_app.invoke, {"trigger": "daily_briefing", "holdings": holdings}),
             timeout=120.0,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error("[简报生成] 超时（120秒）")
         return JSONResponse(status_code=504, content={"error": "简报生成超时，请稍后重试"})
     briefing = result.get("briefing", {})
@@ -280,6 +289,7 @@ async def add_from_text(input: TextInput):
     except Exception as e:
         logger.error("add-text 失败: %s", e)
         from fastapi.responses import JSONResponse
+
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
@@ -288,23 +298,23 @@ async def parse_text(input: TextInput):
     """解析自然语言持仓描述（只解析不保存）"""
     import asyncio
     from functools import partial
+
     try:
         # 整体超时 45 秒，防止长时间阻塞
         loop = asyncio.get_event_loop()
         # 传入 config（包含用户的 API Key 配置）
         func = partial(parse_natural_language, input.text, input.config)
-        new_holdings = await asyncio.wait_for(
-            loop.run_in_executor(None, func),
-            timeout=45.0
-        )
+        new_holdings = await asyncio.wait_for(loop.run_in_executor(None, func), timeout=45.0)
         return ParseResult(parsed=new_holdings or [])
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error("parse-text 超时（45秒）")
         from fastapi.responses import JSONResponse
+
         return JSONResponse(status_code=504, content={"error": "解析超时，请稍后重试"})
     except Exception as e:
         logger.error("parse-text 失败: %s", e)
         from fastapi.responses import JSONResponse
+
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
@@ -337,13 +347,14 @@ async def add_from_screenshot(file: UploadFile = File(...)):
     except Exception as e:
         logger.error("add-screenshot 失败: %s", e, exc_info=True)
         from fastapi.responses import JSONResponse
+
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @app.post("/api/portfolio/parse-screenshot", response_model=ParseResult)
 async def parse_screenshot(
     file: UploadFile = File(...),
-    config: str = None,  # JSON string of config (FormData doesn't support nested objects)
+    config: str | None = None,  # JSON string of config (FormData doesn't support nested objects)
 ):
     """截图识别持仓（只解析不保存）"""
     try:
@@ -354,6 +365,7 @@ async def parse_screenshot(
         if config:
             try:
                 import json as json_mod
+
                 cfg = json_mod.loads(config)
             except Exception:
                 pass
@@ -371,6 +383,7 @@ async def parse_screenshot(
     except Exception as e:
         logger.error("parse-screenshot 失败: %s", e, exc_info=True)
         from fastapi.responses import JSONResponse
+
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
@@ -390,6 +403,7 @@ async def health():
 
 # ---- 日志查看 ----
 
+
 @app.get("/api/logs")
 async def get_logs(limit: int = Query(200, ge=1, le=500), level: str = Query(None)):
     """获取最近的应用日志"""
@@ -408,6 +422,7 @@ async def clear_logs():
 async def version():
     """获取当前版本信息"""
     import json
+
     version_file = Path(__file__).parent / "version.json"
     if version_file.exists():
         try:
@@ -419,8 +434,9 @@ async def version():
 
 # ---- 持仓刷新（根据最新净值更新市值和收益率） ----
 
+
 @app.post("/api/portfolio/refresh")
-async def refresh_portfolio(input: HoldingsInput = None):
+async def refresh_portfolio(input: HoldingsInput | None = None):
     """根据最新净值，为每只基金计算当前市值和收益率。
 
     前端传入持仓列表（含 cost / cost_nav），后端查最新净值后返回更新后的持仓。
@@ -448,9 +464,7 @@ async def refresh_portfolio(input: HoldingsInput = None):
 
             if cost_nav and cost_nav > 0 and current_nav > 0:
                 # 有成本净值：精确计算收益率和当前市值
-                item["profit_ratio"] = round(
-                    (current_nav - cost_nav) / cost_nav * 100, 2
-                )
+                item["profit_ratio"] = round((current_nav - cost_nav) / cost_nav * 100, 2)
                 # 优先使用已有 shares，否则用 cost / cost_nav 反算
                 shares = h.get("shares", 0)
                 if not shares and cost > 0:
@@ -478,8 +492,9 @@ async def refresh_portfolio(input: HoldingsInput = None):
 
 # ---- 盘中估值 ----
 
+
 @app.post("/api/estimation")
-async def post_estimation(input: HoldingsInput = None):
+async def post_estimation(input: HoldingsInput | None = None):
     """获取持仓的估值（POST 方式，接收前端传来的持仓）"""
     from src.tools.market_tools import get_fund_estimation, is_trading_hours
 
@@ -487,14 +502,16 @@ async def post_estimation(input: HoldingsInput = None):
     results = []
     for h in holdings:
         est = get_fund_estimation(h.get("fund_code", ""))
-        results.append({
-            "fund_code": h.get("fund_code", ""),
-            "fund_name": h.get("fund_name", ""),
-            "est_change": est["est_change"] if est else None,
-            "est_nav": est["est_nav"] if est else None,
-            "est_time": est["est_time"] if est else None,
-            "is_live": est.get("is_live", False) if est else None,
-        })
+        results.append(
+            {
+                "fund_code": h.get("fund_code", ""),
+                "fund_name": h.get("fund_name", ""),
+                "est_change": est["est_change"] if est else None,
+                "est_nav": est["est_nav"] if est else None,
+                "est_time": est["est_time"] if est else None,
+                "is_live": est.get("is_live", False) if est else None,
+            }
+        )
     return {
         "trading_hours": is_trading_hours(),
         "funds": results,
@@ -510,14 +527,16 @@ async def get_estimation():
     results = []
     for h in holdings:
         est = get_fund_estimation(h.get("fund_code", ""))
-        results.append({
-            "fund_code": h.get("fund_code", ""),
-            "fund_name": h.get("fund_name", ""),
-            "est_change": est["est_change"] if est else None,
-            "est_nav": est["est_nav"] if est else None,
-            "est_time": est["est_time"] if est else None,
-            "is_live": est.get("is_live", False) if est else None,
-        })
+        results.append(
+            {
+                "fund_code": h.get("fund_code", ""),
+                "fund_name": h.get("fund_name", ""),
+                "est_change": est["est_change"] if est else None,
+                "est_nav": est["est_nav"] if est else None,
+                "est_time": est["est_time"] if est else None,
+                "is_live": est.get("is_live", False) if est else None,
+            }
+        )
     return {
         "trading_hours": is_trading_hours(),
         "funds": results,
@@ -526,27 +545,31 @@ async def get_estimation():
 
 # ---- 历史净值 ----
 
+
 @app.get("/api/fund/{fund_code}/nav-history")
 async def get_nav_history(fund_code: str, start: str = Query(""), end: str = Query("")):
     """获取基金历史净值（用于定投补执行按历史净值计算）"""
     from src.tools.market_tools import get_fund_nav_history
+
     try:
         nav_list = get_fund_nav_history(fund_code, start, end)
         return {"fund_code": fund_code, "nav_list": nav_list}
     except Exception as e:
         logger.error("获取历史净值失败: %s", e)
         from fastapi.responses import JSONResponse
+
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 # ---- 推送相关 ----
+
 
 class PushTestInput(BaseModel):
     config: dict = {}  # 前端传入的推送配置
 
 
 @app.post("/api/push/status")
-async def push_status_post(input: PushTestInput = None):
+async def push_status_post(input: PushTestInput | None = None):
     """获取推送渠道配置状态（POST，接受前端传入配置）"""
     config = input.config if input else {}
     return get_push_status(config=config or None)
@@ -559,7 +582,7 @@ async def push_status():
 
 
 @app.post("/api/push/test")
-async def test_push(input: PushTestInput = None):
+async def test_push(input: PushTestInput | None = None):
     """测试推送（发送一条测试消息）"""
     config = input.config if input else {}
     test_briefing = {
@@ -579,9 +602,10 @@ async def test_push(input: PushTestInput = None):
 
 
 @app.post("/api/briefing-and-push")
-async def generate_and_push(input: HoldingsInput = None):
+async def generate_and_push(input: HoldingsInput | None = None):
     """生成简报并推送"""
     import asyncio
+
     holdings = input.holdings if input and input.holdings else load_portfolio()
     config = input.config if input and input.config else {}
     # T-008/T-009: 异步调用 + 超时控制
@@ -590,7 +614,7 @@ async def generate_and_push(input: HoldingsInput = None):
             asyncio.to_thread(langgraph_app.invoke, {"trigger": "daily_briefing", "holdings": holdings}),
             timeout=120.0,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error("[简报推送] 超时（120秒）")
         return JSONResponse(status_code=504, content={"error": "简报生成超时，请稍后重试"})
     briefing = result.get("briefing", {})
@@ -604,17 +628,17 @@ async def generate_and_push(input: HoldingsInput = None):
     }
 
 
-
-
-
 # ---- 配置管理 ----
 
 ENV_PATH = Path(__file__).parent / ".env"
 
 # 允许通过网页配置的 key（白名单，防止注入危险配置）
 ALLOWED_KEYS = {
-    "OPENAI_API_KEY", "OPENAI_BASE_URL",
-    "BARK_URL", "SERVERCHAN_KEY", "WECOM_WEBHOOK_URL",
+    "OPENAI_API_KEY",
+    "OPENAI_BASE_URL",
+    "BARK_URL",
+    "SERVERCHAN_KEY",
+    "WECOM_WEBHOOK_URL",
 }
 
 # 需要脱敏显示的 key
@@ -655,7 +679,7 @@ def _write_env(env: dict[str, str]) -> None:
     """将 dict 写回 .env 文件（仅白名单 key）。"""
     all_env = _read_env_all()
     for k in ALLOWED_KEYS:
-        if k in env and env[k]:
+        if env.get(k):
             all_env[k] = env[k]
         else:
             all_env.pop(k, None)
@@ -703,6 +727,7 @@ async def update_config(item: ConfigUpdate):
     """更新单个配置项"""
     if item.key not in ALLOWED_KEYS:
         from fastapi.responses import JSONResponse
+
         return JSONResponse(status_code=400, content={"error": f"不允许修改 {item.key}"})
 
     env = _read_env()
@@ -748,8 +773,8 @@ if static_dir.exists():
         return FileResponse(static_dir / "index.html")
 
 
-
 # ---- 基金诊断和分析 ----
+
 
 class FundDiagnosisResponse(BaseModel):
     rating: str
@@ -758,7 +783,7 @@ class FundDiagnosisResponse(BaseModel):
     buy_recommendation: str
     buy_reason: str
     summary: str
-    profile: Optional[dict] = None
+    profile: dict | None = None
 
 
 class FundAnalysisRequest(BaseModel):
@@ -772,31 +797,32 @@ class FundExplanationResponse(BaseModel):
     reasons: list
     outlook: str
     summary: str
-    perf_data: Optional[dict] = None
+    perf_data: dict | None = None
 
 
 @app.post("/api/fund-diagnosis", response_model=FundDiagnosisResponse)
 async def fund_diagnosis(request: FundAnalysisRequest):
     """基金诊断 — 分析基金是否值得买"""
     import asyncio
+
     try:
         if not request.fund_code and not request.fund_name:
-            return JSONResponse(
-                status_code=400,
-                content={"error": "fund_code 或 fund_name 必填"}
-            )
+            return JSONResponse(status_code=400, content={"error": "fund_code 或 fund_name 必填"})
 
         # T-008/T-009: 异步调用 + 超时控制
         try:
             result = await asyncio.wait_for(
-                asyncio.to_thread(langgraph_app.invoke, {
-                    "trigger": "fund_diagnosis",
-                    "query_fund_code": request.fund_code,
-                    "query_fund_name": request.fund_name,
-                }),
+                asyncio.to_thread(
+                    langgraph_app.invoke,
+                    {
+                        "trigger": "fund_diagnosis",
+                        "query_fund_code": request.fund_code,
+                        "query_fund_name": request.fund_name,
+                    },
+                ),
                 timeout=60.0,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("[基金诊断] 超时（60秒）")
             return JSONResponse(status_code=504, content={"error": "诊断超时，请稍后重试"})
 
@@ -805,10 +831,7 @@ async def fund_diagnosis(request: FundAnalysisRequest):
 
         if error or not diagnosis:
             logger.error("[基金诊断] 分析失败: %s", error or "未知错误")
-            return JSONResponse(
-                status_code=500,
-                content={"error": error or "诊断失败"}
-            )
+            return JSONResponse(status_code=500, content={"error": error or "诊断失败"})
 
         return FundDiagnosisResponse(
             rating=diagnosis.get("rating", ""),
@@ -829,24 +852,25 @@ async def fund_diagnosis(request: FundAnalysisRequest):
 async def fund_explanation(request: FundAnalysisRequest):
     """基金分析 — 分析基金涨跌原因"""
     import asyncio
+
     try:
         if not request.fund_code and not request.fund_name:
-            return JSONResponse(
-                status_code=400,
-                content={"error": "fund_code 或 fund_name 必填"}
-            )
+            return JSONResponse(status_code=400, content={"error": "fund_code 或 fund_name 必填"})
 
         # T-008/T-009: 异步调用 + 超时控制
         try:
             result = await asyncio.wait_for(
-                asyncio.to_thread(langgraph_app.invoke, {
-                    "trigger": "fall_analysis",
-                    "query_fund_code": request.fund_code,
-                    "query_fund_name": request.fund_name,
-                }),
+                asyncio.to_thread(
+                    langgraph_app.invoke,
+                    {
+                        "trigger": "fall_analysis",
+                        "query_fund_code": request.fund_code,
+                        "query_fund_name": request.fund_name,
+                    },
+                ),
                 timeout=60.0,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("[基金分析] 超时（60秒）")
             return JSONResponse(status_code=504, content={"error": "分析超时，请稍后重试"})
 
@@ -855,10 +879,7 @@ async def fund_explanation(request: FundAnalysisRequest):
 
         if error or not fall_analysis:
             logger.error("[基金分析] 分析失败: %s", error or "未知错误")
-            return JSONResponse(
-                status_code=500,
-                content={"error": error or "分析失败"}
-            )
+            return JSONResponse(status_code=500, content={"error": error or "分析失败"})
 
         return FundExplanationResponse(
             direction=fall_analysis.get("direction", ""),

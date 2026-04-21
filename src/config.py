@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 # 函数式配置获取（支持热更新）
 # ============================================
 
+
 def get_openai_api_key() -> str:
     """获取 OpenAI API Key（每次调用读最新环境变量）。"""
     return os.getenv("OPENAI_API_KEY", "")
@@ -119,6 +120,7 @@ def __getattr__(name: str):
 # 配置验证（启动时调用）
 # ============================================
 
+
 def validate_config() -> list[str]:
     """验证配置完整性，返回警告信息列表。
 
@@ -131,37 +133,33 @@ def validate_config() -> list[str]:
     base_url = get_openai_base_url()
 
     if not api_key:
-        warnings.append(
-            "OPENAI_API_KEY 未配置 — LLM 功能将降级为规则引擎模式"
-        )
+        warnings.append("OPENAI_API_KEY 未配置 — LLM 功能将降级为规则引擎模式")
 
     if base_url and not base_url.startswith(("http://", "https://")):
-        warnings.append(
-            f"OPENAI_BASE_URL 格式无效: {base_url!r}（应以 http:// 或 https:// 开头）"
-        )
+        warnings.append(f"OPENAI_BASE_URL 格式无效: {base_url!r}（应以 http:// 或 https:// 开头）")
 
     # 检查推送配置
-    has_push = any([
-        get_serverchan_key(),
-        get_wecom_webhook_url(),
-        get_bark_url(),
-    ])
+    has_push = any(
+        [
+            get_serverchan_key(),
+            get_wecom_webhook_url(),
+            get_bark_url(),
+        ]
+    )
     if not has_push:
-        warnings.append(
-            "未配置任何推送渠道（SERVERCHAN_KEY / WECOM_WEBHOOK_URL / BARK_URL）— 推送功能不可用"
-        )
+        warnings.append("未配置任何推送渠道（SERVERCHAN_KEY / WECOM_WEBHOOK_URL / BARK_URL）— 推送功能不可用")
 
     # 检查搜索配置
-    has_search = any([
-        get_tavily_api_key(),
-        get_bocha_api_key(),
-        get_brave_api_key(),
-        get_serpapi_api_key(),
-    ])
+    has_search = any(
+        [
+            get_tavily_api_key(),
+            get_bocha_api_key(),
+            get_brave_api_key(),
+            get_serpapi_api_key(),
+        ]
+    )
     if not has_search:
-        warnings.append(
-            "未配置搜索引擎 API Key — 新闻搜索功能将不可用"
-        )
+        warnings.append("未配置搜索引擎 API Key — 新闻搜索功能将不可用")
 
     # 输出所有警告
     for w in warnings:

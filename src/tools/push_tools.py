@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 def _get_config(override: dict | None = None):
     """获取推送配置。
-    
+
     如果 override 非空（前端传来了用户配置），则只使用 override 中的值，
     不 fallback 到 .env，避免用户未配置时推送到开发者的渠道。
     如果 override 为空/None，才读 .env（用于后端直接调用的场景）。
@@ -40,6 +40,7 @@ def _get_config(override: dict | None = None):
 
 
 # ---- Bark ----
+
 
 def push_to_bark(title: str, body: str, group: str = "基金管家", config: dict | None = None) -> bool:
     """通过 Bark 推送消息到 iPhone。"""
@@ -74,6 +75,7 @@ def push_to_bark(title: str, body: str, group: str = "基金管家", config: dic
 
 # ---- Server酱 ----
 
+
 def push_to_serverchan(title: str, content: str = "", config: dict | None = None) -> bool:
     """通过 Server酱 推送消息到微信。"""
     cfg = _get_config(config)
@@ -98,6 +100,7 @@ def push_to_serverchan(title: str, content: str = "", config: dict | None = None
 
 
 # ---- 企业微信 ----
+
 
 def push_to_wecom(content: str, config: dict | None = None) -> bool:
     """通过企业微信 Webhook 推送消息到群。"""
@@ -126,6 +129,7 @@ def push_to_wecom(content: str, config: dict | None = None) -> bool:
 
 
 # ---- 格式化 ----
+
 
 def format_briefing_for_push(briefing: dict) -> tuple[str, str]:
     """将简报数据格式化为推送内容。"""
@@ -214,6 +218,7 @@ def format_briefing_for_wecom(briefing: dict) -> str:
 
 
 # ---- 统一推送 ----
+
 
 def push_briefing(briefing: dict, config: dict | None = None) -> dict:
     """推送简报到所有已配置的渠道。config 可覆盖 .env 配置。"""

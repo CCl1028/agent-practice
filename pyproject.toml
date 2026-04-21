@@ -1,0 +1,108 @@
+[project]
+name = "fundpal"
+version = "1.2.0"
+description = "基金投资助手 — AI 驱动的基金分析与每日简报系统"
+requires-python = ">=3.11"
+readme = "README.md"
+license = { text = "MIT" }
+
+# ============================================
+# Ruff — 代码风格与静态检查
+# ============================================
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort (import sorting)
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific rules
+]
+ignore = [
+    "E501",   # 行长由 line-length 控制，某些特殊行允许超长
+    "B008",   # FastAPI Depends() 在参数默认值中调用函数是正常模式
+    "RUF001", # 允许中文字符（项目本身服务中文用户）
+    "RUF002", # 允许中文标点
+    "RUF003", # 允许注释中的中文
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011", "SIM"]  # 测试文件允许 assert True 和稍复杂的表达式
+
+# ============================================
+# Mypy — 渐进式类型检查
+# ============================================
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true        # 渐进式：先容忍第三方缺类型
+disallow_untyped_defs = false        # 渐进式：不强制所有函数写类型
+check_untyped_defs = true            # 但已有类型的函数体内要检查
+no_implicit_optional = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "akshare.*",
+    "efinance.*",
+    "apscheduler.*",
+    "tavily.*",
+    "serpapi.*",
+    "langchain.*",
+    "langchain_openai.*",
+    "langchain_core.*",
+    "langgraph.*",
+]
+ignore_missing_imports = true
+
+# ============================================
+# Pytest — 测试配置
+# ============================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "-x",                             # 首次失败即停止（CI 模式快速反馈）
+]
+markers = [
+    "slow: 运行较慢的测试（可用 -m 'not slow' 跳过）",
+    "integration: 集成测试（依赖外部服务）",
+]
+asyncio_mode = "auto"                 # pytest-asyncio 自动模式
+
+# ============================================
+# Coverage — 覆盖率配置
+# ============================================
+[tool.coverage.run]
+source = ["src", "server"]
+omit = [
+    "tests/*",
+    "src/__pycache__/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 30                       # 起步门槛 30%，随测试补全逐步提高
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.",
+    "if TYPE_CHECKING:",
+]

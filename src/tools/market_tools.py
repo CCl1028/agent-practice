@@ -36,6 +36,7 @@ def get_fund_name_by_code(fund_code: str) -> str | None:
 
     try:
         import akshare as ak
+
         # fund_name_em 返回所有基金的代码+名称列表
         df = ak.fund_name_em()
         if df is not None and not df.empty:
@@ -63,25 +64,26 @@ _name_cache_lock = threading.Lock()
 
 def _ensure_name_cache(timeout: float = 10.0) -> None:
     """确保基金名称缓存已加载（供反向查找使用）。
-    
+
     Args:
         timeout: 加载超时时间（秒），超时后直接返回，不阻塞调用方
     """
     global _name_cache_loading
-    
+
     if _fund_name_cache:
         return
-    
+
     # 防止多线程重复加载
     with _name_cache_lock:
         if _fund_name_cache or _name_cache_loading:
             return
         _name_cache_loading = True
-    
+
     def _load_cache():
         global _name_cache_loading
         try:
             import akshare as ak
+
             df = ak.fund_name_em()
             if df is not None and not df.empty:
                 for _, row in df.iterrows():
@@ -94,12 +96,12 @@ def _ensure_name_cache(timeout: float = 10.0) -> None:
             logger.warning("[基金名称] AKShare 加载基金列表失败: %s", e)
         finally:
             _name_cache_loading = False
-    
+
     # 使用线程加载，设置超时
     load_thread = threading.Thread(target=_load_cache, daemon=True)
     load_thread.start()
     load_thread.join(timeout=timeout)
-    
+
     if load_thread.is_alive():
         logger.warning("[基金名称] 加载基金列表超时（%.1fs），跳过校验", timeout)
 
@@ -147,7 +149,12 @@ def get_fund_code_by_name(fund_name: str) -> str | None:
 
         # 3. 去掉常见后缀后再试
         import re
-        cleaned = re.sub(r'(混合|股票|债券|指数|联接|增强|优选|精选|成长|价值|平衡|稳健|灵活配置|LOF|ETF|QDII|FOF)[A-Ca-c]?$', '', query).strip()
+
+        cleaned = re.sub(
+            r"(混合|股票|债券|指数|联接|增强|优选|精选|成长|价值|平衡|稳健|灵活配置|LOF|ETF|QDII|FOF)[A-Ca-c]?$",
+            "",
+            query,
+        ).strip()
         if cleaned and cleaned != query:
             for code, name in _fund_name_cache.items():
                 if cleaned in name or name.startswith(cleaned):
@@ -176,9 +183,9 @@ def _search_fund_online(fund_name: str) -> tuple[str, str] | None:
     Returns:
         (fund_code, fund_name) 元组，搜索失败返回 None。
     """
+    import json as json_mod
     import urllib.parse
     import urllib.request
-    import json as json_mod
 
     try:
         encoded = urllib.parse.quote(fund_name)
@@ -210,7 +217,7 @@ def _search_fund_online(fund_name: str) -> tuple[str, str] | None:
 
 def verify_and_fix_fund(fund_code: str, fund_name: str, timeout: float = 5.0) -> tuple[str, str]:
     """验证基金代码与名称是否匹配，不匹配时尝试修正。
-    
+
     Args:
         fund_code: 基金代码
         fund_name: 基金名称
@@ -229,18 +236,19 @@ def verify_and_fix_fund(fund_code: str, fund_name: str, timeout: float = 5.0) ->
         real_name = _fund_name_cache.get(fund_code)
         if real_name:
             # 代码有效，检查名称是否大致匹配
-            if fund_name and fund_name != "未知基金":
-                # 名称完全不相关 → 代码可能是 LLM 猜错的
-                if fund_name not in real_name and real_name not in fund_name:
-                    # 用名称反查正确代码
-                    correct_code = get_fund_code_by_name(fund_name)
-                    if correct_code:
-                        correct_name = _fund_name_cache.get(correct_code, fund_name)
-                        logger.info(
-                            "[基金校正] 代码名称不匹配！代码 %s→%s 名称 %s→%s",
-                            fund_code, correct_code, real_name, correct_name,
-                        )
-                        return correct_code, correct_name
+            if fund_name and fund_name != "未知基金" and fund_name not in real_name and real_name not in fund_name:
+                # 名称完全不相关 → 代码可能是 LLM 猜错的，用名称反查正确代码
+                correct_code = get_fund_code_by_name(fund_name)
+                if correct_code:
+                    correct_name = _fund_name_cache.get(correct_code, fund_name)
+                    logger.info(
+                        "[基金校正] 代码名称不匹配！代码 %s→%s 名称 %s→%s",
+                        fund_code,
+                        correct_code,
+                        real_name,
+                        correct_name,
+                    )
+                    return correct_code, correct_name
             # 代码有效且名称匹配（或无名称可比对），用真实名称
             return fund_code, real_name
         else:
@@ -251,7 +259,10 @@ def verify_and_fix_fund(fund_code: str, fund_name: str, timeout: float = 5.0) ->
                     correct_name = _fund_name_cache.get(correct_code, fund_name)
                     logger.info(
                         "[基金校正] 无效代码 %s，通过名称 %s 反查到 %s (%s)",
-                        fund_code, fund_name, correct_code, correct_name,
+                        fund_code,
+                        fund_name,
+                        correct_code,
+                        correct_name,
                     )
                     return correct_code, correct_name
             return fund_code, fund_name
@@ -316,6 +327,7 @@ def _fetch_fund_estimation(fund_code: str) -> dict | None:
         # 交易时段：尝试获取实时估值
         try:
             import akshare as ak
+
             df = ak.fund_value_estimation_em()
             if df is not None and not df.empty:
                 row = df[df["基金代码"] == fund_code]
@@ -350,6 +362,7 @@ def refresh_estimation_cache(fund_codes: list[str]) -> dict[str, dict | None]:
     if is_trading_hours():
         try:
             import akshare as ak
+
             df = ak.fund_value_estimation_em()
             if df is not None and not df.empty:
                 for _, r in df.iterrows():
@@ -365,11 +378,7 @@ def refresh_estimation_cache(fund_codes: list[str]) -> dict[str, dict | None]:
             logger.warning("[估值缓存] 批量拉取实时估值失败: %s", e)
 
     for code in fund_codes:
-        if code in bulk_data:
-            est = bulk_data[code]
-        else:
-            # QDII 等不在估值列表中的，逐个拉取收盘数据
-            est = _get_last_close_change(code)
+        est = bulk_data[code] if code in bulk_data else _get_last_close_change(code)
         if est:
             with _estimation_cache_lock:
                 _estimation_cache[code] = {**est, "cached_at": time.time()}
@@ -394,6 +403,7 @@ def _get_last_close_change(fund_code: str) -> dict | None:
     """根据最近两个交易日净值，计算上一交易日收盘涨跌幅。"""
     try:
         import akshare as ak
+
         df = ak.fund_open_fund_info_em(symbol=fund_code, indicator="单位净值走势")
         if df is not None and not df.empty and len(df) >= 2:
             latest = df.iloc[-1]
@@ -450,6 +460,7 @@ def get_fund_nav(fund_code: str) -> dict:
     """获取基金最新净值，优先 AKShare，失败则 mock。"""
     try:
         import akshare as ak
+
         df = ak.fund_open_fund_info_em(symbol=fund_code, indicator="单位净值走势")
         if df is not None and not df.empty:
             latest = df.iloc[-1]
@@ -483,6 +494,7 @@ def get_fund_nav_history(fund_code: str, start: str = "", end: str = "") -> list
     """
     try:
         import akshare as ak
+
         df = ak.fund_open_fund_info_em(symbol=fund_code, indicator="单位净值走势")
         if df is not None and not df.empty:
             result = []
@@ -506,13 +518,11 @@ def get_sector_performance() -> list[dict]:
     """获取主要板块涨跌，优先 AKShare，失败则 mock。"""
     try:
         import akshare as ak
+
         df = ak.stock_board_industry_name_em()
         if df is not None and not df.empty:
             top = df.head(10)
-            return [
-                {"name": row["板块名称"], "change": round(float(row["涨跌幅"]), 2)}
-                for _, row in top.iterrows()
-            ]
+            return [{"name": row["板块名称"], "change": round(float(row["涨跌幅"]), 2)} for _, row in top.iterrows()]
     except Exception as e:
         logger.warning("AKShare 获取板块数据失败: %s，使用 mock 数据", e)
 
@@ -532,6 +542,7 @@ def get_market_news() -> list[str]:
 
 # ---- Mock 数据 ----
 
+
 def _mock_fund_nav(fund_code: str) -> dict:
     """Mock 基金净值数据"""
     mock_db = {
@@ -539,13 +550,15 @@ def _mock_fund_nav(fund_code: str) -> dict:
         "161725": {"current_nav": 1.85, "trend_5d": [1.2, 0.8, 1.5, -0.3, 0.9]},
         "110011": {"current_nav": 4.52, "trend_5d": [-0.5, -0.2, 0.3, -0.8, -0.4]},
     }
-    data = mock_db.get(fund_code, {
-        "current_nav": 1.50,
-        "trend_5d": [0.1, -0.2, 0.3, -0.1, 0.2],
-    })
+    data = mock_db.get(
+        fund_code,
+        {
+            "current_nav": 1.50,
+            "trend_5d": [0.1, -0.2, 0.3, -0.1, 0.2],
+        },
+    )
     data["date"] = datetime.now().strftime("%Y-%m-%d")
     return data
-
 
 
 def _mock_sector_performance() -> list[dict]:
@@ -562,9 +575,10 @@ def _mock_sector_performance() -> list[dict]:
 
 # ---- 新增: 基金诊断数据获取 ----
 
+
 def get_fund_profile(fund_code_or_name: str) -> dict | None:
     """获取基金基本信息用于诊断分析。
-    
+
     Returns:
         {
             "code": "005827",
@@ -583,43 +597,43 @@ def get_fund_profile(fund_code_or_name: str) -> dict | None:
     fund_code = fund_code_or_name
     if not fund_code or len(fund_code) != 6:
         fund_code = get_fund_code_by_name(fund_code_or_name)
-    
+
     if not fund_code or len(fund_code) != 6:
         logger.warning("[基金诊断] 无法解析基金代码: %s", fund_code_or_name)
         return None
-    
+
     try:
         import akshare as ak
-        
+
         # 获取基金基本信息
         df = ak.fund_open_fund_info_em(symbol=fund_code, indicator="基本信息")
         if df is None or df.empty:
             raise ValueError("API returned empty data")
-        
+
         row = df.iloc[0]
         fund_name = get_fund_name_by_code(fund_code) or row.get("基金名称", "")
-        
+
         # 解析数据
         perf_1y = _parse_percentage(row.get("近1年", "0%"))
         perf_3y = _parse_percentage(row.get("近3年", "0%"))
         max_dd = _parse_percentage(row.get("最大回撤", "0%"))
-        
+
         # 获取规模（单位：亿元）
         size_str = str(row.get("基金规模", "0")).strip()
         try:
             size_billion = float(size_str) if size_str and size_str != "0" else 50.0
-        except:
+        except ValueError:
             size_billion = 50.0
-        
+
         # 获取波动率
         volatility = _parse_percentage(row.get("波动率", "10%")) or 10.0
-        
+
         # Mock 重仓行业（实际可从 AKShare 的持仓接口获取）
         sectors = _get_mock_sectors(fund_code)
-        
+
         # Mock 基金经理信息
         manager = row.get("基金经理", "未知")
-        
+
         result = {
             "code": fund_code,
             "name": fund_name,
@@ -632,10 +646,10 @@ def get_fund_profile(fund_code_or_name: str) -> dict | None:
             "manager": manager,
             "manager_perf": "良好" if perf_1y and perf_1y > 10 else ("一般" if perf_1y and perf_1y > 0 else "较弱"),
         }
-        
+
         logger.info("[基金诊断] 获取 %s(%s) 信息成功", fund_name, fund_code)
         return result
-        
+
     except Exception as e:
         logger.warning("[基金诊断] 获取基金 %s 信息失败: %s，使用 mock", fund_code, e)
         return _mock_fund_profile(fund_code)
@@ -643,7 +657,7 @@ def get_fund_profile(fund_code_or_name: str) -> dict | None:
 
 def get_fund_perf_analysis(fund_code_or_name: str) -> dict | None:
     """获取基金今日涨跌分析数据。
-    
+
     Returns:
         {
             "code": "005827",
@@ -659,28 +673,28 @@ def get_fund_perf_analysis(fund_code_or_name: str) -> dict | None:
     fund_code = fund_code_or_name
     if not fund_code or len(fund_code) != 6:
         fund_code = get_fund_code_by_name(fund_code_or_name)
-    
+
     if not fund_code or len(fund_code) != 6:
         logger.warning("[涨跌分析] 无法解析基金代码: %s", fund_code_or_name)
         return _mock_perf_analysis(fund_code_or_name)  # 使用 mock 数据
-    
+
     try:
         # 获取今日估值
         nav_data = get_fund_nav(fund_code)
         today_change = nav_data.get("trend_5d", [0])[-1] if nav_data.get("trend_5d") else 0
-        
+
         # 获取板块信息
         sectors = _get_mock_sectors(fund_code)
         sector_perf = get_sector_performance()
         sector_change = sum(s["change"] for s in sector_perf if s["name"] in sectors) / len(sectors) if sectors else 0
-        
+
         # 大盘表现
         market_perf = get_sector_performance()
         market_change = market_perf[0]["change"] if market_perf else 0
-        
+
         # 市场情绪
         market_sentiment = _judge_sentiment(market_perf)
-        
+
         result = {
             "code": fund_code,
             "name": get_fund_name_by_code(fund_code) or "未知基金",
@@ -690,10 +704,10 @@ def get_fund_perf_analysis(fund_code_or_name: str) -> dict | None:
             "market_change": market_change,
             "market_sentiment": market_sentiment,
         }
-        
+
         logger.info("[涨跌分析] %s 今日涨跌 %+.2f%%", result["name"], today_change)
         return result
-        
+
     except Exception as e:
         logger.warning("[涨跌分析] 获取基金 %s 今日数据失败: %s", fund_code, e)
         return _mock_perf_analysis(fund_code)
@@ -701,9 +715,10 @@ def get_fund_perf_analysis(fund_code_or_name: str) -> dict | None:
 
 # ---- 辅助函数 ----
 
+
 def _parse_percentage(s: str | float) -> float | None:
     """将字符串百分比转换为浮点数。
-    
+
     Examples:
         "15.5%" → 15.5
         "15.50" → 15.50
@@ -711,18 +726,18 @@ def _parse_percentage(s: str | float) -> float | None:
     """
     if isinstance(s, (int, float)):
         return float(s)
-    
+
     if not isinstance(s, str):
         return None
-    
+
     s = s.strip()
     if not s:
         return None
-    
+
     try:
         s = s.replace("%", "").strip()
         return float(s)
-    except:
+    except ValueError:
         return None
 
 
@@ -779,15 +794,16 @@ def _mock_perf_analysis(fund_code: str) -> dict:
 
 def get_fund_news(fund_name: str, fund_code: str = "") -> list[dict]:
     """获取基金相关新闻（集成多个搜索引擎）。
-    
+
     Args:
         fund_name: 基金名称
         fund_code: 基金代码（可选）
-    
+
     Returns:
         新闻列表，每项包含 title, snippet, url, source
     """
     from src.tools.news_tools import search_fund_news
+
     try:
         news = search_fund_news(fund_name, fund_code)
         logger.info("[基金新闻] 获取 %s(%s) 共 %d 条新闻", fund_name, fund_code, len(news))

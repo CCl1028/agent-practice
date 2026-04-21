@@ -14,10 +14,10 @@ import logging
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from src.agents.analysis_agent import fall_reason_node, fund_diagnosis_node
 from src.agents.briefing_agent import briefing_node
 from src.agents.market_agent import market_node
 from src.agents.portfolio_agent import portfolio_node
-from src.agents.analysis_agent import fund_diagnosis_node, fall_reason_node
 from src.state import AgentState
 
 logger = logging.getLogger(__name__)
@@ -28,17 +28,13 @@ def supervisor_router(state: AgentState) -> str:
     trigger = state.get("trigger", "daily_briefing")
     logger.info("[Supervisor] 触发类型: %s", trigger)
 
-    if trigger == "new_portfolio":
-        return "portfolio_only"
-    elif trigger == "fund_diagnosis":
-        return "fund_diagnosis"
-    elif trigger == "fall_analysis":
-        return "fall_analysis"
-    elif trigger == "user_query":
-        # 后期迭代：解析用户意图，分流
-        return "full_analysis"
-    else:
-        return "full_analysis"
+    route_map = {
+        "new_portfolio": "portfolio_only",
+        "fund_diagnosis": "fund_diagnosis",
+        "fall_analysis": "fall_analysis",
+        "user_query": "full_analysis",
+    }
+    return route_map.get(trigger, "full_analysis")
 
 
 def build_graph() -> CompiledStateGraph:

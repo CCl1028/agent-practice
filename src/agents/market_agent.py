@@ -42,7 +42,7 @@ def market_node(state: AgentState) -> dict:
         fund_news: dict[str, list[dict]] = {}
 
         try:
-            from src.tools.news_tools import search_market_news, search_fund_news
+            from src.tools.news_tools import search_fund_news, search_market_news
 
             # 大盘/行业新闻
             market_news_items = search_market_news()
@@ -82,7 +82,10 @@ def market_node(state: AgentState) -> dict:
 
         logger.info(
             "[Market Agent] 完成，情绪: %s, 板块: %d 个, 新闻: %d 条, 基金新闻: %d 只",
-            sentiment, len(sectors), len(hot_news), len(fund_news),
+            sentiment,
+            len(sectors),
+            len(hot_news),
+            len(fund_news),
         )
         return {"market": market}
 

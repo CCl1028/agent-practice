@@ -1,5 +1,4 @@
-version: "3.8"
-
+# Docker Compose V2 — version 字段已废弃，无需声明
 services:
   fund-assistant:
     build:

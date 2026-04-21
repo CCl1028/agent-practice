@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 
 from src.state import FundHolding
@@ -47,7 +46,7 @@ def compute_metrics(portfolio: list[FundHolding]) -> list[FundHolding]:
     - 乖离率（现价偏离 MA5 的百分比）
     - 5日波动率
     """
-    from src.tools.data_provider import get_fund_nav_multi_source, get_fund_estimation_multi_source
+    from src.tools.data_provider import get_fund_estimation_multi_source, get_fund_nav_multi_source
 
     updated = []
     for fund in portfolio:
@@ -58,18 +57,14 @@ def compute_metrics(portfolio: list[FundHolding]) -> list[FundHolding]:
 
         # 盈亏计算
         if fund.get("cost_nav", 0) > 0:
-            fund["profit_ratio"] = round(
-                (fund["current_nav"] - fund["cost_nav"]) / fund["cost_nav"] * 100, 2
-            )
+            fund["profit_ratio"] = round((fund["current_nav"] - fund["cost_nav"]) / fund["cost_nav"] * 100, 2)
             # 补算 shares 和 profit_amount
             shares = fund.get("shares", 0)
             if not shares and fund.get("cost", 0) > 0:
                 shares = round(fund["cost"] / fund["cost_nav"], 2)
                 fund["shares"] = shares
             if shares > 0:
-                fund["profit_amount"] = round(
-                    shares * (fund["current_nav"] - fund["cost_nav"]), 2
-                )
+                fund["profit_amount"] = round(shares * (fund["current_nav"] - fund["cost_nav"]), 2)
 
         # --- v2 新增：技术指标计算 ---
         nav_history = nav_data.get("nav_history", [])
@@ -150,7 +145,7 @@ def _mock_portfolio() -> list[FundHolding]:
             "fund_name": "易方达蓝筹精选",
             "cost": 20000,
             "cost_nav": 2.15,
-            "current_nav": 0,   # 待刷新
+            "current_nav": 0,  # 待刷新
             "profit_ratio": 0,  # 待计算
             "profit_amount": 0,
             "shares": 9302.33,

@@ -19,9 +19,7 @@ ACTION_EMOJI = {
 def format_push_notification(briefing: Briefing) -> str:
     """第一层：推送通知 — 1秒看完"""
     summary = briefing.get("summary", "暂无建议")
-    has_action = any(
-        d["action"] not in ("观望", "持有") for d in briefing.get("details", [])
-    )
+    has_action = any(d["action"] not in ("观望", "持有") for d in briefing.get("details", []))
     has_risk = bool(briefing.get("risk_alerts"))
     if has_risk:
         emoji = "⚠️"
@@ -107,13 +105,15 @@ def format_full_report(briefing: Briefing) -> str:
 
 def format_all(briefing: Briefing) -> str:
     """输出所有三层格式"""
-    return "\n\n".join([
-        "【推送通知】",
-        format_push_notification(briefing),
-        "",
-        "【简报卡片】",
-        format_briefing_card(briefing),
-        "",
-        "【完整报告】",
-        format_full_report(briefing),
-    ])
+    return "\n\n".join(
+        [
+            "【推送通知】",
+            format_push_notification(briefing),
+            "",
+            "【简报卡片】",
+            format_briefing_card(briefing),
+            "",
+            "【完整报告】",
+            format_full_report(briefing),
+        ]
+    )

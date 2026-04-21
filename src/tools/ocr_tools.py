@@ -12,8 +12,12 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from src.config import (
-    OPENAI_API_KEY, OPENAI_BASE_URL, TEXT_MODEL,
-    VISION_MODEL, VISION_API_KEY, VISION_BASE_URL,
+    OPENAI_API_KEY,
+    OPENAI_BASE_URL,
+    TEXT_MODEL,
+    VISION_API_KEY,
+    VISION_BASE_URL,
+    VISION_MODEL,
 )
 
 logger = logging.getLogger(__name__)
@@ -80,9 +84,9 @@ def _image_to_base64_url(image_path: str) -> str:
     return f"data:{mime_type};base64,{b64}"
 
 
-def ocr_image_with_vision(image_path: str, config: dict = None) -> list[dict]:
+def ocr_image_with_vision(image_path: str, config: dict | None = None) -> list[dict]:
     """用多模态 LLM 直接从图片中识别并提取持仓数据。
-    
+
     Args:
         image_path: 图片文件路径
         config: 可选配置（当前不使用，视觉模型固定使用服务端配置）
@@ -91,22 +95,21 @@ def ocr_image_with_vision(image_path: str, config: dict = None) -> list[dict]:
     api_key = VISION_API_KEY
     base_url = VISION_BASE_URL
     model = VISION_MODEL
-    
+
     # 检查 API Key 是否配置
     if not api_key:
         raise ValueError(
             "未配置视觉模型 API Key。请在设置中填写 API Key，或配置 VISION_API_KEY 环境变量。\n"
             "提示：需要支持图片输入的多模态模型（如 GPT-4o、GLM-4V、Qwen-VL）"
         )
-    
+
     # 检查是否使用了不支持图片的模型
     non_vision_models = ["deepseek-chat", "deepseek-coder", "gpt-3.5-turbo", "gpt-4-turbo"]
     if model.lower() in [m.lower() for m in non_vision_models]:
         logger.warning(
-            "[Vision OCR] 警告：%s 模型不支持图片输入！建议使用 gpt-4o、glm-4v 或 qwen-vl 等多模态模型",
-            model
+            "[Vision OCR] 警告：%s 模型不支持图片输入！建议使用 gpt-4o、glm-4v 或 qwen-vl 等多模态模型", model
         )
-    
+
     logger.info("[Vision OCR] 使用多模态模型: %s (base_url: %s)", model, base_url)
 
     image_url = _image_to_base64_url(image_path)
@@ -121,32 +124,33 @@ def ocr_image_with_vision(image_path: str, config: dict = None) -> list[dict]:
     )
 
     try:
-        response = llm.invoke([
-            SystemMessage(content=PARSE_PROMPT),
-            HumanMessage(content=[
-                {"type": "text", "text": "请识别这张基金App截图中的持仓信息："},
-                {"type": "image_url", "image_url": {"url": image_url, "detail": "high"}},
-            ]),
-        ])
+        response = llm.invoke(
+            [
+                SystemMessage(content=PARSE_PROMPT),
+                HumanMessage(
+                    content=[
+                        {"type": "text", "text": "请识别这张基金App截图中的持仓信息："},
+                        {"type": "image_url", "image_url": {"url": image_url, "detail": "high"}},
+                    ]
+                ),
+            ]
+        )
     except Exception as e:
         error_msg = str(e).lower()
         if "invalid api key" in error_msg or "authentication" in error_msg:
-            raise ValueError(f"API Key 无效或已过期，请检查配置: {e}")
+            raise ValueError(f"API Key 无效或已过期，请检查配置: {e}") from e
         elif "rate limit" in error_msg:
-            raise ValueError(f"API 请求频率超限，请稍后重试: {e}")
+            raise ValueError(f"API 请求频率超限，请稍后重试: {e}") from e
         elif "model" in error_msg and ("not found" in error_msg or "does not exist" in error_msg):
             raise ValueError(
-                f"模型 {model} 不存在或不支持。\n"
-                f"当前 base_url: {base_url}\n"
-                f"请检查模型配置是否正确: {e}"
-            )
+                f"模型 {model} 不存在或不支持。\n当前 base_url: {base_url}\n请检查模型配置是否正确: {e}"
+            ) from e
         elif "image" in error_msg or "vision" in error_msg or "multimodal" in error_msg:
             raise ValueError(
-                f"模型 {model} 可能不支持图片输入。\n"
-                f"请使用支持图片的多模态模型（如 gpt-4o、glm-4v、Qwen-VL）: {e}"
-            )
+                f"模型 {model} 可能不支持图片输入。\n请使用支持图片的多模态模型（如 gpt-4o、glm-4v、Qwen-VL）: {e}"
+            ) from e
         else:
-            raise ValueError(f"视觉模型调用失败: {e}")
+            raise ValueError(f"视觉模型调用失败: {e}") from e
 
     text = response.content.strip()
     logger.info("[Vision OCR] LLM 返回:\n%s", text)
@@ -173,6 +177,7 @@ def ocr_image(image_path: str) -> str:
     """用 PaddleOCR 识别图片中的文字（备选方案）。"""
     try:
         import os
+
         os.environ["PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK"] = "True"
         from paddleocr import PaddleOCR
 
@@ -209,10 +214,12 @@ def parse_ocr_text(ocr_text: str) -> list[dict]:
         temperature=0,
     )
 
-    response = llm.invoke([
-        SystemMessage(content=PARSE_TEXT_PROMPT),
-        HumanMessage(content=f"以下是从基金App截图中OCR识别的文字：\n\n{ocr_text}"),
-    ])
+    response = llm.invoke(
+        [
+            SystemMessage(content=PARSE_TEXT_PROMPT),
+            HumanMessage(content=f"以下是从基金App截图中OCR识别的文字：\n\n{ocr_text}"),
+        ]
+    )
 
     text = response.content.strip()
     if text.startswith("```"):
@@ -269,7 +276,11 @@ def _enrich_holdings(holdings: list[dict]) -> list[dict]:
                 cost_nav = round(invested / shares, 4)
                 logger.info(
                     "[反算] %s: cost_nav = (%.2f - %.2f) / %.2f = %.4f",
-                    h["fund_name"], cost, profit_amount, shares, cost_nav,
+                    h["fund_name"],
+                    cost,
+                    profit_amount,
+                    shares,
+                    cost_nav,
                 )
                 h["cost_nav"] = cost_nav
 
@@ -278,7 +289,10 @@ def _enrich_holdings(holdings: list[dict]) -> list[dict]:
                 cost_nav = round(current_nav / (1 + profit_ratio / 100), 4)
                 logger.info(
                     "[反算] %s: cost_nav = %.4f / (1 + %.2f%%) = %.4f",
-                    h["fund_name"], current_nav, profit_ratio, cost_nav,
+                    h["fund_name"],
+                    current_nav,
+                    profit_ratio,
+                    cost_nav,
                 )
                 h["cost_nav"] = cost_nav
 
@@ -293,7 +307,10 @@ def _enrich_holdings(holdings: list[dict]) -> list[dict]:
             h["shares"] = round(h["cost"] / h["cost_nav"], 2)
             logger.info(
                 "[补算] %s: shares = %.2f / %.4f = %.2f",
-                h["fund_name"], h["cost"], h["cost_nav"], h["shares"],
+                h["fund_name"],
+                h["cost"],
+                h["cost_nav"],
+                h["shares"],
             )
 
         # 双向校验：代码↔名称，修正 LLM 可能猜错的代码
@@ -303,7 +320,10 @@ def _enrich_holdings(holdings: list[dict]) -> list[dict]:
         if corrected_code != old_code or corrected_name != old_name:
             logger.info(
                 "[OCR Parser] 校正基金: %s(%s) → %s(%s)",
-                old_name, old_code, corrected_name, corrected_code,
+                old_name,
+                old_code,
+                corrected_name,
+                corrected_code,
             )
         h["fund_code"] = corrected_code
         h["fund_name"] = corrected_name
@@ -311,12 +331,12 @@ def _enrich_holdings(holdings: list[dict]) -> list[dict]:
     return holdings
 
 
-def process_screenshot(image_path: str, config: dict = None) -> list[dict]:
+def process_screenshot(image_path: str, config: dict | None = None) -> list[dict]:
     """完整流程：截图 → 识别 → 结构化持仓。
 
     优先使用多模态 LLM 直接识别图片；
     如果 VISION_MODEL 不可用，则回退到 PaddleOCR + LLM 解析。
-    
+
     Args:
         image_path: 图片文件路径
         config: 可选配置，支持传入 OPENAI_API_KEY 和 OPENAI_BASE_URL

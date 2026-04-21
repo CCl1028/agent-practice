@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 
 def run_daily_briefing() -> None:
     """运行每日简报流程。"""
-    from src.graph import app
     from src.formatter import format_all
+    from src.graph import app
 
     logger.info("🚀 启动每日简报生成...")
 
@@ -43,6 +43,7 @@ def run_daily_briefing() -> None:
 
     # 自动推送到微信
     from src.tools.push_tools import push_briefing
+
     push_results = push_briefing(briefing)
     for channel, status in push_results.items():
         if status is True:
@@ -56,10 +57,10 @@ def run_daily_briefing() -> None:
 
 def run_add_from_screenshot(image_path: str) -> None:
     """截图识别录入持仓。"""
+    from src.formatter import format_all
+    from src.graph import app
     from src.tools.ocr_tools import process_screenshot
     from src.tools.portfolio_tools import load_portfolio, save_portfolio
-    from src.graph import app
-    from src.formatter import format_all
 
     logger.info("📸 开始处理截图: %s", image_path)
 
@@ -70,8 +71,7 @@ def run_add_from_screenshot(image_path: str) -> None:
 
     print("\n📋 识别到以下持仓：")
     for i, h in enumerate(holdings, 1):
-        print(f"  {i}. {h['fund_name']}({h['fund_code']}) "
-              f"金额:{h['cost']} 收益率:{h['profit_ratio']}%")
+        print(f"  {i}. {h['fund_name']}({h['fund_code']}) 金额:{h['cost']} 收益率:{h['profit_ratio']}%")
 
     # 合并保存
     existing = load_portfolio()
@@ -95,10 +95,10 @@ def run_add_from_screenshot(image_path: str) -> None:
 
 def run_add_from_text(text: str) -> None:
     """自然语言录入持仓。"""
+    from src.formatter import format_all
+    from src.graph import app
     from src.tools.nlp_input import parse_natural_language
     from src.tools.portfolio_tools import load_portfolio, save_portfolio
-    from src.graph import app
-    from src.formatter import format_all
 
     logger.info("💬 解析自然语言: %s", text)
 
@@ -109,8 +109,7 @@ def run_add_from_text(text: str) -> None:
 
     print("\n📋 解析到以下持仓：")
     for i, h in enumerate(holdings, 1):
-        print(f"  {i}. {h['fund_name']}({h['fund_code']}) "
-              f"金额:{h['cost']} 收益率:{h['profit_ratio']}%")
+        print(f"  {i}. {h['fund_name']}({h['fund_code']}) 金额:{h['cost']} 收益率:{h['profit_ratio']}%")
 
     # 合并保存
     existing = load_portfolio()

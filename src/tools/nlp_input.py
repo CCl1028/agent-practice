@@ -46,9 +46,9 @@ EXTRACT_PROMPT = """\
 """
 
 
-def parse_natural_language(user_text: str, config: dict = None) -> list[dict]:
+def parse_natural_language(user_text: str, config: dict | None = None) -> list[dict]:
     """从自然语言描述中提取持仓信息。
-    
+
     Args:
         user_text: 用户输入的自然语言描述
         config: 可选配置，支持传入 OPENAI_API_KEY 和 OPENAI_BASE_URL
@@ -60,7 +60,7 @@ def parse_natural_language(user_text: str, config: dict = None) -> list[dict]:
     config = config or {}
     api_key = config.get("OPENAI_API_KEY") or OPENAI_API_KEY
     base_url = config.get("OPENAI_BASE_URL") or OPENAI_BASE_URL
-    
+
     if not api_key:
         logger.error("[NLP Input] 未配置 API Key，无法调用 LLM")
         return []
@@ -76,10 +76,12 @@ def parse_natural_language(user_text: str, config: dict = None) -> list[dict]:
 
     today = datetime.now().strftime("%Y年%m月%d日")
     try:
-        response = llm.invoke([
-            SystemMessage(content=EXTRACT_PROMPT.format(today=today)),
-            HumanMessage(content=user_text),
-        ])
+        response = llm.invoke(
+            [
+                SystemMessage(content=EXTRACT_PROMPT.format(today=today)),
+                HumanMessage(content=user_text),
+            ]
+        )
     except Exception as e:
         logger.error("[NLP Input] LLM 调用失败（可能超时）: %s", e)
         return []
@@ -113,9 +115,7 @@ def parse_natural_language(user_text: str, config: dict = None) -> list[dict]:
                         invested = h["cost"] - h["profit_amount"]
                         h["cost_nav"] = round(invested / h["shares"], 4)
                     elif h["current_nav"] > 0 and h["profit_ratio"] != 0:
-                        h["cost_nav"] = round(
-                            h["current_nav"] / (1 + h["profit_ratio"] / 100), 4
-                        )
+                        h["cost_nav"] = round(h["current_nav"] / (1 + h["profit_ratio"] / 100), 4)
 
                 # 补算 shares
                 if h["shares"] <= 0 and h["cost"] > 0 and h["cost_nav"] > 0:
@@ -128,7 +128,10 @@ def parse_natural_language(user_text: str, config: dict = None) -> list[dict]:
                 if corrected_code != old_code or corrected_name != old_name:
                     logger.info(
                         "[NLP Input] 校正基金: %s(%s) → %s(%s)",
-                        old_name, old_code, corrected_name, corrected_code,
+                        old_name,
+                        old_code,
+                        corrected_name,
+                        corrected_code,
                     )
                 h["fund_code"] = corrected_code
                 h["fund_name"] = corrected_name
