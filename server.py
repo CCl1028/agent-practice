@@ -20,6 +20,12 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from src.core.exceptions import (
+    BriefingTimeoutError,
+    ConfigError,
+    FundPalError,
+    ValidationError,
+)
 from src.formatter import format_briefing_card, format_full_report, format_push_notification
 from src.graph import app as langgraph_app
 from src.tools.nlp_input import parse_natural_language
@@ -203,6 +209,19 @@ app.add_middleware(
 )
 
 
+# ---- 全局异常处理器 ----
+
+
+@app.exception_handler(FundPalError)
+async def fundpal_error_handler(request, exc: FundPalError):
+    """统一处理 FundPalError 及其子类，返回结构化 JSON 错误响应。"""
+    logger.error("[%s] %s", exc.code, exc.message)
+    return JSONResponse(
+        status_code=exc.status,
+        content={"error": exc.message, "code": exc.code},
+    )
+
+
 # ---- Models ----
 
 
@@ -255,7 +274,7 @@ async def generate_briefing(input: HoldingsInput | None = None):
         )
     except TimeoutError:
         logger.error("[简报生成] 超时（120秒）")
-        return JSONResponse(status_code=504, content={"error": "简报生成超时，请稍后重试"})
+        raise BriefingTimeoutError("简报生成超时，请稍后重试") from None
     briefing = result.get("briefing", {})
     return BriefingResponse(
         notification=format_push_notification(briefing),
@@ -286,9 +305,7 @@ async def add_from_text(input: TextInput):
         return AddResult(added=new_holdings, total=len(merged))
     except Exception as e:
         logger.error("add-text 失败: %s", e)
-        from fastapi.responses import JSONResponse
-
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        raise FundPalError(f"录入失败: {e}") from e
 
 
 @app.post("/api/portfolio/parse-text", response_model=ParseResult)
@@ -299,21 +316,16 @@ async def parse_text(input: TextInput):
 
     try:
         # 整体超时 45 秒，防止长时间阻塞
-        loop = asyncio.get_event_loop()
-        # 传入 config（包含用户的 API Key 配置）
+        # T-043: 使用 asyncio.to_thread 替换废弃的 asyncio.get_event_loop()
         func = partial(parse_natural_language, input.text, input.config)
-        new_holdings = await asyncio.wait_for(loop.run_in_executor(None, func), timeout=45.0)
+        new_holdings = await asyncio.wait_for(asyncio.to_thread(func), timeout=45.0)
         return ParseResult(parsed=new_holdings or [])
     except TimeoutError:
         logger.error("parse-text 超时（45秒）")
-        from fastapi.responses import JSONResponse
-
-        return JSONResponse(status_code=504, content={"error": "解析超时，请稍后重试"})
+        raise BriefingTimeoutError("解析超时，请稍后重试") from None
     except Exception as e:
         logger.error("parse-text 失败: %s", e)
-        from fastapi.responses import JSONResponse
-
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        raise FundPalError(f"解析失败: {e}") from e
 
 
 @app.post("/api/portfolio/add-screenshot", response_model=AddResult)
@@ -340,9 +352,7 @@ async def add_from_screenshot(file: UploadFile = File(...)):
         return AddResult(added=new_holdings, total=len(merged))
     except Exception as e:
         logger.error("add-screenshot 失败: %s", e, exc_info=True)
-        from fastapi.responses import JSONResponse
-
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        raise FundPalError(f"截图识别失败: {e}") from e
 
 
 @app.post("/api/portfolio/parse-screenshot", response_model=ParseResult)
@@ -376,9 +386,7 @@ async def parse_screenshot(
         return ParseResult(parsed=new_holdings or [])
     except Exception as e:
         logger.error("parse-screenshot 失败: %s", e, exc_info=True)
-        from fastapi.responses import JSONResponse
-
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        raise FundPalError(f"截图解析失败: {e}") from e
 
 
 @app.delete("/api/portfolio/{fund_code}")
@@ -516,9 +524,7 @@ async def get_nav_history(fund_code: str, start: str = Query(""), end: str = Que
         return {"fund_code": fund_code, "nav_list": nav_list}
     except Exception as e:
         logger.error("获取历史净值失败: %s", e)
-        from fastapi.responses import JSONResponse
-
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        raise FundPalError(f"获取历史净值失败: {e}") from e
 
 
 # ---- 推送相关 ----
@@ -576,7 +582,7 @@ async def generate_and_push(input: HoldingsInput | None = None):
         )
     except TimeoutError:
         logger.error("[简报推送] 超时（120秒）")
-        return JSONResponse(status_code=504, content={"error": "简报生成超时，请稍后重试"})
+        raise BriefingTimeoutError("简报生成超时，请稍后重试") from None
     briefing = result.get("briefing", {})
     push_results = push_briefing(briefing, config=config or None)
     return {
@@ -686,9 +692,7 @@ async def get_config():
 async def update_config(item: ConfigUpdate):
     """更新单个配置项"""
     if item.key not in ALLOWED_KEYS:
-        from fastapi.responses import JSONResponse
-
-        return JSONResponse(status_code=400, content={"error": f"不允许修改 {item.key}"})
+        raise ConfigError(f"不允许修改 {item.key}")
 
     env = _read_env()
     if item.value:
@@ -767,7 +771,7 @@ async def fund_diagnosis(request: FundAnalysisRequest):
 
     try:
         if not request.fund_code and not request.fund_name:
-            return JSONResponse(status_code=400, content={"error": "fund_code 或 fund_name 必填"})
+            raise ValidationError("fund_code 或 fund_name 必填")
 
         # T-008/T-009: 异步调用 + 超时控制
         try:
@@ -784,14 +788,14 @@ async def fund_diagnosis(request: FundAnalysisRequest):
             )
         except TimeoutError:
             logger.error("[基金诊断] 超时（60秒）")
-            return JSONResponse(status_code=504, content={"error": "诊断超时，请稍后重试"})
+            raise BriefingTimeoutError("诊断超时，请稍后重试") from None
 
         diagnosis = result.get("diagnosis")
         error = result.get("error")
 
         if error or not diagnosis:
             logger.error("[基金诊断] 分析失败: %s", error or "未知错误")
-            return JSONResponse(status_code=500, content={"error": error or "诊断失败"})
+            raise FundPalError(error or "诊断失败")
 
         return FundDiagnosisResponse(
             rating=diagnosis.get("rating", ""),
@@ -803,9 +807,11 @@ async def fund_diagnosis(request: FundAnalysisRequest):
             profile=diagnosis.get("profile", {}),
         )
 
+    except FundPalError:
+        raise
     except Exception as e:
         logger.error("[基金诊断] 处理失败: %s", e, exc_info=True)
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        raise FundPalError(f"诊断处理失败: {e}") from e
 
 
 @app.post("/api/fund-explanation", response_model=FundExplanationResponse)
@@ -815,7 +821,7 @@ async def fund_explanation(request: FundAnalysisRequest):
 
     try:
         if not request.fund_code and not request.fund_name:
-            return JSONResponse(status_code=400, content={"error": "fund_code 或 fund_name 必填"})
+            raise ValidationError("fund_code 或 fund_name 必填")
 
         # T-008/T-009: 异步调用 + 超时控制
         try:
@@ -832,14 +838,14 @@ async def fund_explanation(request: FundAnalysisRequest):
             )
         except TimeoutError:
             logger.error("[基金分析] 超时（60秒）")
-            return JSONResponse(status_code=504, content={"error": "分析超时，请稍后重试"})
+            raise BriefingTimeoutError("分析超时，请稍后重试") from None
 
         fall_analysis = result.get("fall_analysis")
         error = result.get("error")
 
         if error or not fall_analysis:
             logger.error("[基金分析] 分析失败: %s", error or "未知错误")
-            return JSONResponse(status_code=500, content={"error": error or "分析失败"})
+            raise FundPalError(error or "分析失败")
 
         return FundExplanationResponse(
             direction=fall_analysis.get("direction", ""),
@@ -850,6 +856,8 @@ async def fund_explanation(request: FundAnalysisRequest):
             perf_data=fall_analysis.get("perf_data", {}),
         )
 
+    except FundPalError:
+        raise
     except Exception as e:
         logger.error("[基金分析] 处理失败: %s", e, exc_info=True)
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        raise FundPalError(f"分析处理失败: {e}") from e
