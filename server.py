@@ -145,6 +145,13 @@ def _update_scheduler(time_str: str | None = None):
 @asynccontextmanager
 async def lifespan(app_instance):
     """应用启动/关闭生命周期。"""
+    # T-002: 统一由此处调用一次 load_dotenv()
+    load_dotenv()
+
+    # T-003: 启动时配置验证
+    from src.config import validate_config
+    validate_config()
+
     push_time = _get_push_time()
     _update_scheduler(push_time)
 
@@ -171,9 +178,18 @@ async def lifespan(app_instance):
 
 app = FastAPI(title="基金投资助手", version="0.1.0", lifespan=lifespan)
 
+# T-011: CORS 配置 — 生产环境应限制为实际域名
+# 通过环境变量 CORS_ORIGINS 配置允许的域名，多个域名用逗号分隔
+# 默认开发环境允许 localhost 常用端口
+_cors_env = os.getenv("CORS_ORIGINS", "")
+_cors_origins = (
+    [o.strip() for o in _cors_env.split(",") if o.strip()]
+    if _cors_env
+    else ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:3000"]
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -217,8 +233,18 @@ class ParseResult(BaseModel):
 @app.post("/api/briefing", response_model=BriefingResponse)
 async def generate_briefing(input: HoldingsInput = None):
     """生成每日简报（支持接收前端传来的持仓）"""
+    import asyncio
     holdings = input.holdings if input and input.holdings else load_portfolio()
-    result = langgraph_app.invoke({"trigger": "daily_briefing", "holdings": holdings})
+    # T-008: 使用 asyncio.to_thread 避免阻塞事件循环
+    # T-009: 添加全局超时控制（120 秒）
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(langgraph_app.invoke, {"trigger": "daily_briefing", "holdings": holdings}),
+            timeout=120.0,
+        )
+    except asyncio.TimeoutError:
+        logger.error("[简报生成] 超时（120秒）")
+        return JSONResponse(status_code=504, content={"error": "简报生成超时，请稍后重试"})
     briefing = result.get("briefing", {})
     return BriefingResponse(
         notification=format_push_notification(briefing),
@@ -555,9 +581,18 @@ async def test_push(input: PushTestInput = None):
 @app.post("/api/briefing-and-push")
 async def generate_and_push(input: HoldingsInput = None):
     """生成简报并推送"""
+    import asyncio
     holdings = input.holdings if input and input.holdings else load_portfolio()
     config = input.config if input and input.config else {}
-    result = langgraph_app.invoke({"trigger": "daily_briefing", "holdings": holdings})
+    # T-008/T-009: 异步调用 + 超时控制
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(langgraph_app.invoke, {"trigger": "daily_briefing", "holdings": holdings}),
+            timeout=120.0,
+        )
+    except asyncio.TimeoutError:
+        logger.error("[简报推送] 超时（120秒）")
+        return JSONResponse(status_code=504, content={"error": "简报生成超时，请稍后重试"})
     briefing = result.get("briefing", {})
     push_results = push_briefing(briefing, config=config or None)
     return {
@@ -698,8 +733,16 @@ if static_dir.exists():
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        """SPA fallback: 所有非 API 路由返回 index.html"""
+        """SPA fallback: 所有非 API 路由返回 index.html（T-013: 路径穿越保护）"""
         file_path = static_dir / full_path
+        # T-013: 验证解析后的路径是否仍在 static_dir 内，防止路径穿越
+        try:
+            resolved = file_path.resolve()
+            if not resolved.is_relative_to(static_dir.resolve()):
+                logger.warning("[安全] 疑似路径穿越: %s", full_path)
+                return FileResponse(static_dir / "index.html")
+        except (ValueError, OSError):
+            return FileResponse(static_dir / "index.html")
         if file_path.exists() and file_path.is_file():
             return FileResponse(file_path)
         return FileResponse(static_dir / "index.html")
@@ -735,6 +778,7 @@ class FundExplanationResponse(BaseModel):
 @app.post("/api/fund-diagnosis", response_model=FundDiagnosisResponse)
 async def fund_diagnosis(request: FundAnalysisRequest):
     """基金诊断 — 分析基金是否值得买"""
+    import asyncio
     try:
         if not request.fund_code and not request.fund_name:
             return JSONResponse(
@@ -742,11 +786,19 @@ async def fund_diagnosis(request: FundAnalysisRequest):
                 content={"error": "fund_code 或 fund_name 必填"}
             )
 
-        result = langgraph_app.invoke({
-            "trigger": "fund_diagnosis",
-            "query_fund_code": request.fund_code,
-            "query_fund_name": request.fund_name,
-        })
+        # T-008/T-009: 异步调用 + 超时控制
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(langgraph_app.invoke, {
+                    "trigger": "fund_diagnosis",
+                    "query_fund_code": request.fund_code,
+                    "query_fund_name": request.fund_name,
+                }),
+                timeout=60.0,
+            )
+        except asyncio.TimeoutError:
+            logger.error("[基金诊断] 超时（60秒）")
+            return JSONResponse(status_code=504, content={"error": "诊断超时，请稍后重试"})
 
         diagnosis = result.get("diagnosis")
         error = result.get("error")
@@ -776,6 +828,7 @@ async def fund_diagnosis(request: FundAnalysisRequest):
 @app.post("/api/fund-explanation", response_model=FundExplanationResponse)
 async def fund_explanation(request: FundAnalysisRequest):
     """基金分析 — 分析基金涨跌原因"""
+    import asyncio
     try:
         if not request.fund_code and not request.fund_name:
             return JSONResponse(
@@ -783,11 +836,19 @@ async def fund_explanation(request: FundAnalysisRequest):
                 content={"error": "fund_code 或 fund_name 必填"}
             )
 
-        result = langgraph_app.invoke({
-            "trigger": "fall_analysis",
-            "query_fund_code": request.fund_code,
-            "query_fund_name": request.fund_name,
-        })
+        # T-008/T-009: 异步调用 + 超时控制
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(langgraph_app.invoke, {
+                    "trigger": "fall_analysis",
+                    "query_fund_code": request.fund_code,
+                    "query_fund_name": request.fund_name,
+                }),
+                timeout=60.0,
+            )
+        except asyncio.TimeoutError:
+            logger.error("[基金分析] 超时（60秒）")
+            return JSONResponse(status_code=504, content={"error": "分析超时，请稍后重试"})
 
         fall_analysis = result.get("fall_analysis")
         error = result.get("error")

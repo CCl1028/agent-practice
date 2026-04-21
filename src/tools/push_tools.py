@@ -13,7 +13,6 @@ import os
 from datetime import datetime
 
 import httpx
-from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +30,8 @@ def _get_config(override: dict | None = None):
             "serverchan_key": override.get("SERVERCHAN_KEY", ""),
             "wecom_webhook_url": override.get("WECOM_WEBHOOK_URL", ""),
         }
-    load_dotenv(override=True)
+    # T-002: 移除 load_dotenv()，server.py 启动时已统一加载；
+    # 配置更新时 server.py 会调用 load_dotenv(override=True)
     return {
         "bark_url": os.getenv("BARK_URL", ""),
         "serverchan_key": os.getenv("SERVERCHAN_KEY", ""),

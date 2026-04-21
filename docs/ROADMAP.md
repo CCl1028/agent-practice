@@ -120,40 +120,40 @@
 
 > 以下为代码分析中识别出的技术债务和优化点，按优先级分 Phase 规划。
 
-### Tech Phase 1 — 🔴 高优先级（阻塞稳定性）
+### Tech Phase 1 — 🔴 高优先级（阻塞稳定性）✅ 已完成
 
-#### T1.1 配置系统重构
+#### T1.1 配置系统重构 ✅
 
-| 编号 | 问题 | 影响 | 方案 |
-|------|------|------|------|
-| T-001 | `config.py` 配置不可热更新：模块加载时快照 `os.getenv()`，Web UI 修改 API Key 后不生效（直到重启） | **严重**：用户以为配置成功实际无效 | 改为函数式获取 `def get_openai_key()` → 每次调用时读 `os.getenv()`；或使用 `pydantic-settings` 的 `BaseSettings` |
-| T-002 | 多处 `load_dotenv()` 执行顺序不确定（`config.py`、`news_tools.py`、`server.py` 各调一次） | 配置值可能不一致 | 统一由 `server.py` 启动时调用一次 `load_dotenv()`，其他模块移除 |
-| T-003 | 无配置验证：无效 URL、空 API Key 等不会在启动时发现 | 运行时才报错，排查困难 | 启动时用 Pydantic 校验必要配置，无效时 warning 日志 |
+| 编号 | 问题 | 影响 | 方案 | 状态 |
+|------|------|------|------|------|
+| T-001 | `config.py` 配置不可热更新：模块加载时快照 `os.getenv()`，Web UI 修改 API Key 后不生效（直到重启） | **严重**：用户以为配置成功实际无效 | 改为函数式获取 + `__getattr__` 兼容层，每次访问读 `os.getenv()` | ✅ |
+| T-002 | 多处 `load_dotenv()` 执行顺序不确定（`config.py`、`news_tools.py`、`push_tools.py` 各调一次） | 配置值可能不一致 | 统一由 `server.py` 启动时调用一次 `load_dotenv()`，其他模块已移除 | ✅ |
+| T-003 | 无配置验证：无效 URL、空 API Key 等不会在启动时发现 | 运行时才报错，排查困难 | 新增 `validate_config()` 函数，启动时校验并输出 warning 日志 | ✅ |
 
-#### T1.2 并发安全修复
+#### T1.2 并发安全修复 ✅
 
-| 编号 | 问题 | 影响 | 方案 |
-|------|------|------|------|
-| T-004 | `CircuitBreaker._states` 无锁保护（`data_provider.py:33`） | 多线程竞态导致熔断状态不一致 | 添加 `threading.Lock`，`is_available`/`record_failure`/`record_success` 全部加锁 |
-| T-005 | `_fund_name_cache` 无锁保护（`market_tools.py:20`），多线程首次调用可能重复加载全量数据 | 数据竞争、重复请求 | 用 `threading.Lock` 保护缓存写入；`_ensure_name_cache` 修复 TOCTOU 竞态 |
-| T-006 | `_search_cache` 无线程安全（`news_tools.py:29`），缓存淘汰时 `del` 非原子操作 | 并发读写可能 `RuntimeError` | 添加 `threading.Lock` 保护缓存读写 |
+| 编号 | 问题 | 影响 | 方案 | 状态 |
+|------|------|------|------|------|
+| T-004 | `CircuitBreaker._states` 无锁保护（`data_provider.py`） | 多线程竞态导致熔断状态不一致 | 添加 `threading.Lock`，`is_available`/`record_failure`/`record_success` 全部加锁 | ✅ |
+| T-005 | `_fund_name_cache` 无锁保护（`market_tools.py`），多线程首次调用可能重复加载全量数据 | 数据竞争、重复请求 | 新增 `_fund_name_cache_write_lock`，写入操作加锁保护 | ✅ |
+| T-006 | `_search_cache` 无线程安全（`news_tools.py`），缓存淘汰时 `del` 非原子操作 | 并发读写可能 `RuntimeError` | 新增 `_search_cache_lock`，读写和淘汰全部加锁 | ✅ |
 
-#### T1.3 LLM 调用健壮性
+#### T1.3 LLM 调用健壮性 ✅
 
-| 编号 | 问题 | 影响 | 方案 |
-|------|------|------|------|
-| T-007 | `ChatOpenAI` 未配置 `request_timeout` 和 `max_retries`（`briefing_agent.py:281`、`analysis_agent.py:226,338`） | LLM 服务不可用时请求无限期挂起 | 添加 `request_timeout=30` 和 `max_retries=2` |
-| T-008 | `langgraph_app.invoke()` 同步阻塞在 `async def` 路由中（`server.py:221`） | 阻塞 FastAPI 事件循环，影响所有并发请求 | 使用 `asyncio.to_thread()` 包裹 |
-| T-009 | `graph.py` 整个工作流无全局超时控制 | 任一 Agent 卡住导致整个请求无限期挂起 | 添加 `asyncio.wait_for(timeout=60)` |
-| T-010 | LLM JSON 解析脆弱：仅去除 markdown 代码块后 `json.loads()` | LLM 返回带注释/尾逗号/不完整 JSON 时全降级 | 引入 `json-repair` 库或使用 LangChain `JsonOutputParser` |
+| 编号 | 问题 | 影响 | 方案 | 状态 |
+|------|------|------|------|------|
+| T-007 | `ChatOpenAI` 未配置 `request_timeout` 和 `max_retries` | LLM 服务不可用时请求无限期挂起 | 所有 `ChatOpenAI` 添加 `request_timeout=30` 和 `max_retries=2` | ✅ |
+| T-008 | `langgraph_app.invoke()` 同步阻塞在 `async def` 路由中 | 阻塞 FastAPI 事件循环，影响所有并发请求 | 所有 4 个阻塞调用点使用 `asyncio.to_thread()` 包裹 | ✅ |
+| T-009 | 整个工作流无全局超时控制 | 任一 Agent 卡住导致整个请求无限期挂起 | 所有 `asyncio.to_thread` 包裹 `asyncio.wait_for(timeout)` — 简报 120s / 诊断 60s | ✅ |
+| T-010 | LLM JSON 解析脆弱：仅去除 markdown 代码块后 `json.loads()` | LLM 返回带注释/尾逗号/不完整 JSON 时全降级 | 新增 `_clean_json_text()` 辅助函数，清理尾逗号/注释/BOM | ✅ |
 
-#### T1.4 安全加固
+#### T1.4 安全加固 ✅
 
-| 编号 | 问题 | 影响 | 方案 |
-|------|------|------|------|
-| T-011 | CORS `allow_origins=["*"]`（`server.py:176`） | 任意网站可调用 API | 生产环境限制为实际域名 |
-| T-012 | Docker 容器以 root 用户运行（`Dockerfile`） | 容器内安全风险 | 添加 `RUN useradd -m app && USER app` |
-| T-013 | SPA fallback 未验证文件路径是否在 `static_dir` 内（`server.py:702`） | 理论上存在路径穿越风险 | 添加 `file_path.resolve().is_relative_to(static_dir)` 检查 |
+| 编号 | 问题 | 影响 | 方案 | 状态 |
+|------|------|------|------|------|
+| T-011 | CORS `allow_origins=["*"]`（`server.py`） | 任意网站可调用 API | 改为通过 `CORS_ORIGINS` 环境变量配置，默认只允许 localhost | ✅ |
+| T-012 | Docker 容器以 root 用户运行（`Dockerfile`） | 容器内安全风险 | 添加 `appuser` 非 root 用户 + `USER appuser` + HEALTHCHECK | ✅ |
+| T-013 | SPA fallback 未验证文件路径是否在 `static_dir` 内 | 理论上存在路径穿越风险 | 添加 `resolved.is_relative_to(static_dir.resolve())` 检查 | ✅ |
 
 ---
 

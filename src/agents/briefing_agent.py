@@ -19,6 +19,30 @@ from src.state import AgentState, Briefing, FundAdvice, FundHolding
 
 logger = logging.getLogger(__name__)
 
+
+# ============================================
+# JSON 解析辅助 — T-010: 增强 LLM JSON 输出解析鲁棒性
+# ============================================
+
+def _clean_json_text(text: str) -> str:
+    """清理 LLM 输出的 JSON 文本中的常见问题。
+
+    处理：
+    - 去除尾逗号（如 {"a": 1,}）
+    - 去除 JS 风格注释（// 和 /* */）
+    - 去除 BOM 和特殊不可见字符
+    """
+    import re
+    # 去除 BOM
+    text = text.lstrip("\ufeff")
+    # 去除单行注释（// ...）— 但保留 URL 中的 //
+    text = re.sub(r'(?<!:)//.*?(?=\n|$)', '', text)
+    # 去除多行注释（/* ... */）
+    text = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
+    # 去除对象/数组尾逗号（如 {"a": 1,} 或 [1, 2,]）
+    text = re.sub(r',\s*([\]}])', r'\1', text)
+    return text.strip()
+
 # ============================================
 # System Prompt — v2 升级版
 # ============================================
@@ -283,6 +307,8 @@ def briefing_node(state: AgentState) -> dict:
             api_key=OPENAI_API_KEY,
             base_url=OPENAI_BASE_URL,
             temperature=0.3,
+            request_timeout=30,
+            max_retries=2,
         )
 
         data_text = _build_data_text(state)
@@ -297,6 +323,8 @@ def briefing_node(state: AgentState) -> dict:
         text = response.content.strip()
         if text.startswith("```"):
             text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        # T-010: 增强 JSON 解析鲁棒性 — 清理常见的 LLM 输出问题
+        text = _clean_json_text(text)
         briefing_data = json.loads(text)
 
         # 解析 LLM 输出，确保结构完整

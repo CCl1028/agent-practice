@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from abc import ABC, abstractmethod
 
@@ -17,11 +18,11 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================
-# 熔断器
+# 熔断器（T-004: 添加线程安全锁）
 # ============================================
 
 class CircuitBreaker:
-    """数据源熔断器 — 管理各数据源的熔断/冷却状态
+    """数据源熔断器 — 管理各数据源的熔断/冷却状态（线程安全）
 
     状态机：
     CLOSED（正常）→ 连续失败 N 次 → OPEN（熔断）→ 冷却时间到 → 试探请求
@@ -31,50 +32,55 @@ class CircuitBreaker:
         self.failure_threshold = failure_threshold
         self.cooldown_seconds = cooldown_seconds
         self._states: dict[str, dict] = {}
+        self._lock = threading.Lock()
 
     def is_available(self, source: str) -> bool:
-        """检查数据源是否可用。"""
-        state = self._states.get(source)
-        if not state:
-            return True
-        if state["failures"] < self.failure_threshold:
-            return True
-        # 已熔断，检查冷却
-        if time.time() - state["last_failure"] >= self.cooldown_seconds:
-            state["failures"] = 0  # 冷却完成，重置
-            logger.info("[熔断器] %s 冷却完成，恢复可用", source)
-            return True
-        remaining = self.cooldown_seconds - (time.time() - state["last_failure"])
-        logger.debug("[熔断器] %s 熔断中，剩余冷却 %.0fs", source, remaining)
-        return False
+        """检查数据源是否可用（线程安全）。"""
+        with self._lock:
+            state = self._states.get(source)
+            if not state:
+                return True
+            if state["failures"] < self.failure_threshold:
+                return True
+            # 已熔断，检查冷却
+            if time.time() - state["last_failure"] >= self.cooldown_seconds:
+                state["failures"] = 0  # 冷却完成，重置
+                logger.info("[熔断器] %s 冷却完成，恢复可用", source)
+                return True
+            remaining = self.cooldown_seconds - (time.time() - state["last_failure"])
+            logger.debug("[熔断器] %s 熔断中，剩余冷却 %.0fs", source, remaining)
+            return False
 
     def record_success(self, source: str) -> None:
-        """记录成功，重置计数。"""
-        self._states[source] = {"failures": 0, "last_failure": 0}
+        """记录成功，重置计数（线程安全）。"""
+        with self._lock:
+            self._states[source] = {"failures": 0, "last_failure": 0}
 
     def record_failure(self, source: str) -> None:
-        """记录失败。"""
-        state = self._states.setdefault(source, {"failures": 0, "last_failure": 0})
-        state["failures"] += 1
-        state["last_failure"] = time.time()
-        if state["failures"] >= self.failure_threshold:
-            logger.warning(
-                "[熔断器] %s 连续失败 %d 次，进入熔断（冷却 %.0fs）",
-                source, state["failures"], self.cooldown_seconds,
-            )
+        """记录失败（线程安全）。"""
+        with self._lock:
+            state = self._states.setdefault(source, {"failures": 0, "last_failure": 0})
+            state["failures"] += 1
+            state["last_failure"] = time.time()
+            if state["failures"] >= self.failure_threshold:
+                logger.warning(
+                    "[熔断器] %s 连续失败 %d 次，进入熔断（冷却 %.0fs）",
+                    source, state["failures"], self.cooldown_seconds,
+                )
 
     def get_status(self) -> dict[str, str]:
-        """获取所有数据源状态。"""
-        result = {}
-        for source, state in self._states.items():
-            if state["failures"] >= self.failure_threshold:
-                if time.time() - state["last_failure"] < self.cooldown_seconds:
-                    result[source] = "open"  # 熔断中
+        """获取所有数据源状态（线程安全）。"""
+        with self._lock:
+            result = {}
+            for source, state in self._states.items():
+                if state["failures"] >= self.failure_threshold:
+                    if time.time() - state["last_failure"] < self.cooldown_seconds:
+                        result[source] = "open"  # 熔断中
+                    else:
+                        result[source] = "half_open"  # 冷却完成
                 else:
-                    result[source] = "half_open"  # 冷却完成
-            else:
-                result[source] = "closed"  # 正常
-        return result
+                    result[source] = "closed"  # 正常
+            return result
 
 
 # 全局熔断器实例

@@ -14,9 +14,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 安装 Python 依赖
+# T-012: 创建非 root 用户
+RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
+
+# 安装 Python 依赖（T-029: PIP 镜像源可配置）
+ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+RUN pip install --no-cache-dir -r requirements.txt -i ${PIP_INDEX_URL}
 
 # 复制项目代码
 COPY . .
@@ -36,9 +40,16 @@ RUN if [ -f /app/version.json ]; then \
     fi && \
     echo "{\"version\":\"${BASE_VERSION}\",\"codename\":\"${CODENAME}\",\"build_time\":\"${BUILD_TIME}\",\"git_commit\":\"${GIT_COMMIT}\"}" > /app/version.json
 
-# 创建数据目录
-RUN mkdir -p data
+# 创建数据目录并设置权限
+RUN mkdir -p data && chown -R appuser:appuser /app
+
+# T-012: 切换到非 root 用户
+USER appuser
 
 EXPOSE 8000
+
+# T-027: 添加 Docker 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')" || exit 1
 
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]

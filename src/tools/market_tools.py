@@ -15,9 +15,10 @@ _estimation_cache: dict[str, dict] = {}
 _estimation_cache_lock = threading.Lock()
 ESTIMATION_CACHE_TTL = 600  # 10 分钟
 
-# ---- 基金代码 → 名称查询 ----
+# ---- 基金代码 → 名称查询（T-005: 添加线程安全锁） ----
 
 _fund_name_cache: dict[str, str] = {}
+_fund_name_cache_write_lock = threading.Lock()
 
 
 def get_fund_name_by_code(fund_code: str) -> str | None:
@@ -29,7 +30,7 @@ def get_fund_name_by_code(fund_code: str) -> str | None:
     if not fund_code or len(fund_code) != 6:
         return None
 
-    # 命中缓存直接返回
+    # 命中缓存直接返回（读取 dict 是线程安全的）
     if fund_code in _fund_name_cache:
         return _fund_name_cache[fund_code]
 
@@ -38,12 +39,14 @@ def get_fund_name_by_code(fund_code: str) -> str | None:
         # fund_name_em 返回所有基金的代码+名称列表
         df = ak.fund_name_em()
         if df is not None and not df.empty:
-            # 构建完整缓存（一次加载，后续所有查询都命中缓存）
-            for _, row in df.iterrows():
-                code = str(row.get("基金代码", "")).strip()
-                name = str(row.get("基金简称", "")).strip()
-                if code and name:
-                    _fund_name_cache[code] = name
+            # 构建完整缓存（加锁保护写入，防止多线程重复加载）
+            with _fund_name_cache_write_lock:
+                if fund_code not in _fund_name_cache:
+                    for _, row in df.iterrows():
+                        code = str(row.get("基金代码", "")).strip()
+                        name = str(row.get("基金简称", "")).strip()
+                        if code and name:
+                            _fund_name_cache[code] = name
 
             if fund_code in _fund_name_cache:
                 logger.info("[基金名称] %s → %s", fund_code, _fund_name_cache[fund_code])

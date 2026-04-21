@@ -11,22 +11,25 @@
 - 市场新闻：大盘热点 / 板块走势（2 维度）
 
 无搜索 Key 时优雅降级为空列表（不影响主流程）。
+
+T-002: 移除 load_dotenv()，统一由 server.py 启动时调用一次
+T-006: 搜索缓存添加线程安全锁
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
 from datetime import datetime
-from dotenv import load_dotenv
-
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 # 简易搜索结果缓存 {cache_key: {"results": [...], "cached_at": float}}
+# T-006: 添加线程安全锁
 _search_cache: dict[str, dict] = {}
+_search_cache_lock = threading.Lock()
 _CACHE_TTL = 3600  # 1 小时
 
 
@@ -108,24 +111,26 @@ def format_news_for_prompt(news_items: list[dict]) -> str:
 # ---- 内部实现 ----
 
 def _search_with_cache(query: str, max_results: int = 3) -> list[dict]:
-    """带缓存的搜索入口。"""
+    """带缓存的搜索入口（T-006: 线程安全）。"""
     cache_key = f"{query}:{max_results}"
 
-    # 检查缓存
-    cached = _search_cache.get(cache_key)
+    # 检查缓存（加锁读取）
+    with _search_cache_lock:
+        cached = _search_cache.get(cache_key)
     if cached and time.time() - cached["cached_at"] < _CACHE_TTL:
         return cached["results"]
 
     results = _search(query, max_results)
 
-    # 写入缓存
-    _search_cache[cache_key] = {"results": results, "cached_at": time.time()}
+    # 写入缓存 + 淘汰（加锁保护）
+    with _search_cache_lock:
+        _search_cache[cache_key] = {"results": results, "cached_at": time.time()}
 
-    # 缓存淘汰（超过 200 条时清理最老的一半）
-    if len(_search_cache) > 200:
-        sorted_keys = sorted(_search_cache, key=lambda k: _search_cache[k]["cached_at"])
-        for k in sorted_keys[: len(sorted_keys) // 2]:
-            del _search_cache[k]
+        # 缓存淘汰（超过 200 条时清理最老的一半）
+        if len(_search_cache) > 200:
+            sorted_keys = sorted(_search_cache, key=lambda k: _search_cache[k]["cached_at"])
+            for k in sorted_keys[: len(sorted_keys) // 2]:
+                del _search_cache[k]
 
     return results
 
