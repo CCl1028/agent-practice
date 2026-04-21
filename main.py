@@ -61,6 +61,7 @@ def run_add_from_screenshot(image_path: str) -> None:
     from src.graph import app
     from src.tools.ocr_tools import process_screenshot
     from src.tools.portfolio_tools import load_portfolio, save_portfolio
+    from src.utils.holdings_utils import merge_holdings
 
     logger.info("📸 开始处理截图: %s", image_path)
 
@@ -75,11 +76,7 @@ def run_add_from_screenshot(image_path: str) -> None:
 
     # 合并保存
     existing = load_portfolio()
-    existing_map = {f["fund_code"]: f for f in existing if f.get("fund_code")}
-    for h in holdings:
-        if h.get("fund_code"):
-            existing_map[h["fund_code"]] = h
-    merged = list(existing_map.values())
+    merged = merge_holdings(existing, holdings)
     save_portfolio(merged)
     logger.info("💾 已保存 %d 只基金持仓", len(merged))
 
@@ -99,6 +96,7 @@ def run_add_from_text(text: str) -> None:
     from src.graph import app
     from src.tools.nlp_input import parse_natural_language
     from src.tools.portfolio_tools import load_portfolio, save_portfolio
+    from src.utils.holdings_utils import merge_holdings
 
     logger.info("💬 解析自然语言: %s", text)
 
@@ -113,11 +111,7 @@ def run_add_from_text(text: str) -> None:
 
     # 合并保存
     existing = load_portfolio()
-    existing_map = {f["fund_code"]: f for f in existing if f.get("fund_code")}
-    for h in holdings:
-        if h.get("fund_code"):
-            existing_map[h["fund_code"]] = h
-    merged = list(existing_map.values())
+    merged = merge_holdings(existing, holdings)
     save_portfolio(merged)
     logger.info("💾 已保存 %d 只基金持仓", len(merged))
 

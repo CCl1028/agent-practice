@@ -25,6 +25,8 @@ from src.graph import app as langgraph_app
 from src.tools.nlp_input import parse_natural_language
 from src.tools.portfolio_tools import load_portfolio, save_portfolio
 from src.tools.push_tools import get_push_status, push_briefing
+from src.utils.estimation_utils import build_estimation_results
+from src.utils.holdings_utils import merge_holdings
 
 # ---- 内存日志收集器 ----
 MAX_LOG_LINES = 500
@@ -279,11 +281,7 @@ async def add_from_text(input: TextInput):
             return AddResult(added=[], total=0)
 
         existing = load_portfolio()
-        existing_map = {f["fund_code"]: f for f in existing if f.get("fund_code")}
-        for h in new_holdings:
-            if h.get("fund_code"):
-                existing_map[h["fund_code"]] = h
-        merged = list(existing_map.values())
+        merged = merge_holdings(existing, new_holdings)
         save_portfolio(merged)
         return AddResult(added=new_holdings, total=len(merged))
     except Exception as e:
@@ -337,11 +335,7 @@ async def add_from_screenshot(file: UploadFile = File(...)):
             return AddResult(added=[], total=0)
 
         existing = load_portfolio()
-        existing_map = {f["fund_code"]: f for f in existing if f.get("fund_code")}
-        for h in new_holdings:
-            if h.get("fund_code"):
-                existing_map[h["fund_code"]] = h
-        merged = list(existing_map.values())
+        merged = merge_holdings(existing, new_holdings)
         save_portfolio(merged)
         return AddResult(added=new_holdings, total=len(merged))
     except Exception as e:
@@ -496,51 +490,17 @@ async def refresh_portfolio(input: HoldingsInput | None = None):
 @app.post("/api/estimation")
 async def post_estimation(input: HoldingsInput | None = None):
     """获取持仓的估值（POST 方式，接收前端传来的持仓）"""
-    from src.tools.market_tools import get_fund_estimation, is_trading_hours
-
     holdings = input.holdings if input and input.holdings else load_portfolio()
-    results = []
-    for h in holdings:
-        est = get_fund_estimation(h.get("fund_code", ""))
-        results.append(
-            {
-                "fund_code": h.get("fund_code", ""),
-                "fund_name": h.get("fund_name", ""),
-                "est_change": est["est_change"] if est else None,
-                "est_nav": est["est_nav"] if est else None,
-                "est_time": est["est_time"] if est else None,
-                "is_live": est.get("is_live", False) if est else None,
-            }
-        )
-    return {
-        "trading_hours": is_trading_hours(),
-        "funds": results,
-    }
+    trading, results = build_estimation_results(holdings)
+    return {"trading_hours": trading, "funds": results}
 
 
 @app.get("/api/estimation")
 async def get_estimation():
     """获取所有持仓的估值（GET 方式，兼容旧版，从服务器读取）"""
-    from src.tools.market_tools import get_fund_estimation, is_trading_hours
-
     holdings = load_portfolio()
-    results = []
-    for h in holdings:
-        est = get_fund_estimation(h.get("fund_code", ""))
-        results.append(
-            {
-                "fund_code": h.get("fund_code", ""),
-                "fund_name": h.get("fund_name", ""),
-                "est_change": est["est_change"] if est else None,
-                "est_nav": est["est_nav"] if est else None,
-                "est_time": est["est_time"] if est else None,
-                "is_live": est.get("is_live", False) if est else None,
-            }
-        )
-    return {
-        "trading_hours": is_trading_hours(),
-        "funds": results,
-    }
+    trading, results = build_estimation_results(holdings)
+    return {"trading_hours": trading, "funds": results}
 
 
 # ---- 历史净值 ----

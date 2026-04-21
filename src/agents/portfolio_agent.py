@@ -10,6 +10,7 @@ import logging
 
 from src.state import AgentState
 from src.tools.portfolio_tools import compute_metrics, load_portfolio, save_portfolio
+from src.utils.holdings_utils import merge_holdings
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +31,7 @@ def portfolio_node(state: AgentState) -> dict:
             if new_holdings:
                 logger.info("[Portfolio Agent] 检测到新录入的 %d 只基金，合并保存", len(new_holdings))
                 existing = load_portfolio()
-                # 按基金代码去重合并（新的覆盖旧的）
-                existing_map = {f["fund_code"]: f for f in existing if f.get("fund_code")}
-                for h in new_holdings:
-                    if h.get("fund_code"):
-                        existing_map[h["fund_code"]] = h
-                    else:
-                        existing.append(h)
-                merged = list(existing_map.values())
+                merged = merge_holdings(existing, new_holdings)
                 save_portfolio(merged)
                 portfolio = merged
             else:
