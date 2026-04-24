@@ -90,7 +90,7 @@ async def add_from_screenshot(file: UploadFile = File(...)):
 @router.post("/api/portfolio/parse-screenshot", response_model=ParseResult, dependencies=[Depends(verify_token), Depends(strict_rate_limit_dependency)])
 async def parse_screenshot(
     file: UploadFile = File(...),
-    config: str | None = None,
+    config: Optional[str] = None,
 ):
     """截图识别持仓（只解析不保存）"""
     try:
@@ -128,7 +128,7 @@ async def delete_holding(fund_code: str):
 
 
 @router.post("/api/portfolio/refresh")
-async def refresh_portfolio(input: HoldingsInput | None = None):
+async def refresh_portfolio(input: Optional[HoldingsInput] = None):
     """根据最新净值更新市值和收益率（不修改服务器存储）"""
     from src.tools.market_tools import get_fund_nav
 

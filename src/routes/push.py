@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends
 
 from src.core.auth import verify_token
@@ -13,7 +15,7 @@ router = APIRouter()
 
 
 @router.post("/api/push/status")
-async def push_status_post(input: PushTestInput | None = None):
+async def push_status_post(input: Optional[PushTestInput] = None):
     """获取推送渠道配置状态（POST）"""
     config = input.config if input else {}
     return get_push_status(config=config or None)
@@ -26,7 +28,7 @@ async def push_status():
 
 
 @router.post("/api/push/test", dependencies=[Depends(verify_token), Depends(rate_limit_dependency)])
-async def test_push(input: PushTestInput | None = None):
+async def test_push(input: Optional[PushTestInput] = None):
     """测试推送"""
     config = input.config if input else {}
     test_briefing = {

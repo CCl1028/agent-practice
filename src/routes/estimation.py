@@ -17,7 +17,7 @@ router = APIRouter()
 
 
 @router.post("/api/estimation")
-async def post_estimation(input: HoldingsInput | None = None):
+async def post_estimation(input: Optional[HoldingsInput] = None):
     """获取持仓的估值（POST）"""
     holdings = input.holdings if input and input.holdings else load_portfolio()
     trading, results = build_estimation_results(holdings)

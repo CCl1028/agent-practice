@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Optional
 
 from fastapi import APIRouter, Depends
 
@@ -22,7 +23,7 @@ router = APIRouter()
 
 
 @router.post("/api/briefing", response_model=BriefingResponse, dependencies=[Depends(strict_rate_limit_dependency)])
-async def generate_briefing(input: HoldingsInput | None = None):
+async def generate_briefing(input: Optional[HoldingsInput] = None):
     """生成每日简报（支持接收前端传来的持仓）"""
     holdings = input.holdings if input and input.holdings else load_portfolio()
     try:
@@ -43,7 +44,7 @@ async def generate_briefing(input: HoldingsInput | None = None):
 
 
 @router.post("/api/briefing-and-push", dependencies=[Depends(verify_token), Depends(strict_rate_limit_dependency)])
-async def generate_and_push(input: HoldingsInput | None = None):
+async def generate_and_push(input: Optional[HoldingsInput] = None):
     """生成简报并推送"""
     holdings = input.holdings if input and input.holdings else load_portfolio()
     config = input.config if input and input.config else {}
