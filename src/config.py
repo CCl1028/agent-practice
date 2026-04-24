@@ -84,6 +84,11 @@ def get_serpapi_api_key() -> str:
     return os.getenv("SERPAPI_API_KEY", "")
 
 
+def get_api_token() -> str:
+    """获取 API 认证 Token（未配置则跳过认证）。"""
+    return os.getenv("API_TOKEN", "")
+
+
 # ============================================
 # 兼容层 — 保持旧代码可运行（逐步迁移后删除）
 # ============================================
@@ -106,6 +111,7 @@ _ATTR_MAP = {
     "BOCHA_API_KEY": get_bocha_api_key,
     "BRAVE_API_KEY": get_brave_api_key,
     "SERPAPI_API_KEY": get_serpapi_api_key,
+    "API_TOKEN": get_api_token,
 }
 
 

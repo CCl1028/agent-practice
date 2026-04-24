@@ -14,12 +14,14 @@ from pathlib import Path
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from src.core.auth import verify_token
+from src.core.rate_limit import rate_limit_dependency, strict_rate_limit_dependency
 from src.core.exceptions import (
     BriefingTimeoutError,
     ConfigError,
@@ -259,7 +261,7 @@ class ParseResult(BaseModel):
 # ---- API Routes ----
 
 
-@app.post("/api/briefing", response_model=BriefingResponse)
+@app.post("/api/briefing", response_model=BriefingResponse, dependencies=[Depends(strict_rate_limit_dependency)])
 async def generate_briefing(input: HoldingsInput | None = None):
     """生成每日简报（支持接收前端传来的持仓）"""
     import asyncio
@@ -291,7 +293,7 @@ async def get_portfolio():
     return PortfolioResponse(holdings=holdings, count=len(holdings))
 
 
-@app.post("/api/portfolio/add-text", response_model=AddResult)
+@app.post("/api/portfolio/add-text", response_model=AddResult, dependencies=[Depends(verify_token), Depends(rate_limit_dependency)])
 async def add_from_text(input: TextInput):
     """自然语言录入持仓"""
     try:
@@ -308,7 +310,7 @@ async def add_from_text(input: TextInput):
         raise FundPalError(f"录入失败: {e}") from e
 
 
-@app.post("/api/portfolio/parse-text", response_model=ParseResult)
+@app.post("/api/portfolio/parse-text", response_model=ParseResult, dependencies=[Depends(verify_token), Depends(strict_rate_limit_dependency)])
 async def parse_text(input: TextInput):
     """解析自然语言持仓描述（只解析不保存）"""
     import asyncio
@@ -328,7 +330,7 @@ async def parse_text(input: TextInput):
         raise FundPalError(f"解析失败: {e}") from e
 
 
-@app.post("/api/portfolio/add-screenshot", response_model=AddResult)
+@app.post("/api/portfolio/add-screenshot", response_model=AddResult, dependencies=[Depends(verify_token), Depends(rate_limit_dependency)])
 async def add_from_screenshot(file: UploadFile = File(...)):
     """截图识别录入持仓"""
     try:
@@ -355,7 +357,7 @@ async def add_from_screenshot(file: UploadFile = File(...)):
         raise FundPalError(f"截图识别失败: {e}") from e
 
 
-@app.post("/api/portfolio/parse-screenshot", response_model=ParseResult)
+@app.post("/api/portfolio/parse-screenshot", response_model=ParseResult, dependencies=[Depends(verify_token), Depends(strict_rate_limit_dependency)])
 async def parse_screenshot(
     file: UploadFile = File(...),
     config: str | None = None,  # JSON string of config (FormData doesn't support nested objects)
@@ -389,7 +391,7 @@ async def parse_screenshot(
         raise FundPalError(f"截图解析失败: {e}") from e
 
 
-@app.delete("/api/portfolio/{fund_code}")
+@app.delete("/api/portfolio/{fund_code}", dependencies=[Depends(verify_token)])
 async def delete_holding(fund_code: str):
     """删除一只持仓"""
     existing = load_portfolio()
@@ -547,7 +549,7 @@ async def push_status():
     return get_push_status()
 
 
-@app.post("/api/push/test")
+@app.post("/api/push/test", dependencies=[Depends(verify_token), Depends(rate_limit_dependency)])
 async def test_push(input: PushTestInput | None = None):
     """测试推送（发送一条测试消息）"""
     config = input.config if input else {}
@@ -567,7 +569,7 @@ async def test_push(input: PushTestInput | None = None):
     return {"push_results": results}
 
 
-@app.post("/api/briefing-and-push")
+@app.post("/api/briefing-and-push", dependencies=[Depends(verify_token), Depends(strict_rate_limit_dependency)])
 async def generate_and_push(input: HoldingsInput | None = None):
     """生成简报并推送"""
     import asyncio
@@ -605,10 +607,11 @@ ALLOWED_KEYS = {
     "BARK_URL",
     "SERVERCHAN_KEY",
     "WECOM_WEBHOOK_URL",
+    "API_TOKEN",
 }
 
 # 需要脱敏显示的 key
-SENSITIVE_KEYS = {"OPENAI_API_KEY", "SERVERCHAN_KEY"}
+SENSITIVE_KEYS = {"OPENAI_API_KEY", "SERVERCHAN_KEY", "API_TOKEN"}
 
 
 def _read_env() -> dict[str, str]:
@@ -688,7 +691,7 @@ async def get_config():
     return result
 
 
-@app.post("/api/config")
+@app.post("/api/config", dependencies=[Depends(verify_token)])
 async def update_config(item: ConfigUpdate):
     """更新单个配置项"""
     if item.key not in ALLOWED_KEYS:
@@ -764,7 +767,7 @@ class FundExplanationResponse(BaseModel):
     perf_data: dict | None = None
 
 
-@app.post("/api/fund-diagnosis", response_model=FundDiagnosisResponse)
+@app.post("/api/fund-diagnosis", response_model=FundDiagnosisResponse, dependencies=[Depends(strict_rate_limit_dependency)])
 async def fund_diagnosis(request: FundAnalysisRequest):
     """基金诊断 — 分析基金是否值得买"""
     import asyncio
@@ -814,7 +817,7 @@ async def fund_diagnosis(request: FundAnalysisRequest):
         raise FundPalError(f"诊断处理失败: {e}") from e
 
 
-@app.post("/api/fund-explanation", response_model=FundExplanationResponse)
+@app.post("/api/fund-explanation", response_model=FundExplanationResponse, dependencies=[Depends(strict_rate_limit_dependency)])
 async def fund_explanation(request: FundAnalysisRequest):
     """基金分析 — 分析基金涨跌原因"""
     import asyncio

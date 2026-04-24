@@ -13,6 +13,32 @@ import type {
 
 const API = '' // same-origin, no prefix needed
 
+// ---- Auth Token 管理 ----
+
+const TOKEN_KEY = 'fundpal_api_token'
+
+export function getApiToken(): string {
+  return localStorage.getItem(TOKEN_KEY) || ''
+}
+
+export function setApiToken(token: string): void {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token)
+  } else {
+    localStorage.removeItem(TOKEN_KEY)
+  }
+}
+
+/** 构建带认证的请求头 */
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const headers: Record<string, string> = { ...extra }
+  const token = getApiToken()
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  return headers
+}
+
 // ---- Briefing ----
 
 export async function fetchBriefing(
@@ -40,7 +66,7 @@ export async function refreshPortfolioNav(
 ): Promise<{ holdings: Holding[] }> {
   const res = await fetch(API + '/api/portfolio/refresh', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ holdings }),
   })
   if (!res.ok) throw new Error('Refresh failed')
@@ -167,6 +193,7 @@ export async function fetchNavHistory(
 ): Promise<{ fund_code: string; nav_list: { date: string; nav: number }[] }> {
   const res = await fetch(
     API + `/api/fund/${fundCode}/nav-history?start=${start}&end=${end}`,
+    { headers: authHeaders() },
   )
   if (!res.ok) throw new Error('Nav history fetch failed')
   return res.json()
