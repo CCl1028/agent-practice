@@ -1,9 +1,7 @@
 """持仓管理工具 — 数据存取、盈亏计算、技术指标
 
-v2: 参考 daily_stock_analysis 增强：
-- 使用多源数据获取器（自动故障切换 + 熔断）
-- 计算均线（MA5/MA10/MA20）、均线排列状态
-- 计算乖离率、波动率
+Phase C: 底层存储从 JSON 文件切换到 SQLite（通过 Repository 模式）。
+对外接口 load_portfolio / save_portfolio 保持不变，调用方零改动。
 """
 
 from __future__ import annotations
@@ -16,25 +14,49 @@ from src.state import FundHolding
 
 logger = logging.getLogger(__name__)
 
+# 旧的 JSON 路径（迁移后不再使用，保留以便 fallback）
 DB_PATH = Path("data/portfolio.json")
 
 
 def load_portfolio() -> list[FundHolding]:
-    """从本地存储加载持仓，无数据时返回 mock。"""
+    """加载持仓 — 优先从 SQLite，fallback 到 JSON 文件。"""
+    try:
+        from src.database.repositories import PortfolioRepository
+        repo = PortfolioRepository()
+        holdings = repo.list_all()
+        if holdings:
+            return holdings
+    except Exception as e:
+        logger.warning("[持仓加载] SQLite 读取失败: %s，尝试 JSON fallback", e)
+
+    # Fallback: 旧的 JSON 文件
     if DB_PATH.exists():
         try:
             data = json.loads(DB_PATH.read_text(encoding="utf-8"))
             return data
         except Exception as e:
-            logger.warning("读取持仓失败: %s，使用 mock", e)
+            logger.warning("读取 JSON 持仓失败: %s，使用 mock", e)
 
     return _mock_portfolio()
 
 
 def save_portfolio(portfolio: list[FundHolding]) -> None:
-    """保存持仓到本地文件。"""
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    DB_PATH.write_text(json.dumps(portfolio, ensure_ascii=False, indent=2), encoding="utf-8")
+    """保存持仓 — 写入 SQLite + 同步写 JSON（过渡期双写）。"""
+    try:
+        from src.database.repositories import PortfolioRepository
+        repo = PortfolioRepository()
+        # 先清空再批量写入（保证与传入列表一致）
+        repo.delete_all()
+        repo.upsert_many(portfolio)
+    except Exception as e:
+        logger.warning("[持仓保存] SQLite 写入失败: %s，回退到 JSON", e)
+
+    # 过渡期：同时写 JSON 文件（前端可能还在读）
+    try:
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        DB_PATH.write_text(json.dumps(portfolio, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception as e:
+        logger.warning("[持仓保存] JSON 写入失败: %s", e)
 
 
 def compute_metrics(portfolio: list[FundHolding]) -> list[FundHolding]:

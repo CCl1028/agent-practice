@@ -29,11 +29,30 @@ setup_logging()
 async def lifespan(app_instance):
     """应用启动/关闭生命周期。"""
     load_dotenv()
+
+    # Phase C: 数据库初始化 + 自动迁移
+    from src.database.engine import init_db
+    init_db()
+    _auto_migrate()
+
     from src.config import validate_config
     validate_config()
     start_scheduler()
     yield
     stop_scheduler()
+
+
+def _auto_migrate():
+    """启动时自动检测并执行 JSON → SQLite 迁移。"""
+    from pathlib import Path
+    json_path = Path("data/portfolio.json")
+    if json_path.exists():
+        try:
+            from src.database.migrate import migrate_json_to_sqlite
+            migrate_json_to_sqlite()
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("[自动迁移] 失败: %s", e)
 
 
 app = FastAPI(title="基金投资助手", version="0.1.0", lifespan=lifespan)
