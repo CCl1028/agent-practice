@@ -59,6 +59,56 @@ export async function fetchBriefing(
   return res.json()
 }
 
+// ---- Briefing (SSE Stream) ----
+
+export interface SSEProgressEvent {
+  step: string
+  message: string
+}
+
+export async function streamBriefing(
+  holdings: Holding[],
+  onProgress: (event: SSEProgressEvent) => void,
+  onComplete: (data: BriefingResponse) => void,
+  onError: (error: string) => void,
+): Promise<void> {
+  const res = await fetch(API + '/api/briefing/stream', {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ holdings }),
+  })
+  if (!res.ok) throw new Error('Stream failed: ' + res.status)
+  if (!res.body) throw new Error('No response body')
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+
+    let currentEvent = ''
+    for (const line of lines) {
+      if (line.startsWith('event: ')) {
+        currentEvent = line.slice(7).trim()
+      } else if (line.startsWith('data: ') && currentEvent) {
+        try {
+          const data = JSON.parse(line.slice(6))
+          if (currentEvent === 'progress') onProgress(data)
+          else if (currentEvent === 'complete') onComplete(data)
+          else if (currentEvent === 'error') onError(data.message)
+        } catch { /* ignore parse errors */ }
+        currentEvent = ''
+      }
+    }
+  }
+}
+
 // ---- Portfolio ----
 
 export async function refreshPortfolioNav(

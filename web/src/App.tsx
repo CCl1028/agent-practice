@@ -99,7 +99,7 @@ export default function App() {
   const handleGenerateBriefing = async () => {
     if (portfolio.holdings.length === 0) { showToast('请先添加持仓', 'error'); return }
     setInputDisabled(true)
-    await briefing.generate()
+    await briefing.generateStream()
     setInputDisabled(false)
     if (briefing.error) {
       showToast('生成失败: ' + briefing.error, 'error')
@@ -175,6 +175,7 @@ export default function App() {
                 error={briefing.error}
                 pushEnabled={briefing.pushEnabled}
                 hasHoldings={portfolio.holdings.length > 0}
+                progress={briefing.progress}
                 onTogglePush={briefing.togglePush}
                 onGenerate={handleGenerateBriefing}
               />

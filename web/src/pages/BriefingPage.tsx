@@ -17,6 +17,7 @@ interface BriefingPageProps {
   error: string | null
   pushEnabled: boolean
   hasHoldings: boolean
+  progress: string | null
   onTogglePush: () => void
   onGenerate: () => void
 }
@@ -55,6 +56,7 @@ export default function BriefingPage({
   error,
   pushEnabled,
   hasHoldings,
+  progress,
   onTogglePush,
   onGenerate,
 }: BriefingPageProps) {
@@ -69,7 +71,7 @@ export default function BriefingPage({
               <div className="pulse-ring"></div>
               <Sparkles size={32} className="pulse-icon" />
             </div>
-            <div className="loading-text">Agent 正在分析您的持仓...</div>
+            <div className="loading-text">{progress || 'Agent 正在分析您的持仓...'}</div>
             <div className="loading-hint">预计需要 10-15 秒</div>
           </div>
         )}

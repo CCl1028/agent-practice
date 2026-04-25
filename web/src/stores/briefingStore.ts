@@ -1,6 +1,6 @@
 /**
  * 简报 Store — Zustand
- * Phase C: 推送配置已迁移到服务端 .env，前端不再传 pushConfig
+ * 支持 SSE 流式生成（显示进度）和传统一次性生成
  */
 
 import { create } from 'zustand'
@@ -13,8 +13,10 @@ interface BriefingStore {
   loading: boolean
   error: string | null
   pushEnabled: boolean
+  progress: string | null  // SSE 进度消息
 
   generate: () => Promise<void>
+  generateStream: () => Promise<void>
   togglePush: () => void
   reset: () => void
 }
@@ -24,24 +26,41 @@ export const useBriefingStore = create<BriefingStore>((set, get) => ({
   loading: false,
   error: null,
   pushEnabled: true,
+  progress: null,
 
   generate: async () => {
     const holdings = usePortfolioStore.getState().holdings
     if (holdings.length === 0) return
 
-    set({ loading: true, error: null })
+    set({ loading: true, error: null, progress: null })
     try {
       const { pushEnabled } = get()
-      // 推送配置已在服务端 .env，不需要前端传
       const data = await api.fetchBriefing(holdings, pushEnabled)
       set({ briefing: data.raw })
     } catch (e: unknown) {
       set({ error: e instanceof Error ? e.message : String(e) })
     } finally {
-      set({ loading: false })
+      set({ loading: false, progress: null })
+    }
+  },
+
+  generateStream: async () => {
+    const holdings = usePortfolioStore.getState().holdings
+    if (holdings.length === 0) return
+
+    set({ loading: true, error: null, progress: '准备中...' })
+    try {
+      await api.streamBriefing(
+        holdings,
+        (event) => set({ progress: event.message }),
+        (data) => set({ briefing: data.raw, loading: false, progress: null }),
+        (errMsg) => set({ error: errMsg, loading: false, progress: null }),
+      )
+    } catch (e: unknown) {
+      set({ error: e instanceof Error ? e.message : String(e), loading: false, progress: null })
     }
   },
 
   togglePush: () => set((s) => ({ pushEnabled: !s.pushEnabled })),
-  reset: () => set({ briefing: null, error: null }),
+  reset: () => set({ briefing: null, error: null, progress: null }),
 }))
