@@ -13,16 +13,13 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import {
-  getLocalConfig,
-  setConfigValue,
-  getPushConfig,
   getLocalPortfolio,
   saveLocalPortfolio,
   getTransactions,
   getInvestPlans,
 } from '../store'
-import { maskValue } from '../utils'
 import * as api from '../api'
+import type { ConfigEntry } from '../api'
 
 interface ProfilePageProps {
   showToast: (msg: string, type: 'success' | 'error') => void
@@ -48,7 +45,7 @@ const PUSH_CONFIG_ITEMS: ConfigItem[] = [
 ]
 
 export default function ProfilePage({ showToast }: ProfilePageProps) {
-  const [config, setConfig] = useState<Record<string, string>>({})
+  const [serverConfig, setServerConfig] = useState<Record<string, ConfigEntry>>({})
   const [editValues, setEditValues] = useState<Record<string, string>>({})
   const [showAIConfig, setShowAIConfig] = useState(false)
   const [showPushConfig, setShowPushConfig] = useState(false)
@@ -61,13 +58,23 @@ export default function ProfilePage({ showToast }: ProfilePageProps) {
   const [logsTotal, setLogsTotal] = useState(0)
   const [logLevel, setLogLevel] = useState('ERROR')
   const [versionText, setVersionText] = useState('')
+  const [savingKey, setSavingKey] = useState('')
 
   useEffect(() => {
-    setConfig(getLocalConfig())
+    loadConfig()
     setPortfolioCount(getLocalPortfolio().length)
     setTxCount(getTransactions().length)
     loadVersion()
   }, [])
+
+  const loadConfig = async () => {
+    try {
+      const cfg = await api.fetchConfig()
+      setServerConfig(cfg)
+    } catch {
+      // Fallback: 后端不可用时不 crash
+    }
+  }
 
   const loadVersion = async () => {
     try {
@@ -85,35 +92,40 @@ export default function ProfilePage({ showToast }: ProfilePageProps) {
     }
   }
 
-  const handleSave = (key: string) => {
+  const handleSave = async (key: string) => {
     const value = editValues[key]
     if (!value || value.includes('****')) {
       showToast('请输入新值', 'error')
       return
     }
-    setConfigValue(key, value)
-    setConfig({ ...getLocalConfig() })
-    setEditValues((prev) => {
-      const next = { ...prev }
-      delete next[key]
-      return next
-    })
-    showToast('配置已保存', 'success')
+    setSavingKey(key)
+    try {
+      await api.updateConfig(key, value)
+      await loadConfig() // 刷新服务端配置
+      setEditValues((prev) => {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+      showToast('配置已保存到服务端', 'success')
+    } catch {
+      showToast('保存失败，请检查网络', 'error')
+    } finally {
+      setSavingKey('')
+    }
   }
 
   const renderConfigItem = (item: ConfigItem) => {
-    const value = config[item.key] || ''
-    const hasValue = !!value
+    const entry = serverConfig[item.key]
+    const hasValue = entry?.has_value || false
+    const serverValue = entry?.value || ''
     const editVal = editValues[item.key]
     const displayVal =
       editVal !== undefined
         ? editVal
-        : item.sensitive && hasValue
-          ? maskValue(value)
-          : value
+        : serverValue
     const isDirty =
-      editVal !== undefined &&
-      editVal !== (item.sensitive && hasValue ? maskValue(value) : value)
+      editVal !== undefined && editVal !== serverValue
 
     return (
       <div className="config-item" key={item.key}>
@@ -145,10 +157,10 @@ export default function ProfilePage({ showToast }: ProfilePageProps) {
           />
           <button
             className="save-btn small"
-            disabled={!isDirty}
+            disabled={!isDirty || savingKey === item.key}
             onClick={() => handleSave(item.key)}
           >
-            保存
+            {savingKey === item.key ? '...' : '保存'}
           </button>
         </div>
       </div>
@@ -159,7 +171,7 @@ export default function ProfilePage({ showToast }: ProfilePageProps) {
     setPushTesting(true)
     setPushResult('')
     try {
-      const data = await api.testPush(getPushConfig())
+      const data = await api.testPush({}) // 后端自己读 .env 的推送配置
       const parts: string[] = []
       if (data.push_results.bark === true) parts.push('Bark ✓')
       else if (data.push_results.bark === false) parts.push('Bark ✗')
@@ -252,9 +264,9 @@ export default function ProfilePage({ showToast }: ProfilePageProps) {
   }
 
   const handleClearData = () => {
-    if (!confirm('确认清除所有数据？此操作不可恢复！')) return
+    if (!confirm('确认清除所有本地数据？此操作不可恢复！')) return
     localStorage.clear()
-    showToast('数据已清除，请刷新页面', 'success')
+    showToast('本地数据已清除，请刷新页面', 'success')
   }
 
   return (

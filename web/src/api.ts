@@ -176,6 +176,29 @@ export async function clearLogs(): Promise<void> {
   await fetch(API + '/api/logs', { method: 'DELETE' })
 }
 
+// ---- Config ----
+
+export interface ConfigEntry {
+  value: string
+  has_value: boolean
+  sensitive: boolean
+}
+
+export async function fetchConfig(): Promise<Record<string, ConfigEntry>> {
+  const res = await fetch(API + '/api/config', { headers: authHeaders() })
+  if (!res.ok) throw new Error('Config fetch failed')
+  return res.json()
+}
+
+export async function updateConfig(key: string, value: string): Promise<void> {
+  const res = await fetch(API + '/api/config', {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ key, value }),
+  })
+  if (!res.ok) throw new Error('Config update failed')
+}
+
 // ---- Version ----
 
 export async function fetchVersion(): Promise<VersionInfo> {

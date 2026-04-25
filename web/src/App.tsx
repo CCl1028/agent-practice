@@ -51,7 +51,7 @@ export default function App() {
     let hasError = false
 
     try {
-      const aiConfig = JSON.parse(localStorage.getItem('fund_assistant_config') || '{}')
+      const aiConfig = {} // 后端从 .env 读取 AI 配置
       for (let i = 0; i < files.length; i++) {
         setImageProgress({ current: i + 1, total: files.length })
         try {

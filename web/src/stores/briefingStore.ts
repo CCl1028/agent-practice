@@ -1,5 +1,6 @@
 /**
  * 简报 Store — Zustand
+ * Phase C: 推送配置已迁移到服务端 .env，前端不再传 pushConfig
  */
 
 import { create } from 'zustand'
@@ -31,8 +32,8 @@ export const useBriefingStore = create<BriefingStore>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const { pushEnabled } = get()
-      const pushConfig = pushEnabled ? getPushConfig() : undefined
-      const data = await api.fetchBriefing(holdings, pushEnabled, pushConfig)
+      // 推送配置已在服务端 .env，不需要前端传
+      const data = await api.fetchBriefing(holdings, pushEnabled)
       set({ briefing: data.raw })
     } catch (e: unknown) {
       set({ error: e instanceof Error ? e.message : String(e) })
@@ -44,19 +45,3 @@ export const useBriefingStore = create<BriefingStore>((set, get) => ({
   togglePush: () => set((s) => ({ pushEnabled: !s.pushEnabled })),
   reset: () => set({ briefing: null, error: null }),
 }))
-
-/** 从 localStorage 读取推送配置 */
-function getPushConfig(): Record<string, string> {
-  try {
-    const cfg = JSON.parse(localStorage.getItem('fund_assistant_config') || '{}')
-    const push: Record<string, string> = {}
-    for (const [k, v] of Object.entries(cfg)) {
-      if (typeof v === 'string' && (k.includes('BARK') || k.includes('SERVERCHAN') || k.includes('WECOM'))) {
-        push[k] = v
-      }
-    }
-    return push
-  } catch {
-    return {}
-  }
-}
