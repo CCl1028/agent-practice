@@ -1,0 +1,39 @@
+/* ---- Portfolio Summary ---- */
+.portfolio-summary { display: flex; background: linear-gradient(135deg, #fce8e4 0%, #ffffff 100%); border: 1px solid #e8c4bf; border-radius: 16px; padding: 16px; margin-bottom: 16px; gap: 8px; }
+.summary-item { flex: 1; text-align: center; }
+.summary-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.summary-value { font-size: 15px; font-weight: 700; color: var(--text); }
+
+/* ---- Invest Card ---- */
+.invest-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+.invest-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.invest-card-name { font-size: 14px; font-weight: 600; }
+.invest-card-schedule { font-size: 13px; color: var(--text-secondary); }
+.invest-card-status { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+.invest-card-actions { display: flex; gap: 6px; margin-top: 8px; }
+.invest-card-actions button { padding: 4px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--text-secondary); transition: all 0.2s; }
+.invest-card-actions button:hover { border-color: var(--accent); color: var(--accent); }
+.invest-card-actions .stop-btn:hover { border-color: var(--red); color: var(--red); }
+
+/* ---- Transaction List ---- */
+.tx-toggle { font-size: 12px; color: var(--accent); cursor: pointer; margin-top: 6px; display: inline-block; }
+.tx-toggle:hover { text-decoration: underline; }
+.tx-list { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+.tx-item { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; color: var(--text-secondary); }
+.tx-item .tx-type-buy { color: var(--red); font-weight: 600; }
+.tx-item .tx-type-sell { color: var(--green); font-weight: 600; }
+
+/* ---- Pending Invest Banner ---- */
+.pending-invest-banner { background: linear-gradient(135deg, #fff5e6, #ffffff); border: 1px solid #e8d4a8; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
+.pending-invest-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--yellow); }
+.pending-invest-detail { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.6; }
+.pending-invest-actions { display: flex; gap: 8px; }
+.pending-invest-actions button { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+.pending-invest-actions .exec-btn { background: var(--accent); color: white; }
+.pending-invest-actions .skip-btn { background: var(--bg); color: var(--text-secondary); border: 1px solid var(--border); }
+.pending-invest-actions .detail-btn { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+
+/* ---- Status Dot ---- */
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.status-dot.active { background: var(--green); }
+.status-dot.paused { background: var(--text-secondary); }

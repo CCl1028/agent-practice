@@ -1,0 +1,13 @@
+/* ---- Diagnosis Page ---- */
+.diagnosis-page {}
+.coming-soon { text-align: center; padding: 40px 20px; }
+.coming-soon-icon { color: var(--accent); margin-bottom: 16px; }
+.coming-soon h2 { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
+.coming-soon-desc { font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px; }
+.feature-preview { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 24px; text-align: left; }
+.feature-preview h3 { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; }
+.feature-preview ul { list-style: none; }
+.feature-preview li { display: flex; align-items: center; gap: 10px; padding: 10px 0; font-size: 14px; color: var(--text); border-bottom: 1px solid var(--border); }
+.feature-preview li:last-child { border-bottom: none; }
+.feature-preview li svg { color: var(--accent); }
+.notify-btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; background: var(--bg); border: 1px solid var(--border); border-radius: 24px; color: var(--text-secondary); font-size: 14px; cursor: not-allowed; }

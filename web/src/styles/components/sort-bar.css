@@ -1,0 +1,69 @@
+/* ---- Sort Bar ---- */
+.sort-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.sort-btn {
+  padding: 4px 10px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  white-space: nowrap;
+  min-width: 64px;
+  text-align: center;
+}
+
+.sort-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.sort-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(184, 78, 74, 0.06);
+}
+
+.sort-arrows {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 12px;
+  line-height: 1;
+}
+
+.sort-arrows .arrow-up,
+.sort-arrows .arrow-down {
+  font-size: 8px;
+  line-height: 1;
+  color: var(--border);
+  transition: color 0.2s;
+}
+
+.sort-btn.active .arrow-up.lit,
+.sort-btn.active .arrow-down.lit {
+  color: var(--accent);
+}
+
+/* ---- Section Title ---- */
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 20px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

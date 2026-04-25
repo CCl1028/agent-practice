@@ -1,0 +1,231 @@
+/* ---- Fund Card ---- */
+.fund-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 10px;
+  transition: background 0.2s, border-color 0.2s;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.fund-card:hover {
+  background: var(--card-hover);
+}
+
+.fund-card.selected {
+  border-color: var(--accent);
+  background: var(--card-hover);
+}
+
+.fund-card-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.fund-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  text-align: right;
+  min-width: 80px;
+  padding-top: 2px;
+}
+
+.fund-profit-ratio {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.fund-profit-amount {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.fund-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 10px;
+}
+
+.fund-name {
+  font-size: 15px;
+  font-weight: 600;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.fund-code {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.fund-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.action-buy {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.action-sell {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.action-hold {
+  background: var(--yellow-bg);
+  color: var(--yellow);
+}
+
+.fund-reason {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+/* ---- Estimation Badge ---- */
+.fund-est {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.fund-est.up {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.fund-est.down {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.fund-est.flat {
+  background: rgba(138, 112, 112, 0.1);
+  color: #8a7070;
+}
+
+.fund-est-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.fund-est-time {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-left: 2px;
+}
+
+/* ---- Fund Actions ---- */
+.fund-actions {
+  display: none;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.fund-card.selected .fund-actions {
+  display: flex;
+}
+
+.fund-action-btn {
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.fund-action-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.fund-action-btn.buy {
+  border-color: var(--red);
+  color: var(--red);
+  background: var(--red-bg);
+}
+
+.fund-action-btn.buy:hover {
+  background: var(--red);
+  color: white;
+}
+
+.fund-action-btn.sell {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-bg);
+}
+
+.fund-action-btn.sell:hover {
+  background: var(--green);
+  color: white;
+}
+
+.fund-action-btn.invest {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.fund-action-btn.invest:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.fund-action-btn.delete {
+  border-color: var(--red);
+  color: var(--red);
+  background: var(--red-bg);
+}
+
+.fund-action-btn.delete:hover {
+  background: var(--red);
+  color: white;
+}
+
+/* ---- Invest Tag ---- */
+.fund-invest-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(184, 78, 74, 0.08);
+  color: var(--accent);
+  margin-top: 4px;
+}

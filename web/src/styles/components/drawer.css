@@ -1,0 +1,86 @@
+/* ---- Drawer Base ---- */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 900;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+
+.drawer-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 85vh;
+  background: var(--card);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  z-index: 901;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.drawer.open { transform: translateY(0); }
+.drawer-handle { display: flex; justify-content: center; padding: 10px 0 4px; cursor: grab; flex-shrink: 0; }
+.drawer-handle-bar { width: 36px; height: 4px; background: var(--border); border-radius: 2px; }
+.drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 4px 20px 12px; flex-shrink: 0; }
+.drawer-header h3 { font-size: 18px; font-weight: 600; }
+.drawer-close { background: none; border: none; color: var(--text-secondary); font-size: 22px; cursor: pointer; padding: 4px 8px; border-radius: 8px; line-height: 1; }
+.drawer-close:hover { color: var(--text); background: var(--bg); }
+.drawer-body { overflow-y: auto; padding: 0 20px 24px; -webkit-overflow-scrolling: touch; }
+
+/* ---- Trade Drawer ---- */
+.trade-drawer { z-index: 902; }
+.trade-drawer-overlay { z-index: 901; }
+.trade-form .form-group { margin-bottom: 16px; }
+.trade-form .form-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; display: block; }
+.trade-form .form-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; color: var(--text); font-size: 16px; font-family: inherit; }
+.trade-form .form-input:focus { outline: none; border-color: var(--accent); }
+.quick-amounts { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.quick-amount { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+.quick-amount:hover, .quick-amount.active { border-color: var(--accent); background: var(--accent); color: white; }
+.trade-info { background: var(--bg); border-radius: 10px; padding: 12px; font-size: 13px; color: var(--text-secondary); line-height: 1.8; }
+.trade-submit { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-top: 8px; }
+.trade-submit.buy-btn { background: var(--red); color: white; }
+.trade-submit.sell-btn { background: var(--green); color: white; }
+.trade-submit.invest-btn { background: linear-gradient(135deg, var(--accent), #c47a4a); color: white; box-shadow: 0 4px 16px rgba(184, 78, 74, 0.3); }
+.trade-submit:disabled { background: #e8d8d5; color: #a89090; cursor: not-allowed; box-shadow: none; }
+.form-error { font-size: 12px; color: var(--red); margin-top: 4px; }
+
+/* ---- Frequency Select ---- */
+.freq-row { display: flex; gap: 8px; }
+.freq-select { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; color: var(--text); font-size: 14px; font-family: inherit; appearance: auto; }
+.freq-select:focus { outline: none; border-color: var(--accent); }
+
+/* ---- Confirm Drawer ---- */
+.confirm-drawer { z-index: 903; }
+.confirm-drawer-overlay { z-index: 902; }
+.confirm-list { max-height: 50vh; overflow-y: auto; }
+.confirm-item { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; position: relative; }
+.confirm-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.confirm-item-title { font-size: 15px; font-weight: 600; color: var(--text); flex: 1; min-width: 0; word-break: break-word; }
+.confirm-item-code { font-size: 12px; color: var(--text-secondary); margin-left: 6px; flex-shrink: 0; }
+.confirm-item-remove { background: none; border: none; color: var(--red); cursor: pointer; font-size: 18px; padding: 2px 6px; border-radius: 6px; line-height: 1; flex-shrink: 0; transition: background 0.2s; }
+.confirm-item-remove:hover { background: var(--red-bg); }
+.confirm-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.confirm-field { display: flex; flex-direction: column; gap: 2px; }
+.confirm-field label { font-size: 11px; color: var(--text-secondary); }
+.confirm-field input { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; color: var(--text); font-size: 13px; font-family: inherit; width: 100%; }
+.confirm-field input:focus { outline: none; border-color: var(--accent); }
+.confirm-field input.edited { border-color: var(--accent); background: rgba(184, 78, 74, 0.04); }
+.confirm-actions { display: flex; gap: 10px; margin-top: 16px; }
+.confirm-actions button { flex: 1; padding: 13px; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.confirm-save-btn { background: var(--accent); color: white; box-shadow: 0 4px 16px rgba(184, 78, 74, 0.3); }
+.confirm-save-btn:disabled { background: #e8d8d5; color: #a89090; box-shadow: none; cursor: not-allowed; }
+.confirm-cancel-btn { background: var(--bg); color: var(--text-secondary); border: 1px solid var(--border) !important; }
