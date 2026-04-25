@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.core.exceptions import FundPalError
-from src.core.logging import setup_logging
+from src.core.logging import RequestIDMiddleware, setup_logging
 from src.core.scheduler import start_scheduler, stop_scheduler
 from src.routes import register_routes
 from src.routes.system import mount_frontend
@@ -46,6 +46,7 @@ _cors_origins = (
     else ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:3000"]
 )
 app.add_middleware(CORSMiddleware, allow_origins=_cors_origins, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(RequestIDMiddleware)
 
 
 # ---- 全局异常处理器 ----
