@@ -1,27 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
-import type {
-  Holding,
-  Briefing,
-  FundEstimation,
-  SortKey,
-  SortDir,
-  InvestPlan,
-  InvestFrequency,
-} from './types'
+import { useEffect, useState } from 'react'
+import type { Holding } from './types'
 import * as api from './api'
-import {
-  getLocalPortfolio,
-  saveLocalPortfolio,
-  getPushConfig,
-  getAIConfig,
-  getTransactions,
-  addTransaction,
-  getInvestPlans,
-  saveInvestPlans,
-  recalcHolding,
-} from './store'
-import { generateId, formatPushResults } from './utils'
+import { usePortfolioStore } from './stores/portfolioStore'
+import { useBriefingStore } from './stores/briefingStore'
+import { useTradeStore } from './stores/tradeStore'
 import { useToast } from './hooks/useToast'
+import { formatPushResults } from './utils'
 
 import Header, { type TabKey } from './components/Header'
 import BottomInputBar from './components/BottomInputBar'
@@ -36,136 +20,25 @@ import DiagnosisPage from './pages/DiagnosisPage'
 import ProfilePage from './pages/ProfilePage'
 
 export default function App() {
-  // ---- State ----
   const [activeTab, setActiveTab] = useState<TabKey>('portfolio')
-  const [holdings, setHoldings] = useState<Holding[]>([])
-  const [briefing, setBriefing] = useState<Briefing | null>(null)
-  const [briefingLoading, setBriefingLoading] = useState(false)
-  const [briefingError, setBriefingError] = useState<string | null>(null)
-  const [pushEnabled, setPushEnabled] = useState(true)
-  const [estimationCache, setEstimationCache] = useState<Record<string, FundEstimation>>({})
-  const [sortKey, setSortKey] = useState<SortKey>('time')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
-  const [inputDisabled, setInputDisabled] = useState(false)
-  const [investPlans, setInvestPlans] = useState<InvestPlan[]>([])
-
-  // Drawers
-  const [tradeOpen, setTradeOpen] = useState(false)
-  const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy')
-  const [tradeHolding, setTradeHolding] = useState<Holding | null>(null)
-  const [investOpen, setInvestOpen] = useState(false)
-  const [investHolding, setInvestHolding] = useState<Holding | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmHoldings, setConfirmHoldings] = useState<Holding[]>([])
   const [confirmSource, setConfirmSource] = useState<'screenshot' | 'text' | ''>('')
   const [imageAnalyzing, setImageAnalyzing] = useState(false)
   const [imageProgress, setImageProgress] = useState({ current: 0, total: 0 })
+  const [inputDisabled, setInputDisabled] = useState(false)
 
   const { toast, showToast } = useToast()
 
-  // ---- Load data on mount ----
+  // Zustand stores
+  const portfolio = usePortfolioStore()
+  const briefing = useBriefingStore()
+  const trade = useTradeStore()
+
+  // Load on mount
   useEffect(() => {
-    loadPortfolio()
-    setInvestPlans(getInvestPlans())
+    portfolio.loadPortfolio().then(() => portfolio.loadEstimation())
   }, [])
-
-  // ---- Portfolio loading ----
-  const loadPortfolio = useCallback(
-    async (skipEstimation = false) => {
-      const h = getLocalPortfolio()
-      setHoldings(h)
-      if (h.length > 0) {
-        refreshNav(h)
-        if (!skipEstimation) {
-          loadEstimation(h)
-        }
-      }
-    },
-    [],
-  )
-
-  const refreshNav = async (h: Holding[]) => {
-    try {
-      const data = await api.refreshPortfolioNav(h)
-      if (data.holdings?.length > 0) {
-        const localMap: Record<string, Holding> = {}
-        for (const item of getLocalPortfolio()) {
-          localMap[item.fund_code] = item
-        }
-        for (const item of data.holdings) {
-          if (item.fund_code && localMap[item.fund_code]) {
-            localMap[item.fund_code].current_nav = item.current_nav
-            localMap[item.fund_code].profit_ratio = item.profit_ratio
-            localMap[item.fund_code].market_value = item.market_value
-            localMap[item.fund_code].trend_5d = item.trend_5d
-          }
-        }
-        const updated = Object.values(localMap)
-        saveLocalPortfolio(updated)
-        setHoldings([...updated])
-      }
-    } catch {
-      // silent
-    }
-  }
-
-  const loadEstimation = async (h: Holding[]) => {
-    if (!h.length) return
-    try {
-      const data = await api.fetchEstimation(h)
-      const cache: Record<string, FundEstimation> = {}
-      for (const f of data.funds) {
-        cache[f.fund_code] = f
-      }
-      setEstimationCache((prev) => ({ ...prev, ...cache }))
-    } catch {
-      // silent
-    }
-  }
-
-  // ---- Sorting ----
-  const handleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))
-    } else {
-      setSortKey(key)
-      setSortDir('desc')
-    }
-  }
-
-  // ---- Briefing ----
-  const handleGenerateBriefing = async () => {
-    const localHoldings = getLocalPortfolio()
-    if (localHoldings.length === 0) {
-      showToast('请先添加持仓', 'error')
-      return
-    }
-
-    setBriefingLoading(true)
-    setBriefingError(null)
-    setInputDisabled(true)
-
-    try {
-      const data = await api.fetchBriefing(
-        localHoldings,
-        pushEnabled,
-        pushEnabled ? getPushConfig() : undefined,
-      )
-      setBriefing(data.raw)
-      if (pushEnabled && data.push_results) {
-        const pushMsg = formatPushResults(data.push_results)
-        showToast('简报已生成 ' + pushMsg, 'success')
-      } else {
-        showToast('简报已生成', 'success')
-      }
-    } catch (e: unknown) {
-      setBriefingError(e instanceof Error ? e.message : String(e))
-      showToast('生成失败: ' + (e instanceof Error ? e.message : String(e)), 'error')
-    } finally {
-      setBriefingLoading(false)
-      setInputDisabled(false)
-    }
-  }
 
   // ---- Input handlers ----
   const handleSendFile = async (files: File[]) => {
@@ -177,41 +50,28 @@ export default function App() {
     let hasError = false
 
     try {
+      const aiConfig = JSON.parse(localStorage.getItem('fund_assistant_config') || '{}')
       for (let i = 0; i < files.length; i++) {
         setImageProgress({ current: i + 1, total: files.length })
         try {
-          const data = await api.parseScreenshot(files[i], getAIConfig())
-          if (data.parsed?.length > 0) {
-            allParsed.push(...data.parsed)
-          }
-        } catch (e: unknown) {
-          // Log individual file error but continue processing
-          console.error(`File ${i + 1} failed:`, e)
-          hasError = true
-        }
+          const data = await api.parseScreenshot(files[i], aiConfig)
+          if (data.parsed?.length > 0) allParsed.push(...data.parsed)
+        } catch { hasError = true }
       }
 
       if (allParsed.length > 0) {
-        // Deduplicate by fund_code
         const seen = new Set<string>()
-        const deduped: Holding[] = []
-        for (const h of allParsed) {
+        const deduped = allParsed.filter((h) => {
           const key = h.fund_code || h.fund_name || ''
-          if (key && !seen.has(key)) {
-            seen.add(key)
-            deduped.push(h)
-          }
-        }
+          if (key && !seen.has(key)) { seen.add(key); return true }
+          return false
+        })
         setConfirmHoldings(deduped)
         setConfirmSource('screenshot')
         setConfirmOpen(true)
-      } else if (hasError) {
-        showToast('识别失败，请检查网络后重试', 'error')
       } else {
-        showToast('未识别到基金信息，换张截图试试', 'error')
+        showToast(hasError ? '识别失败，请检查网络后重试' : '未识别到基金信息', 'error')
       }
-    } catch (e: unknown) {
-      showToast('识别失败: ' + (e instanceof Error ? e.message : String(e)), 'error')
     } finally {
       setInputDisabled(false)
       setImageAnalyzing(false)
@@ -219,244 +79,102 @@ export default function App() {
     }
   }
 
-  // 手动添加持仓
   const handleAddHoldings = (newHoldings: Holding[]) => {
-    if (newHoldings.length === 0) return
-    
-    const existing = getLocalPortfolio()
-    const existingMap: Record<string, Holding> = {}
-    for (const f of existing) {
-      const key = f.fund_code || f.fund_name || ''
-      if (key) existingMap[key] = f
-    }
-    for (const h of newHoldings) {
-      const key = h.fund_code || h.fund_name || ''
-      if (key) existingMap[key] = h
-    }
-    const merged = Object.values(existingMap)
-    saveLocalPortfolio(merged)
-
+    if (!newHoldings.length) return
+    const map: Record<string, Holding> = {}
+    for (const h of portfolio.holdings) map[h.fund_code || h.fund_name] = h
+    for (const h of newHoldings) map[h.fund_code || h.fund_name] = h
+    portfolio.saveAndSync(Object.values(map))
     showToast(`已添加 ${newHoldings.length} 只基金`, 'success')
-    loadPortfolio(true)
-    
-    // 刷新新基金的估值
-    const newCodes = newHoldings.map((h) => h.fund_code).filter(Boolean)
-    if (newCodes.length > 0) {
-      const newItems = newCodes.map((c) => ({ fund_code: c, fund_name: '' }))
-      loadEstimation(newItems)
-    }
+    portfolio.loadEstimation(newHoldings)
   }
 
-  // ---- Confirm save ----
   const handleConfirmSave = (items: Holding[]) => {
-    const existing = getLocalPortfolio()
-    const existingMap: Record<string, Holding> = {}
-    for (const f of existing) {
-      const key = f.fund_code || f.fund_name || ''
-      if (key) existingMap[key] = f
-    }
-    for (const h of items) {
-      const key = h.fund_code || h.fund_name || ''
-      if (key) existingMap[key] = h
-    }
-    const merged = Object.values(existingMap)
-    saveLocalPortfolio(merged)
+    handleAddHoldings(items)
+    setConfirmOpen(false)
+    setConfirmHoldings([])
+  }
 
-    const newCodes = items.map((h) => h.fund_code).filter(Boolean)
-    showToast(`已保存 ${items.length} 只基金`, 'success')
-    loadPortfolio(true)
-    // Load estimation for new funds
-    if (newCodes.length > 0) {
-      const newHoldings = newCodes.map((c) => ({ fund_code: c, fund_name: '' }))
-      loadEstimation(newHoldings)
+  const handleGenerateBriefing = async () => {
+    if (portfolio.holdings.length === 0) { showToast('请先添加持仓', 'error'); return }
+    setInputDisabled(true)
+    await briefing.generate()
+    setInputDisabled(false)
+    if (briefing.error) {
+      showToast('生成失败: ' + briefing.error, 'error')
+    } else {
+      showToast('简报已生成', 'success')
     }
   }
 
-  // ---- Trade ----
-  const openTrade = (code: string, type: 'buy' | 'sell') => {
-    const h = holdings.find((x) => x.fund_code === code)
-    if (!h) return
-    setTradeHolding(h)
-    setTradeType(type)
-    setTradeOpen(true)
-  }
-
-  const handleTradeSubmit = (
-    fundCode: string,
-    type: 'buy' | 'sell',
-    amount: number,
-    nav: number,
-    note: string,
-  ) => {
-    // Validate sell
+  const handleTradeSubmit = (fundCode: string, type: 'buy' | 'sell', amount: number, nav: number, note: string) => {
     if (type === 'sell') {
-      const h = holdings.find((x) => x.fund_code === fundCode)
-      const holdShares = h?.total_shares || 0
-      if (holdShares <= 0) {
-        showToast('当前无持仓可减', 'error')
-        return
-      }
-      const sellShares = amount / nav
-      if (sellShares > holdShares) {
-        showToast(`赎回份额 ${sellShares.toFixed(2)} 超过持有 ${holdShares.toFixed(2)} 份`, 'error')
-        return
-      }
+      const h = portfolio.holdings.find((x) => x.fund_code === fundCode)
+      const held = h?.total_shares || 0
+      if (held <= 0) { showToast('当前无持仓可减', 'error'); return }
+      if (amount / nav > held) { showToast('赎回份额超过持有', 'error'); return }
     }
-
-    const tx = {
-      id: generateId(),
-      fund_code: fundCode,
-      type,
-      amount: Math.round(amount * 100) / 100,
-      nav: Math.round(nav * 10000) / 10000,
-      shares: Math.round((amount / nav) * 100) / 100,
-      source: 'manual' as const,
-      created_at: new Date().toISOString(),
-      note,
-    }
-    addTransaction(tx)
-    recalcHolding(fundCode)
-    showToast(
-      `${type === 'buy' ? '加仓' : '减仓'}成功 ${type === 'buy' ? '+' : '-'}¥${amount}`,
-      'success',
+    const result = trade.submitTrade(fundCode, type, amount, nav, note)
+    // Update portfolio with recalculated shares
+    const updated = portfolio.holdings.map((h) =>
+      h.fund_code === fundCode ? { ...h, total_shares: result.total_shares, total_cost: result.total_cost, avg_nav: result.avg_nav } : h,
     )
-    loadPortfolio(true)
+    portfolio.saveAndSync(updated)
+    showToast(`${type === 'buy' ? '加仓' : '减仓'}成功`, 'success')
   }
 
-  // ---- Delete ----
   const handleDelete = (code: string) => {
-    const h = holdings.find((x) => x.fund_code === code)
-    const name = h ? h.fund_name || code : code
-    if (!confirm(`确认删除「${name}」？删除后持仓和交易记录将保留。`)) return
-    const filtered = getLocalPortfolio().filter((x) => x.fund_code !== code)
-    saveLocalPortfolio(filtered)
+    const h = portfolio.holdings.find((x) => x.fund_code === code)
+    if (!confirm(`确认删除「${h?.fund_name || code}」？`)) return
+    portfolio.deleteHolding(code)
     showToast('已删除', 'success')
-    loadPortfolio(true)
   }
 
-  // ---- Invest ----
-  const openInvest = (code: string) => {
-    const h = holdings.find((x) => x.fund_code === code)
-    if (!h) return
-    const existing = getInvestPlans().find(
-      (p) => p.fund_code === code && p.status === 'active',
-    )
-    if (existing) {
-      showToast('该基金已有定投计划，请先暂停或停止现有计划', 'error')
-      return
-    }
-    setInvestHolding(h)
-    setInvestOpen(true)
-  }
-
-  const handleInvestSubmit = (
-    fundCode: string,
-    amount: number,
-    frequency: InvestFrequency,
-    day: number,
-  ) => {
-    const h = holdings.find((x) => x.fund_code === fundCode)
-    const plan: InvestPlan = {
-      id: generateId(),
-      fund_code: fundCode,
-      fund_name: h?.fund_name || fundCode,
-      amount,
-      frequency,
-      day,
-      status: 'active',
-      created_at: new Date().toISOString(),
-      last_executed: '',
-      total_executed: 0,
-    }
-    const plans = getInvestPlans()
-    plans.push(plan)
-    saveInvestPlans(plans)
-    setInvestPlans([...plans])
-    showToast('定投计划已创建', 'success')
-    loadPortfolio(true)
-  }
-
-  const handlePauseInvest = (id: string) => {
-    const plans = getInvestPlans()
-    const p = plans.find((x) => x.id === id)
-    if (p) {
-      p.status = 'paused'
-      saveInvestPlans(plans)
-      setInvestPlans([...plans])
-    }
-    showToast('定投已暂停', 'success')
-    loadPortfolio(true)
-  }
-
-  const handleResumeInvest = (id: string) => {
-    const plans = getInvestPlans()
-    const p = plans.find((x) => x.id === id)
-    if (p) {
-      p.status = 'active'
-      saveInvestPlans(plans)
-      setInvestPlans([...plans])
-    }
-    showToast('定投已恢复', 'success')
-    loadPortfolio(true)
-  }
-
-  const handleStopInvest = (id: string) => {
-    const plans = getInvestPlans()
-    const p = plans.find((x) => x.id === id)
-    if (p) {
-      p.status = 'stopped'
-      saveInvestPlans(plans)
-      setInvestPlans([...plans])
-    }
-    showToast('定投已停止', 'success')
-    loadPortfolio(true)
-  }
-
-  // ---- All transactions ----
-  const allTransactions = getTransactions()
-
-  // ---- Render Page Content ----
-  const renderPageContent = () => {
+  // ---- Render ----
+  const renderPage = () => {
     switch (activeTab) {
       case 'portfolio':
         return (
           <PortfolioPage
-            holdings={holdings}
-            sortKey={sortKey}
-            sortDir={sortDir}
-            estimationCache={estimationCache}
-            investPlans={investPlans}
-            transactions={allTransactions}
-            onSort={handleSort}
-            onBuy={(code) => openTrade(code, 'buy')}
-            onSell={(code) => openTrade(code, 'sell')}
-            onInvest={openInvest}
+            holdings={portfolio.holdings}
+            sortKey={portfolio.sortKey}
+            sortDir={portfolio.sortDir}
+            estimationCache={portfolio.estimationCache}
+            investPlans={trade.investPlans}
+            transactions={trade.transactions}
+            onSort={portfolio.setSort}
+            onBuy={(code) => { const h = portfolio.holdings.find((x) => x.fund_code === code); if (h) trade.openTrade(h, 'buy') }}
+            onSell={(code) => { const h = portfolio.holdings.find((x) => x.fund_code === code); if (h) trade.openTrade(h, 'sell') }}
+            onInvest={(code) => {
+              const h = portfolio.holdings.find((x) => x.fund_code === code)
+              if (!h) return
+              if (trade.investPlans.some((p) => p.fund_code === code && p.status === 'active')) {
+                showToast('该基金已有定投计划', 'error'); return
+              }
+              trade.openInvest(h)
+            }}
             onDelete={handleDelete}
-            onPauseInvest={handlePauseInvest}
-            onResumeInvest={handleResumeInvest}
-            onStopInvest={handleStopInvest}
+            onPauseInvest={trade.pauseInvest}
+            onResumeInvest={trade.resumeInvest}
+            onStopInvest={trade.stopInvest}
           />
         )
       case 'briefing':
         return (
           <BriefingPage
-            briefing={briefing}
-            loading={briefingLoading}
-            error={briefingError}
-            pushEnabled={pushEnabled}
-            hasHoldings={holdings.length > 0}
-            onTogglePush={() => setPushEnabled(!pushEnabled)}
+            briefing={briefing.briefing}
+            loading={briefing.loading}
+            error={briefing.error}
+            pushEnabled={briefing.pushEnabled}
+            hasHoldings={portfolio.holdings.length > 0}
+            onTogglePush={briefing.togglePush}
             onGenerate={handleGenerateBriefing}
           />
         )
       case 'diagnosis':
         return <DiagnosisPage />
       case 'profile':
-        return (
-          <ProfilePage
-            showToast={showToast}
-          />
-        )
+        return <ProfilePage showToast={showToast} />
       default:
         return null
     }
@@ -464,78 +182,49 @@ export default function App() {
 
   return (
     <>
-      {/* Sticky Header with Tabs */}
       <Header activeTab={activeTab} onTabChange={setActiveTab} />
+      <main className="page-wrapper">{renderPage()}</main>
 
-      {/* Page Content - natural document flow */}
-      <main className="page-wrapper">
-        {renderPageContent()}
-      </main>
-
-      {/* Bottom Input - only show on portfolio page */}
       {activeTab === 'portfolio' && (
-        <BottomInputBar
-          disabled={inputDisabled}
-          onSendFile={handleSendFile}
-          onAddHoldings={handleAddHoldings}
-        />
+        <BottomInputBar disabled={inputDisabled} onSendFile={handleSendFile} onAddHoldings={handleAddHoldings} />
       )}
 
-      {/* Drawers */}
       <TradeDrawer
-        open={tradeOpen}
-        type={tradeType}
-        holding={tradeHolding}
-        onClose={() => setTradeOpen(false)}
-        onSubmit={handleTradeSubmit}
+        open={trade.tradeOpen} type={trade.tradeType} holding={trade.tradeHolding}
+        onClose={trade.closeTrade} onSubmit={handleTradeSubmit}
       />
-
       <InvestDrawer
-        open={investOpen}
-        holding={investHolding}
-        onClose={() => setInvestOpen(false)}
-        onSubmit={handleInvestSubmit}
-      />
-
-      <ConfirmDrawer
-        open={confirmOpen}
-        holdings={confirmHoldings}
-        source={confirmSource}
-        onClose={() => {
-          setConfirmOpen(false)
-          setConfirmHoldings([])
+        open={trade.investOpen} holding={trade.investHolding}
+        onClose={trade.closeInvest}
+        onSubmit={(code, amt, freq, day) => {
+          const h = portfolio.holdings.find((x) => x.fund_code === code)
+          trade.submitInvest(code, h?.fund_name || code, amt, freq, day)
+          showToast('定投计划已创建', 'success')
         }}
+      />
+      <ConfirmDrawer
+        open={confirmOpen} holdings={confirmHoldings} source={confirmSource}
+        onClose={() => { setConfirmOpen(false); setConfirmHoldings([]) }}
         onSave={handleConfirmSave}
       />
 
-      {/* Image Analyzing Loading */}
       {imageAnalyzing && (
         <div className="loading-overlay">
           <div className="loading-content">
             <div className="loading-spinner" />
             <div className="loading-text">
-              {imageProgress.total > 1
-                ? `正在分析图片 (${imageProgress.current}/${imageProgress.total})...`
-                : '正在分析图片...'}
+              {imageProgress.total > 1 ? `正在分析图片 (${imageProgress.current}/${imageProgress.total})...` : '正在分析图片...'}
             </div>
             {imageProgress.total > 1 && (
               <div className="loading-progress-bar">
-                <div
-                  className="loading-progress-fill"
-                  style={{ width: `${(imageProgress.current / imageProgress.total) * 100}%` }}
-                />
+                <div className="loading-progress-fill" style={{ width: `${(imageProgress.current / imageProgress.total) * 100}%` }} />
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Toast */}
-      <Toast
-        message={toast.message}
-        type={toast.type}
-        visible={toast.visible}
-      />
+      <Toast message={toast.message} type={toast.type} visible={toast.visible} />
     </>
   )
 }
