@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import type { Holding } from './types'
 import * as api from './api'
 import { usePortfolioStore } from './stores/portfolioStore'
@@ -7,7 +8,7 @@ import { useTradeStore } from './stores/tradeStore'
 import { useToast } from './hooks/useToast'
 import { formatPushResults } from './utils'
 
-import Header, { type TabKey } from './components/Header'
+import Header from './components/Header'
 import BottomInputBar from './components/BottomInputBar'
 import TradeDrawer from './components/TradeDrawer'
 import InvestDrawer from './components/InvestDrawer'
@@ -20,7 +21,7 @@ import DiagnosisPage from './pages/DiagnosisPage'
 import ProfilePage from './pages/ProfilePage'
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabKey>('portfolio')
+  const location = useLocation()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmHoldings, setConfirmHoldings] = useState<Holding[]>([])
   const [confirmSource, setConfirmSource] = useState<'screenshot' | 'text' | ''>('')
@@ -115,7 +116,6 @@ export default function App() {
       if (amount / nav > held) { showToast('赎回份额超过持有', 'error'); return }
     }
     const result = trade.submitTrade(fundCode, type, amount, nav, note)
-    // Update portfolio with recalculated shares
     const updated = portfolio.holdings.map((h) =>
       h.fund_code === fundCode ? { ...h, total_shares: result.total_shares, total_cost: result.total_cost, avg_nav: result.avg_nav } : h,
     )
@@ -130,62 +130,62 @@ export default function App() {
     showToast('已删除', 'success')
   }
 
-  // ---- Render ----
-  const renderPage = () => {
-    switch (activeTab) {
-      case 'portfolio':
-        return (
-          <PortfolioPage
-            holdings={portfolio.holdings}
-            sortKey={portfolio.sortKey}
-            sortDir={portfolio.sortDir}
-            estimationCache={portfolio.estimationCache}
-            investPlans={trade.investPlans}
-            transactions={trade.transactions}
-            onSort={portfolio.setSort}
-            onBuy={(code) => { const h = portfolio.holdings.find((x) => x.fund_code === code); if (h) trade.openTrade(h, 'buy') }}
-            onSell={(code) => { const h = portfolio.holdings.find((x) => x.fund_code === code); if (h) trade.openTrade(h, 'sell') }}
-            onInvest={(code) => {
-              const h = portfolio.holdings.find((x) => x.fund_code === code)
-              if (!h) return
-              if (trade.investPlans.some((p) => p.fund_code === code && p.status === 'active')) {
-                showToast('该基金已有定投计划', 'error'); return
-              }
-              trade.openInvest(h)
-            }}
-            onDelete={handleDelete}
-            onPauseInvest={trade.pauseInvest}
-            onResumeInvest={trade.resumeInvest}
-            onStopInvest={trade.stopInvest}
-          />
-        )
-      case 'briefing':
-        return (
-          <BriefingPage
-            briefing={briefing.briefing}
-            loading={briefing.loading}
-            error={briefing.error}
-            pushEnabled={briefing.pushEnabled}
-            hasHoldings={portfolio.holdings.length > 0}
-            onTogglePush={briefing.togglePush}
-            onGenerate={handleGenerateBriefing}
-          />
-        )
-      case 'diagnosis':
-        return <DiagnosisPage />
-      case 'profile':
-        return <ProfilePage showToast={showToast} />
-      default:
-        return null
-    }
-  }
+  const isPortfolioPage = location.pathname === '/' || location.pathname === ''
 
+  // ---- Render ----
   return (
     <>
-      <Header activeTab={activeTab} onTabChange={setActiveTab} />
-      <main className="page-wrapper">{renderPage()}</main>
+      <Header />
+      <main className="page-wrapper">
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <PortfolioPage
+                holdings={portfolio.holdings}
+                sortKey={portfolio.sortKey}
+                sortDir={portfolio.sortDir}
+                estimationCache={portfolio.estimationCache}
+                investPlans={trade.investPlans}
+                transactions={trade.transactions}
+                onSort={portfolio.setSort}
+                onBuy={(code) => { const h = portfolio.holdings.find((x) => x.fund_code === code); if (h) trade.openTrade(h, 'buy') }}
+                onSell={(code) => { const h = portfolio.holdings.find((x) => x.fund_code === code); if (h) trade.openTrade(h, 'sell') }}
+                onInvest={(code) => {
+                  const h = portfolio.holdings.find((x) => x.fund_code === code)
+                  if (!h) return
+                  if (trade.investPlans.some((p) => p.fund_code === code && p.status === 'active')) {
+                    showToast('该基金已有定投计划', 'error'); return
+                  }
+                  trade.openInvest(h)
+                }}
+                onDelete={handleDelete}
+                onPauseInvest={trade.pauseInvest}
+                onResumeInvest={trade.resumeInvest}
+                onStopInvest={trade.stopInvest}
+              />
+            }
+          />
+          <Route
+            path="/briefing"
+            element={
+              <BriefingPage
+                briefing={briefing.briefing}
+                loading={briefing.loading}
+                error={briefing.error}
+                pushEnabled={briefing.pushEnabled}
+                hasHoldings={portfolio.holdings.length > 0}
+                onTogglePush={briefing.togglePush}
+                onGenerate={handleGenerateBriefing}
+              />
+            }
+          />
+          <Route path="/diagnosis" element={<DiagnosisPage />} />
+          <Route path="/profile" element={<ProfilePage showToast={showToast} />} />
+        </Routes>
+      </main>
 
-      {activeTab === 'portfolio' && (
+      {isPortfolioPage && (
         <BottomInputBar disabled={inputDisabled} onSendFile={handleSendFile} onAddHoldings={handleAddHoldings} />
       )}
 
