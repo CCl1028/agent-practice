@@ -5,6 +5,11 @@ import { resolve } from 'path'
 export default defineConfig({
   plugins: [react()],
   root: '.',
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/__tests__/setup.ts',
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
