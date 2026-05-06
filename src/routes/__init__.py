@@ -11,10 +11,12 @@ from src.routes.diagnosis import router as diagnosis_router
 from src.routes.push import router as push_router
 from src.routes.config import router as config_router
 from src.routes.system import router as system_router
+from src.routes.user import router as user_router
 
 
 def register_routes(app: FastAPI) -> None:
     """将所有路由注册到 app。"""
+    app.include_router(user_router)
     app.include_router(briefing_router)
     app.include_router(portfolio_router)
     app.include_router(estimation_router)

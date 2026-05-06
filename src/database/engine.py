@@ -36,12 +36,17 @@ _SessionFactory = None
 def _get_engine():
     global _engine
     if _engine is None:
-        DB_DIR.mkdir(parents=True, exist_ok=True)
-        _engine = create_engine(
-            f"sqlite:///{DB_PATH}",
-            echo=False,
-            connect_args={"check_same_thread": False},  # SQLite 多线程支持
-        )
+        import os
+        db_url = os.getenv("DATABASE_URL")
+        if db_url:
+            _engine = create_engine(db_url, echo=False, connect_args={"check_same_thread": False})
+        else:
+            DB_DIR.mkdir(parents=True, exist_ok=True)
+            _engine = create_engine(
+                f"sqlite:///{DB_PATH}",
+                echo=False,
+                connect_args={"check_same_thread": False},
+            )
     return _engine
 
 
@@ -72,3 +77,12 @@ def get_session():
         raise
     finally:
         session.close()
+
+
+def reset_engine() -> None:
+    """重置 engine（测试用，切换 DATABASE_URL 后需调用）。"""
+    global _engine, _SessionFactory
+    if _engine:
+        _engine.dispose()
+    _engine = None
+    _SessionFactory = None

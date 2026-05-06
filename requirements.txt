@@ -20,3 +20,7 @@ efinance>=0.5.5                  # 东方财富数据（第二渠道，可选）
 
 # v3 新增：数据层
 sqlalchemy>=2.0.0                # ORM + 数据库抽象
+
+# v3 新增：用户认证
+pyjwt>=2.0                       # JWT token 签发/验证
+bcrypt>=4.0                      # 密码哈希

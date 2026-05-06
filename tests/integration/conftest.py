@@ -42,11 +42,12 @@ def client(test_app):
 
 @pytest.fixture
 def tmp_portfolio(tmp_path):
-    """临时持仓文件，测试结束自动清理"""
+    """临时持仓文件，测试结束自动清理。同时禁用 SQLite 读取。"""
     portfolio_file = tmp_path / "portfolio.json"
     portfolio_file.write_text("[]", encoding="utf-8")
     with patch("src.tools.portfolio_tools.DB_PATH", portfolio_file):
-        yield portfolio_file
+        with patch("src.database.repositories.PortfolioRepository.list_all", return_value=[]):
+            yield portfolio_file
 
 
 @pytest.fixture
@@ -69,7 +70,8 @@ def sample_portfolio(tmp_path):
     ]
     portfolio_file.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     with patch("src.tools.portfolio_tools.DB_PATH", portfolio_file):
-        yield portfolio_file
+        with patch("src.database.repositories.PortfolioRepository.list_all", return_value=[]):
+            yield portfolio_file
 
 
 @pytest.fixture(autouse=True)
