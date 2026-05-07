@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import type { Holding } from './types'
 import * as api from './api'
 import { usePortfolioStore } from './stores/portfolioStore'
 import { useBriefingStore } from './stores/briefingStore'
 import { useTradeStore } from './stores/tradeStore'
+import { useUserStore } from './stores/userStore'
 import { useToast } from './hooks/useToast'
 import { formatPushResults } from './utils'
 
@@ -15,6 +16,7 @@ import InvestDrawer from './components/InvestDrawer'
 import ConfirmDrawer from './components/ConfirmDrawer'
 import Toast from './components/Toast'
 
+import LoginPage from './pages/LoginPage'
 import PortfolioPage from './pages/PortfolioPage'
 import BriefingPage from './pages/BriefingPage'
 import DiagnosisPage from './pages/DiagnosisPage'
@@ -22,12 +24,21 @@ import ProfilePage from './pages/ProfilePage'
 
 export default function App() {
   const location = useLocation()
+  const { token, restoreSession } = useUserStore()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmHoldings, setConfirmHoldings] = useState<Holding[]>([])
   const [confirmSource, setConfirmSource] = useState<'screenshot' | 'text' | ''>('')
   const [imageAnalyzing, setImageAnalyzing] = useState(false)
   const [imageProgress, setImageProgress] = useState({ current: 0, total: 0 })
   const [inputDisabled, setInputDisabled] = useState(false)
+
+  // 恢复登录状态
+  useEffect(() => { restoreSession() }, [])
+
+  // 未登录 + 不在登录页 → 跳转登录
+  if (!token && location.pathname !== '/login') {
+    return <Navigate to="/login" replace />
+  }
 
   const { toast, showToast } = useToast()
 
@@ -131,6 +142,16 @@ export default function App() {
   }
 
   const isPortfolioPage = location.pathname === '/' || location.pathname === ''
+  const isLoginPage = location.pathname === '/login'
+
+  // 登录页：不显示 Header 和其他 UI
+  if (isLoginPage) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+      </Routes>
+    )
+  }
 
   // ---- Render ----
   return (

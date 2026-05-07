@@ -16,6 +16,7 @@ import './styles/pages/portfolio.css'
 import './styles/pages/briefing.css'
 import './styles/pages/diagnosis.css'
 import './styles/pages/profile.css'
+import './styles/pages/login.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

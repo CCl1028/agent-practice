@@ -11,6 +11,7 @@ import {
   FlaskConical,
   FileText,
   RefreshCw,
+  LogOut,
 } from 'lucide-react'
 import {
   getLocalPortfolio,
@@ -20,6 +21,7 @@ import {
 } from '../store'
 import * as api from '../api'
 import type { ConfigEntry } from '../api'
+import { useUserStore } from '../stores/userStore'
 
 interface ProfilePageProps {
   showToast: (msg: string, type: 'success' | 'error') => void
@@ -278,7 +280,7 @@ export default function ProfilePage({ showToast }: ProfilePageProps) {
           <User size={32} />
         </div>
         <div className="user-info">
-          <div className="user-name">FundPal 用户</div>
+          <div className="user-name">{useUserStore.getState().user?.nickname || 'FundPal 用户'}</div>
           <div className="user-stats">
             {portfolioCount} 只持仓 · {txCount} 条交易记录
           </div>
@@ -411,6 +413,15 @@ export default function ProfilePage({ showToast }: ProfilePageProps) {
           </div>
         )}
       </div>
+
+      {/* Logout */}
+      <button className="action-btn danger" style={{ width: '100%', marginBottom: 16 }} onClick={() => {
+        useUserStore.getState().logout()
+        window.location.href = '/login'
+      }}>
+        <LogOut size={16} />
+        退出登录
+      </button>
 
       {/* Version */}
       <div className="version-info">

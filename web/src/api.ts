@@ -39,6 +39,34 @@ function authHeaders(extra?: Record<string, string>): Record<string, string> {
   return headers
 }
 
+// ---- User Auth ----
+
+export async function register(username: string, password: string, nickname?: string): Promise<{ ok: boolean; user: { user_id: number; username: string; nickname: string } }> {
+  const res = await fetch(API + '/api/user/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password, nickname: nickname || '' }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.detail || '注册失败')
+  }
+  return res.json()
+}
+
+export async function login(username: string, password: string): Promise<{ token: string; user: { user_id: number; username: string; nickname: string } }> {
+  const res = await fetch(API + '/api/user/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.detail || '用户名或密码错误')
+  }
+  return res.json()
+}
+
 // ---- Briefing ----
 
 export async function fetchBriefing(
