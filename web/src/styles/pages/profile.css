@@ -7,7 +7,10 @@
 .user-stats { font-size: 13px; color: var(--text-secondary); }
 .config-section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
 .section-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; transition: background 0.2s; }
-.section-header:hover { background: var(--bg); }
+@media (hover: hover) {
+  .section-header:hover { background: var(--bg); }
+}
+.section-header.active { background: var(--card-hover); }
 .section-title { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; color: var(--text); }
 .section-title svg { color: var(--accent); }
 .chevron { color: var(--text-secondary); transition: transform 0.2s; }

@@ -289,7 +289,7 @@ export default function ProfilePage({ showToast }: ProfilePageProps) {
 
       {/* AI Config */}
       <div className="config-section">
-        <div className="section-header" onClick={() => setShowAIConfig(!showAIConfig)}>
+        <div className={`section-header${showAIConfig ? ' active' : ''}`} onClick={() => setShowAIConfig(!showAIConfig)}>
           <div className="section-title">
             <Key size={18} />
             <span>AI 配置</span>
@@ -306,7 +306,7 @@ export default function ProfilePage({ showToast }: ProfilePageProps) {
 
       {/* Push Config */}
       <div className="config-section">
-        <div className="section-header" onClick={() => setShowPushConfig(!showPushConfig)}>
+        <div className={`section-header${showPushConfig ? ' active' : ''}`} onClick={() => setShowPushConfig(!showPushConfig)}>
           <div className="section-title">
             <Bell size={18} />
             <span>推送配置</span>
@@ -356,7 +356,7 @@ export default function ProfilePage({ showToast }: ProfilePageProps) {
 
       {/* Logs */}
       <div className="config-section">
-        <div className="section-header" onClick={toggleLogs}>
+        <div className={`section-header${showLogs ? ' active' : ''}`} onClick={toggleLogs}>
           <div className="section-title">
             <FileText size={18} />
             <span>错误日志</span>

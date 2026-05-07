@@ -5,6 +5,8 @@ import { formatFrequency } from '../utils'
 
 interface FundCardProps {
   holding: Holding
+  selected: boolean
+  onSelect: (code: string) => void
   estimation?: FundEstimation
   transactions: Transaction[]
   investPlan?: InvestPlan
@@ -16,6 +18,8 @@ interface FundCardProps {
 
 export default function FundCard({
   holding: h,
+  selected,
+  onSelect,
   estimation,
   transactions,
   investPlan,
@@ -24,7 +28,6 @@ export default function FundCard({
   onInvest,
   onDelete,
 }: FundCardProps) {
-  const [selected, setSelected] = useState(false)
   const [txExpanded, setTxExpanded] = useState(false)
   const [txShowAll, setTxShowAll] = useState(false)
 
@@ -36,10 +39,12 @@ export default function FundCard({
   const profit = mv - cost
   const profitSign = profit >= 0 ? '+' : ''
   const ratioSign = ratio >= 0 ? '+' : ''
+  // 优先用 ratio 判断涨跌颜色，ratio 为 0 时再用 profit 判断
+  const changeValue = ratio !== 0 ? ratio : profit
   const profitColor =
-    profit > 0
+    changeValue > 0
       ? 'var(--red)'
-      : profit < 0
+      : changeValue < 0
         ? 'var(--green)'
         : 'var(--text-secondary)'
   const hasProfit = ratio || (profit && cost)
@@ -117,7 +122,7 @@ export default function FundCard({
   return (
     <div
       className={`fund-card${selected ? ' selected' : ''}`}
-      onClick={() => setSelected(!selected)}
+      onClick={() => onSelect(h.fund_code)}
     >
       <div className="fund-card-left">
         <div className="fund-header">

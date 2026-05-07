@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { Holding, FundEstimation, SortKey, SortDir, InvestPlan, Transaction } from '../types'
 import SortBar from '../components/SortBar'
 import FundCard from '../components/FundCard'
@@ -36,6 +37,8 @@ export default function PortfolioPage({
   onResumeInvest,
   onStopInvest,
 }: PortfolioPageProps) {
+  const [selectedCode, setSelectedCode] = useState<string | null>(null)
+
   // 排序逻辑
   const sortedHoldings = (() => {
     if (!holdings.length) return holdings
@@ -120,6 +123,8 @@ export default function PortfolioPage({
         <FundCard
           key={h.fund_code}
           holding={h}
+          selected={selectedCode === h.fund_code}
+          onSelect={(code) => setSelectedCode(selectedCode === code ? null : code)}
           estimation={estimationCache[h.fund_code]}
           transactions={transactions.filter((t) => t.fund_code === h.fund_code)}
           investPlan={investPlans.find(
