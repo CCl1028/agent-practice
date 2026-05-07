@@ -18,45 +18,45 @@ logger = logging.getLogger(__name__)
 DB_PATH = Path("data/portfolio.json")
 
 
-def load_portfolio() -> list[FundHolding]:
+def load_portfolio(user_id: int = 0) -> list[FundHolding]:
     """加载持仓 — 优先从 SQLite，fallback 到 JSON 文件。"""
     try:
         from src.database.repositories import PortfolioRepository
         repo = PortfolioRepository()
-        holdings = repo.list_all()
+        holdings = repo.list_all(user_id=user_id)
         if holdings:
             return holdings
     except Exception as e:
         logger.warning("[持仓加载] SQLite 读取失败: %s，尝试 JSON fallback", e)
 
-    # Fallback: 旧的 JSON 文件
-    if DB_PATH.exists():
+    # Fallback: 旧的 JSON 文件（仅 user_id=0 时）
+    if user_id == 0 and DB_PATH.exists():
         try:
             data = json.loads(DB_PATH.read_text(encoding="utf-8"))
             return data
         except Exception as e:
             logger.warning("读取 JSON 持仓失败: %s，使用 mock", e)
 
-    return _mock_portfolio()
+    return _mock_portfolio() if user_id == 0 else []
 
 
-def save_portfolio(portfolio: list[FundHolding]) -> None:
+def save_portfolio(portfolio: list[FundHolding], user_id: int = 0) -> None:
     """保存持仓 — 写入 SQLite + 同步写 JSON（过渡期双写）。"""
     try:
         from src.database.repositories import PortfolioRepository
         repo = PortfolioRepository()
-        # 先清空再批量写入（保证与传入列表一致）
-        repo.delete_all()
-        repo.upsert_many(portfolio)
+        repo.delete_all(user_id=user_id)
+        repo.upsert_many(portfolio, user_id=user_id)
     except Exception as e:
         logger.warning("[持仓保存] SQLite 写入失败: %s，回退到 JSON", e)
 
-    # 过渡期：同时写 JSON 文件（前端可能还在读）
-    try:
-        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-        DB_PATH.write_text(json.dumps(portfolio, ensure_ascii=False, indent=2), encoding="utf-8")
-    except Exception as e:
-        logger.warning("[持仓保存] JSON 写入失败: %s", e)
+    # 过渡期：同时写 JSON 文件（仅 user_id=0）
+    if user_id == 0:
+        try:
+            DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+            DB_PATH.write_text(json.dumps(portfolio, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.warning("[持仓保存] JSON 写入失败: %s", e)
 
 
 def compute_metrics(portfolio: list[FundHolding]) -> list[FundHolding]:

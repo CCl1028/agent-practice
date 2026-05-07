@@ -1,4 +1,9 @@
-"""持仓路由 — /api/portfolio/*"""
+"""持仓路由 — /api/portfolio/*
+
+用户数据隔离：
+- 已登录用户：通过 JWT 获取 user_id，只能操作自己的持仓
+- 未登录用户：user_id=0，使用默认/共享数据（兼容旧行为）
+"""
 
 from __future__ import annotations
 
@@ -7,11 +12,13 @@ import logging
 import tempfile
 from functools import partial
 from pathlib import Path
+from typing import Optional
 
 from fastapi import APIRouter, Depends, File, UploadFile
 
 from src.core.auth import verify_token
 from src.core.rate_limit import rate_limit_dependency, strict_rate_limit_dependency
+from src.core.user_auth import get_optional_user
 from src.core.exceptions import BriefingTimeoutError, FundPalError
 from src.models.schemas import AddResult, HoldingsInput, ParseResult, PortfolioResponse, TextInput
 from src.tools.nlp_input import parse_natural_language
@@ -23,23 +30,30 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _get_user_id(user: Optional[dict]) -> int:
+    """从可选用户信息提取 user_id，未登录返回 0。"""
+    return user["user_id"] if user else 0
+
+
 @router.get("/api/portfolio", response_model=PortfolioResponse)
-async def get_portfolio():
-    """获取当前持仓"""
-    holdings = load_portfolio()
+async def get_portfolio(user: Optional[dict] = Depends(get_optional_user)):
+    """获取当前用户的持仓"""
+    uid = _get_user_id(user)
+    holdings = load_portfolio(user_id=uid)
     return PortfolioResponse(holdings=holdings, count=len(holdings))
 
 
 @router.post("/api/portfolio/add-text", response_model=AddResult, dependencies=[Depends(verify_token), Depends(rate_limit_dependency)])
-async def add_from_text(input: TextInput):
+async def add_from_text(input: TextInput, user: Optional[dict] = Depends(get_optional_user)):
     """自然语言录入持仓"""
+    uid = _get_user_id(user)
     try:
         new_holdings = parse_natural_language(input.text)
         if not new_holdings:
             return AddResult(added=[], total=0)
-        existing = load_portfolio()
+        existing = load_portfolio(user_id=uid)
         merged = merge_holdings(existing, new_holdings)
-        save_portfolio(merged)
+        save_portfolio(merged, user_id=uid)
         return AddResult(added=new_holdings, total=len(merged))
     except Exception as e:
         logger.error("add-text 失败: %s", e)
@@ -62,8 +76,9 @@ async def parse_text(input: TextInput):
 
 
 @router.post("/api/portfolio/add-screenshot", response_model=AddResult, dependencies=[Depends(verify_token), Depends(rate_limit_dependency)])
-async def add_from_screenshot(file: UploadFile = File(...)):
+async def add_from_screenshot(file: UploadFile = File(...), user: Optional[dict] = Depends(get_optional_user)):
     """截图识别录入持仓"""
+    uid = _get_user_id(user)
     try:
         from src.tools.ocr_tools import process_screenshot
 
@@ -78,9 +93,9 @@ async def add_from_screenshot(file: UploadFile = File(...)):
 
         if not new_holdings:
             return AddResult(added=[], total=0)
-        existing = load_portfolio()
+        existing = load_portfolio(user_id=uid)
         merged = merge_holdings(existing, new_holdings)
-        save_portfolio(merged)
+        save_portfolio(merged, user_id=uid)
         return AddResult(added=new_holdings, total=len(merged))
     except Exception as e:
         logger.error("add-screenshot 失败: %s", e, exc_info=True)
@@ -119,11 +134,12 @@ async def parse_screenshot(
 
 
 @router.delete("/api/portfolio/{fund_code}", dependencies=[Depends(verify_token)])
-async def delete_holding(fund_code: str):
+async def delete_holding(fund_code: str, user: Optional[dict] = Depends(get_optional_user)):
     """删除一只持仓"""
-    existing = load_portfolio()
+    uid = _get_user_id(user)
+    existing = load_portfolio(user_id=uid)
     filtered = [f for f in existing if f.get("fund_code") != fund_code]
-    save_portfolio(filtered)
+    save_portfolio(filtered, user_id=uid)
     return {"deleted": fund_code, "remaining": len(filtered)}
 
 
