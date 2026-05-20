@@ -125,17 +125,4 @@ def _get_last_close_change(fund_code: str) -> dict | None:
     except Exception as e:
         logger.warning("AKShare 获取基金 %s 收盘净值失败: %s", fund_code, e)
 
-    return _mock_last_close(fund_code)
-
-
-def _mock_last_close(fund_code: str) -> dict | None:
-    """Mock 上一交易日收盘涨跌。"""
-    mock_db = {
-        "005827": {"current_nav": 2.03, "trend_5d": [-0.3, 0.5, -0.8, 0.2, -1.1]},
-        "161725": {"current_nav": 1.85, "trend_5d": [1.2, 0.8, 1.5, -0.3, 0.9]},
-        "110011": {"current_nav": 4.52, "trend_5d": [-0.5, -0.2, 0.3, -0.8, -0.4]},
-    }
-    data = mock_db.get(fund_code)
-    if data and data["trend_5d"]:
-        return {"est_nav": data["current_nav"], "est_change": data["trend_5d"][-1], "est_time": "最近收盘", "is_live": False}
-    return {"est_nav": 0, "est_change": 0.0, "est_time": "暂无数据", "is_live": False}
+    return None

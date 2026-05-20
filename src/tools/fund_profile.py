@@ -41,7 +41,7 @@ def get_fund_profile(fund_code_or_name: str) -> dict | None:
             size_billion = 50.0
 
         volatility = _parse_percentage(row.get("波动率", "10%")) or 10.0
-        sectors = _get_mock_sectors(fund_code)
+        sectors = _get_fund_sectors(fund_code)
         manager = row.get("基金经理", "未知")
 
         result = {
@@ -61,8 +61,8 @@ def get_fund_profile(fund_code_or_name: str) -> dict | None:
         return result
 
     except Exception as e:
-        logger.warning("[基金诊断] 获取基金 %s 信息失败: %s，使用 mock", fund_code, e)
-        return _mock_fund_profile(fund_code)
+        logger.warning("[基金诊断] 获取基金 %s 信息失败: %s", fund_code, e)
+        return None
 
 
 def get_fund_perf_analysis(fund_code_or_name: str) -> dict | None:
@@ -73,13 +73,13 @@ def get_fund_perf_analysis(fund_code_or_name: str) -> dict | None:
 
     if not fund_code or len(fund_code) != 6:
         logger.warning("[涨跌分析] 无法解析基金代码: %s", fund_code_or_name)
-        return _mock_perf_analysis(fund_code_or_name)
+        return None
 
     try:
         nav_data = get_fund_nav(fund_code)
         today_change = nav_data.get("trend_5d", [0])[-1] if nav_data.get("trend_5d") else 0
 
-        sectors = _get_mock_sectors(fund_code)
+        sectors = _get_fund_sectors(fund_code)
         sector_perf = get_sector_performance()
         sector_change = sum(s["change"] for s in sector_perf if s["name"] in sectors) / len(sectors) if sectors else 0
 
@@ -102,7 +102,7 @@ def get_fund_perf_analysis(fund_code_or_name: str) -> dict | None:
 
     except Exception as e:
         logger.warning("[涨跌分析] 获取基金 %s 今日数据失败: %s", fund_code, e)
-        return _mock_perf_analysis(fund_code)
+        return None
 
 
 # ---- 辅助函数 ----
@@ -132,30 +132,7 @@ def _judge_sentiment(sectors: list[dict]) -> str:
     return "中性震荡"
 
 
-def _get_mock_sectors(fund_code: str) -> list[str]:
-    mock_sectors = {
-        "005827": ["消费", "制造业", "医药"],
-        "161725": ["电子", "计算机", "通讯"],
-        "110011": ["银行", "地产", "汽车"],
-    }
-    return mock_sectors.get(fund_code, ["消费", "科技", "医药"])
-
-
-def _mock_fund_profile(fund_code: str) -> dict:
-    return {
-        "code": fund_code,
-        "name": get_fund_name_by_code(fund_code) or "示例基金",
-        "perf_1y": 15.2, "perf_3y": 25.5, "max_drawdown": -12.3,
-        "volatility": 9.5, "size_billion": 85.5,
-        "sectors": ["消费", "制造业", "医药"],
-        "manager": "示例经理", "manager_perf": "良好",
-    }
-
-
-def _mock_perf_analysis(fund_code: str) -> dict:
-    return {
-        "code": fund_code,
-        "name": get_fund_name_by_code(fund_code) or "示例基金",
-        "today_change": 1.23, "sectors": ["消费", "制造业"],
-        "sector_change": 0.85, "market_change": 0.52, "market_sentiment": "偏乐观",
-    }
+def _get_fund_sectors(fund_code: str) -> list[str]:
+    """获取基金重仓板块（暂返回空列表，后续接入真实数据）。"""
+    # TODO: 接入真实的基金持仓板块数据
+    return []

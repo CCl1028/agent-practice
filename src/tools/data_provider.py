@@ -4,7 +4,7 @@
 - 多数据源按优先级排序
 - 熔断器：连续失败 N 次后自动冷却，避免反复请求不可用的数据源
 - 自动故障切换：当前数据源失败时自动尝试下一个
-- 所有数据源都失败时降级为 Mock 数据
+- 所有数据源都失败时返回空数据
 """
 
 from __future__ import annotations
@@ -283,10 +283,8 @@ def get_fund_nav_multi_source(fund_code: str) -> dict:
             logger.warning("[%s] 获取 %s 净值失败: %s", fetcher.name, fund_code, e)
             _nav_breaker.record_failure(fetcher.name)
 
-    logger.error("[数据源] 所有数据源获取 %s 净值失败，使用 mock", fund_code)
-    from src.tools.market_tools import _mock_fund_nav
-
-    return _mock_fund_nav(fund_code)
+    logger.error("[数据源] 所有数据源获取 %s 净值失败", fund_code)
+    return {"current_nav": 0, "date": "", "trend_5d": [], "nav_history": []}
 
 
 def get_fund_estimation_multi_source(fund_code: str) -> dict | None:

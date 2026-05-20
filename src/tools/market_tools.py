@@ -16,7 +16,6 @@ from src.tools.fund_name import (  # noqa: F401
 from src.tools.fund_nav import (  # noqa: F401
     get_fund_nav,
     get_fund_nav_history,
-    _mock_fund_nav,
 )
 
 # 基金估值
@@ -33,10 +32,9 @@ from src.tools.fund_profile import (  # noqa: F401
     get_fund_perf_analysis,
 )
 
-# 板块 & 新闻
+# 板块
 from src.tools.sector import (  # noqa: F401
     get_sector_performance,
-    get_market_news,
 )
 
 # 公共工具

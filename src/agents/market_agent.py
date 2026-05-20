@@ -1,9 +1,9 @@
 """Market Agent — 市场观察员
 
 v2: 参考 daily_stock_analysis 增强：
-- 接入真实新闻搜索（Tavily/SerpAPI），替代 Mock
+- 接入真实新闻搜索（Tavily/SerpAPI）
 - 为每只持仓基金搜索专属新闻（最新消息/风险/业绩）
-- 无搜索 Key 时优雅降级为 Mock 新闻
+- 无搜索 Key 时返回空新闻列表
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 
 from src.state import AgentState, MarketData
-from src.tools.market_tools import get_market_news, get_sector_performance
+from src.tools.market_tools import get_sector_performance
 
 logger = logging.getLogger(__name__)
 
@@ -68,10 +68,9 @@ def market_node(state: AgentState) -> dict:
         except Exception as e:
             logger.warning("[Market Agent] 新闻搜索出错: %s", e)
 
-        # 兜底：如果没有获取到真实新闻，使用 mock
+        # 没有真实新闻时保持空列表，不使用 mock 数据
         if not hot_news:
-            hot_news = get_market_news()
-            logger.info("[Market Agent] 使用 mock 新闻（未配置搜索 Key 或搜索失败）")
+            logger.info("[Market Agent] 未获取到真实新闻（未配置搜索 Key 或搜索失败）")
 
         market: MarketData = {
             "sectors": sectors,

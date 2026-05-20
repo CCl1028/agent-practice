@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 
 def get_fund_nav(fund_code: str) -> dict:
-    """获取基金最新净值，优先 AKShare，失败则 mock。"""
+    """获取基金最新净值，失败时返回空数据结构。"""
     try:
         import akshare as ak
         df = ak.fund_open_fund_info_em(symbol=fund_code, indicator="单位净值走势")
@@ -27,9 +26,9 @@ def get_fund_nav(fund_code: str) -> dict:
                 "trend_5d": trend_5d[-5:],
             }
     except Exception as e:
-        logger.warning("AKShare 获取基金 %s 净值失败: %s，使用 mock 数据", fund_code, e)
+        logger.warning("AKShare 获取基金 %s 净值失败: %s", fund_code, e)
 
-    return _mock_fund_nav(fund_code)
+    return {"current_nav": 0, "date": "", "trend_5d": []}
 
 
 def get_fund_nav_history(fund_code: str, start: str = "", end: str = "") -> list[dict]:
@@ -51,15 +50,3 @@ def get_fund_nav_history(fund_code: str, start: str = "", end: str = "") -> list
     except Exception as e:
         logger.warning("AKShare 获取基金 %s 历史净值失败: %s", fund_code, e)
     return []
-
-
-def _mock_fund_nav(fund_code: str) -> dict:
-    """Mock 基金净值数据"""
-    mock_db = {
-        "005827": {"current_nav": 2.03, "trend_5d": [-0.3, 0.5, -0.8, 0.2, -1.1]},
-        "161725": {"current_nav": 1.85, "trend_5d": [1.2, 0.8, 1.5, -0.3, 0.9]},
-        "110011": {"current_nav": 4.52, "trend_5d": [-0.5, -0.2, 0.3, -0.8, -0.4]},
-    }
-    data = mock_db.get(fund_code, {"current_nav": 1.50, "trend_5d": [0.1, -0.2, 0.3, -0.1, 0.2]})
-    data["date"] = datetime.now().strftime("%Y-%m-%d")
-    return data

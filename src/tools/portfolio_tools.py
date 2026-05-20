@@ -35,9 +35,9 @@ def load_portfolio(user_id: int = 0) -> list[FundHolding]:
             data = json.loads(DB_PATH.read_text(encoding="utf-8"))
             return data
         except Exception as e:
-            logger.warning("读取 JSON 持仓失败: %s，使用 mock", e)
+            logger.warning("读取 JSON 持仓失败: %s", e)
 
-    return _mock_portfolio() if user_id == 0 else []
+    return []
 
 
 def save_portfolio(portfolio: list[FundHolding], user_id: int = 0) -> None:
@@ -159,43 +159,4 @@ def _compute_technical_indicators(fund: dict, nav_history: list[float]) -> dict:
     return fund
 
 
-def _mock_portfolio() -> list[FundHolding]:
-    """Mock 持仓数据 — 开发测试用"""
-    return [
-        {
-            "fund_code": "005827",
-            "fund_name": "易方达蓝筹精选",
-            "cost": 20000,
-            "cost_nav": 2.15,
-            "current_nav": 0,  # 待刷新
-            "profit_ratio": 0,  # 待计算
-            "profit_amount": 0,
-            "shares": 9302.33,
-            "hold_days": 280,
-            "trend_5d": [],
-        },
-        {
-            "fund_code": "161725",
-            "fund_name": "招商中证白酒",
-            "cost": 15000,
-            "cost_nav": 1.60,
-            "current_nav": 0,
-            "profit_ratio": 0,
-            "profit_amount": 0,
-            "shares": 9375.0,
-            "hold_days": 180,
-            "trend_5d": [],
-        },
-        {
-            "fund_code": "110011",
-            "fund_name": "易方达中小盘",
-            "cost": 10000,
-            "cost_nav": 4.80,
-            "current_nav": 0,
-            "profit_ratio": 0,
-            "profit_amount": 0,
-            "shares": 2083.33,
-            "hold_days": 365,
-            "trend_5d": [],
-        },
-    ]
+
